@@ -1094,7 +1094,7 @@ async function renderSalary() {
 function filterSalary() {
   const year=document.getElementById('sr-year')?.value||'',client=document.getElementById('sr-client')?.value||'',q=(document.getElementById('sr-search')?.value||'').toLowerCase();
   const rates=(window._salRates||[]).filter(r=>{if(year&&String(r.EffectiveYear)!==year)return false;if(client&&r.Client?.Title!==client)return false;if(q&&!(r.Rank?.Title||'').toLowerCase().includes(q))return false;return true;});
-  const rows=rates.length?rates.map(r=>`<tr>
+  const rows=rates.length?rates.map(r=>`<tr class="vac-row" style="cursor:pointer" onclick="openSalaryModal(${r.Id})">
     <td>${r.EffectiveYear||'—'}</td>
     <td>${h(r.Client?.Title||'—')}</td>
     <td>${h(r.Rank?.Title||'—')}</td>
@@ -1102,7 +1102,7 @@ function filterSalary() {
     <td>${h(r.SeniorityLevel||'—')}</td>
     <td>${h(r.CBACode||'—')}</td>
     <td>${r.IsNegotiatedRate?'<span class="badge bg-warning text-dark" style="font-size:.68rem">Negotiated</span>':''}</td>
-    <td class="text-end text-nowrap pe-2">
+    <td class="text-end text-nowrap pe-2" onclick="event.stopPropagation()">
       <button class="btn btn-xs btn-outline-primary me-1" style="padding:1px 7px;font-size:.75rem" onclick="openSalaryModal(${r.Id})"><i class="bi bi-pencil"></i></button>
       <button class="btn btn-xs btn-outline-danger" style="padding:1px 7px;font-size:.75rem" onclick="deleteSalaryRate(${r.Id})"><i class="bi bi-trash"></i></button>
     </td>
