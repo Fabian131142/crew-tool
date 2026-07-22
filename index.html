@@ -207,6 +207,59 @@
   </div>
 </div>
 
+<!-- Salary CSV Import -->
+<div class="modal fade" id="modalSalaryImport" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header card-hd">
+        <h6 class="modal-title text-white mb-0"><i class="bi bi-upload me-2"></i>Import Salary Rates from CSV</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Step 1: upload / paste -->
+        <div id="imp-step1">
+          <p class="text-muted mb-2" style="font-size:.85rem">Export your wage scale from Excel as <strong>CSV</strong>, then upload it here. Required columns: <code>Year, Client, Rank, Min, Max, Currency</code>. Optional: <code>Seniority, CBA, Negotiated</code>.</p>
+          <div class="mb-3 d-flex gap-2 align-items-center flex-wrap">
+            <label class="btn btn-sm btn-outline-primary mb-0"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Choose CSV file
+              <input type="file" accept=".csv,.txt" style="display:none" onchange="importCsvFile(this)">
+            </label>
+            <span class="text-muted" style="font-size:.8rem">— or paste data below —</span>
+          </div>
+          <textarea class="form-control font-monospace mb-3" id="imp-paste" rows="8" placeholder="Year,Client,Rank,Min,Max,Currency,Seniority,CBA,Negotiated&#10;2026,BD-Shipsnavo GmbH,Master,8500,9500,USD,Senior,,0&#10;2026,BD-Shipsnavo GmbH,Chief Officer,6500,7500,USD,Senior,,0"></textarea>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-primary" onclick="parseSalaryImport()"><i class="bi bi-search me-1"></i>Preview Import</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('imp-paste').value=''">Clear</button>
+            <a href="#" onclick="event.preventDefault();downloadSalaryTemplate()" class="btn btn-sm btn-outline-secondary ms-auto"><i class="bi bi-download me-1"></i>Download template</a>
+          </div>
+        </div>
+        <!-- Step 2: preview -->
+        <div id="imp-step2" style="display:none">
+          <div id="imp-summary" class="mb-2"></div>
+          <div class="table-responsive" style="max-height:380px;overflow-y:auto">
+            <table class="table table-sm table-bordered mb-0 align-middle" style="font-size:.8rem">
+              <thead style="background:var(--mc-navy);color:#fff;position:sticky;top:0">
+                <tr><th>#</th><th>Year</th><th>Client</th><th>Rank</th><th>Min</th><th>Max</th><th>Currency</th><th>Seniority</th><th>CBA</th><th>Neg.</th><th>Status</th></tr>
+              </thead>
+              <tbody id="imp-tbody"></tbody>
+            </table>
+          </div>
+          <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('imp-step1').style.display='';document.getElementById('imp-step2').style.display='none'"><i class="bi bi-arrow-left me-1"></i>Back</button>
+            <button class="btn btn-sm btn-success ms-auto" id="btn-imp-run" onclick="runSalaryImport()"><i class="bi bi-check2-all me-1"></i>Import valid rows</button>
+          </div>
+        </div>
+        <!-- Step 3: progress -->
+        <div id="imp-step3" style="display:none">
+          <div id="imp-progress-log" style="font-size:.8rem;font-family:monospace;background:#f8f9fa;padding:.75rem;border-radius:4px;max-height:350px;overflow-y:auto"></div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="modalCandidate" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -1073,6 +1126,7 @@ async function renderSalary() {
       <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <h4 class="sec-title mb-0 me-auto">Salary Reference</h4>
         <button class="btn btn-sm btn-outline-secondary" onclick="openWageScale()"><i class="bi bi-table me-1"></i>Wage Scale</button>
+        <button class="btn btn-sm btn-outline-success" onclick="openSalaryImport()"><i class="bi bi-upload me-1"></i>Import CSV</button>
         <button class="btn btn-sm btn-primary" onclick="openSalaryModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Rate</button>
       </div>
       <div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
@@ -1287,6 +1341,192 @@ function generateWageScale() {
     html+=`</tbody></table></div>`;
   }
   document.getElementById('ws-output').innerHTML=html;
+}
+
+// ── Salary CSV Import ─────────────────────────────────────────────
+function openSalaryImport() {
+  // Reset to step 1
+  document.getElementById('imp-step1').style.display='';
+  document.getElementById('imp-step2').style.display='none';
+  document.getElementById('imp-step3').style.display='none';
+  document.getElementById('imp-paste').value='';
+  S.importRows=null;
+  new bootstrap.Modal(document.getElementById('modalSalaryImport')).show();
+}
+
+function importCsvFile(inp) {
+  const file=inp.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{ document.getElementById('imp-paste').value=e.target.result; };
+  reader.readAsText(file,'UTF-8');
+  inp.value='';
+}
+
+function downloadSalaryTemplate() {
+  const csv='Year,Client,Rank,Min,Max,Currency,Seniority,CBA,Negotiated\n2026,ClientName,Master,8500,9500,USD,Senior,,0\n';
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='salary_import_template.csv';
+  a.click();
+}
+
+function parseSalaryImport() {
+  const raw=document.getElementById('imp-paste').value.trim();
+  if(!raw){toast('Paste or upload CSV data first','warning');return;}
+
+  // Parse CSV (handles quoted fields, semicolons as alternative delimiter)
+  function parseCsvLine(line) {
+    const delim=line.includes(';')&&!line.includes(',') ? ';' : ',';
+    const result=[]; let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+      else if(c===delim&&!inQ){ result.push(cur.trim()); cur=''; }
+      else cur+=c;
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  const lines=raw.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){toast('Need at least a header row and one data row','warning');return;}
+
+  // Detect header
+  const hdr=parseCsvLine(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,''));
+  function col(...aliases){for(const a of aliases){const i=hdr.findIndex(h=>h===a||h.includes(a));if(i>=0)return i;} return -1;}
+  const iYear=col('year','effectiveyear'), iClient=col('client'), iRank=col('rank');
+  const iMin=col('min','salarymin'), iMax=col('max','salarymax'), iCur=col('currency','cur');
+  const iSen=col('seniority','level'), iCBA=col('cba','cbacode'), iNeg=col('neg','negotiated');
+
+  if(iYear<0||iClient<0||iRank<0){toast('CSV must have Year, Client and Rank columns','warning');return;}
+
+  // Fuzzy matchers for clients and ranks
+  function fuzzy(str){ return (str||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+  function matchClient(name){
+    const f=fuzzy(name);
+    return S.clients.find(c=>fuzzy(c.Title)===f) || S.clients.find(c=>fuzzy(c.Title).includes(f)||f.includes(fuzzy(c.Title)));
+  }
+  function matchRank(name){
+    const f=fuzzy(name);
+    return S.ranks.find(r=>fuzzy(r.Title)===f) || S.ranks.find(r=>fuzzy(r.Title).includes(f)||f.includes(fuzzy(r.Title)));
+  }
+
+  const parsed=[];
+  for(let i=1;i<lines.length;i++){
+    const c=parseCsvLine(lines[i]);
+    if(c.every(v=>!v.trim())) continue; // skip blank lines
+    const yearRaw=(c[iYear]||'').trim();
+    const clientRaw=(c[iClient]||'').trim();
+    const rankRaw=(c[iRank]||'').trim();
+    const minRaw=iMin>=0?(c[iMin]||'').trim():'';
+    const maxRaw=iMax>=0?(c[iMax]||'').trim():'';
+    const curRaw=iCur>=0?(c[iCur]||'').trim():'USD';
+    const senRaw=iSen>=0?(c[iSen]||'').trim():'';
+    const cbaRaw=iCBA>=0?(c[iCBA]||'').trim():'';
+    const negRaw=iNeg>=0?(c[iNeg]||'').trim():'0';
+
+    const year=parseInt(yearRaw)||null;
+    const min=minRaw?parseFloat(minRaw):null;
+    const max=maxRaw?parseFloat(maxRaw):null;
+    const isNeg=negRaw==='1'||negRaw.toLowerCase()==='yes'||negRaw.toLowerCase()==='true';
+    const clientMatch=clientRaw?matchClient(clientRaw):null;
+    const rankMatch=rankRaw?matchRank(rankRaw):null;
+
+    const errors=[];
+    if(!year||year<2000||year>2099) errors.push('invalid year');
+    if(!clientRaw) errors.push('no client');
+    else if(!clientMatch) errors.push(`client not found: "${clientRaw}"`);
+    if(!rankRaw) errors.push('no rank');
+    else if(!rankMatch) errors.push(`rank not found: "${rankRaw}"`);
+
+    parsed.push({ rowNum:i, yearRaw, clientRaw, rankRaw, minRaw, maxRaw, curRaw:curRaw||'USD', senRaw, cbaRaw, isNeg,
+      year, min, max, clientMatch, rankMatch, errors, ok:errors.length===0 });
+  }
+
+  S.importRows=parsed;
+  const okCt=parsed.filter(r=>r.ok).length, errCt=parsed.length-okCt;
+  document.getElementById('imp-summary').innerHTML=
+    `<div class="d-flex gap-3 align-items-center flex-wrap">
+      <span class="badge bg-success px-3 py-2">${okCt} ready to import</span>
+      ${errCt?`<span class="badge bg-danger px-3 py-2">${errCt} rows with errors</span>`:''}
+      <span class="text-muted" style="font-size:.8rem">${parsed.length} total rows parsed</span>
+    </div>`;
+
+  const tbody=document.getElementById('imp-tbody');
+  tbody.innerHTML=parsed.map(r=>{
+    const bg=r.ok?'':'style="background:#fff5f5"';
+    const statusCell=r.ok
+      ?'<td class="text-success"><i class="bi bi-check-circle-fill"></i></td>'
+      :`<td class="text-danger" title="${h(r.errors.join('; '))}"><i class="bi bi-exclamation-triangle-fill"></i> ${h(r.errors.join('; '))}</td>`;
+    return `<tr ${bg}>
+      <td class="text-muted">${r.rowNum}</td>
+      <td>${h(r.yearRaw)}</td>
+      <td>${r.clientMatch?`<span class="text-success">${h(r.clientMatch.Title)}</span>`:h(r.clientRaw)}</td>
+      <td>${r.rankMatch?`<span class="text-success">${h(r.rankMatch.Title)}</span>`:h(r.rankRaw)}</td>
+      <td class="text-end">${h(r.minRaw)}</td>
+      <td class="text-end">${h(r.maxRaw)}</td>
+      <td>${h(r.curRaw)}</td>
+      <td>${h(r.senRaw)}</td>
+      <td>${h(r.cbaRaw)}</td>
+      <td>${r.isNeg?'✓':''}</td>
+      ${statusCell}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('btn-imp-run').textContent=`Import ${okCt} valid row${okCt!==1?'s':''}`;
+  document.getElementById('btn-imp-run').disabled=okCt===0;
+  document.getElementById('imp-step1').style.display='none';
+  document.getElementById('imp-step2').style.display='';
+}
+
+async function runSalaryImport() {
+  const rows=(S.importRows||[]).filter(r=>r.ok);
+  if(!rows.length) return;
+  document.getElementById('imp-step2').style.display='none';
+  document.getElementById('imp-step3').style.display='';
+  const log=document.getElementById('imp-progress-log');
+  log.innerHTML='Starting import…\n';
+
+  // Discover field types once
+  const sfFields=await ensureSalaryRateFields();
+  function typeOf(name){return (sfFields.find(f=>f.InternalName===name)||{}).TypeAsString||null;}
+  function sfAdd(d,name,val){
+    if(val===null||val===undefined||val==='') return;
+    const t=typeOf(name);
+    if(t==='Number'||t==='Currency'){const n=Number(val);if(!isNaN(n))d[name]=n;}
+    else if(t==='Boolean'){d[name]=Boolean(val)&&val!==0&&val!=='false';}
+    else{d[name]=val;}
+  }
+  const isNegType=typeOf('IsNegotiatedRate');
+
+  let ok=0, fail=0;
+  for(const r of rows){
+    const isNegVal=isNegType==='Boolean'?r.isNeg:(r.isNeg?1:0);
+    const data={
+      Title:`${r.year} · ${r.clientMatch.Title} · ${r.rankMatch.Title}`,
+      EffectiveYear:r.year,
+      ClientId:r.clientMatch.Id,
+      RankId:r.rankMatch.Id,
+      Currency:r.curRaw||'USD',
+      IsNegotiatedRate:isNegVal,
+    };
+    if(r.min!==null&&!isNaN(r.min)) data.SalaryMin=r.min;
+    if(r.max!==null&&!isNaN(r.max)) data.SalaryMax=r.max;
+    sfAdd(data,'SeniorityLevel',r.senRaw);
+    sfAdd(data,'CBACode',r.cbaRaw);
+    try {
+      await spCreate('SalaryRates',data);
+      ok++;
+      log.innerHTML+=`✓ Row ${r.rowNum}: ${r.year} · ${r.clientMatch.Title} · ${r.rankMatch.Title}\n`;
+    } catch(e){
+      fail++;
+      log.innerHTML+=`✗ Row ${r.rowNum}: ${e.message}\n`;
+    }
+    log.scrollTop=log.scrollHeight;
+  }
+  log.innerHTML+=`\n── Done: ${ok} imported, ${fail} failed ──\n`;
+  S.salaryRateFields=null;
+  if(ok>0) { toast(`${ok} rate${ok!==1?'s':''} imported ✓`); renderSalary(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
