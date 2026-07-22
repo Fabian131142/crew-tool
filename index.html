@@ -1110,6 +1110,18 @@ function filterSalary() {
   document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead style="background:var(--mc-navy);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Seniority</th><th>CBA</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
 }
 
+// ── Salary field type discovery (cached) ─────────────────────────
+async function ensureSalaryRateFields() {
+  if(S.salaryRateFields) return S.salaryRateFields;
+  const token=await getToken();
+  const r=await fetch(`${API}/lists/getbytitle('SalaryRates')/fields?$filter=Hidden eq false&$select=InternalName,TypeAsString`,
+    {headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose'}});
+  if(!r.ok){S.salaryRateFields=[];return [];}
+  S.salaryRateFields=(await r.json()).d.results;
+  console.log('[SalaryRates] field types:',S.salaryRateFields.map(f=>f.InternalName+':'+f.TypeAsString).join(', '));
+  return S.salaryRateFields;
+}
+
 // ── Salary rate modal ─────────────────────────────────────────────
 function openSalaryModal(id) {
   const rate=id?(window._salRates||[]).find(r=>r.Id===id):null;
@@ -1164,28 +1176,53 @@ async function saveSalaryModal() {
   const rankId=parseInt(document.getElementById('sf-rank').value)||null;
   if(!year||!clientId||!rankId){toast('Year, Client and Rank are required','warning');return;}
   const client=S.clients.find(c=>c.Id===clientId), rank=S.ranks.find(r=>r.Id===rankId);
+
+  // Discover actual SharePoint field types so we send the right JS types
+  const sfFields=await ensureSalaryRateFields();
+  function typeOf(name){return (sfFields.find(f=>f.InternalName===name)||{}).TypeAsString||null;}
+  // Safely add a field to payload — skips non-numeric strings destined for Number fields
+  function sfAdd(d,name,val){
+    if(val===null||val===undefined||val==='') return;
+    const t=typeOf(name);
+    if(t==='Number'||t==='Currency'){
+      const n=Number(val); if(!isNaN(n)) d[name]=n;
+    } else if(t==='Boolean'){
+      d[name]=Boolean(val)&&val!==0&&val!=='false';
+    } else {
+      d[name]=val; // Text, Choice, Note, etc.
+    }
+  }
+
+  const minRaw=parseFloat(document.getElementById('sf-min').value);
+  const maxRaw=parseFloat(document.getElementById('sf-max').value);
+  const isNegChecked=document.getElementById('sf-neg').checked;
+  const isNegType=typeOf('IsNegotiatedRate');
+  const isNegVal=isNegType==='Boolean'?isNegChecked:(isNegChecked?1:0);
+
   const data={
     Title:`${year} · ${client?.Title||''} · ${rank?.Title||''}`,
     EffectiveYear:year,
     ClientId:clientId,
     RankId:rankId,
-    SalaryMin:parseFloat(document.getElementById('sf-min').value)||null,
-    SalaryMax:parseFloat(document.getElementById('sf-max').value)||null,
     Currency:document.getElementById('sf-cur').value||'USD',
-    SeniorityLevel:document.getElementById('sf-sen').value||null,
-    CBACode:document.getElementById('sf-cba').value.trim()||null,
-    IsNegotiatedRate:document.getElementById('sf-neg').checked ? 1 : 0,
+    IsNegotiatedRate:isNegVal,
   };
-  // Remove nulls to avoid overwriting with null on edit
-  Object.keys(data).forEach(k=>{ if(data[k]===null) delete data[k]; });
+  if(!isNaN(minRaw)) data.SalaryMin=minRaw;
+  if(!isNaN(maxRaw)) data.SalaryMax=maxRaw;
+  sfAdd(data,'SeniorityLevel',document.getElementById('sf-sen').value);
+  sfAdd(data,'CBACode',document.getElementById('sf-cba').value.trim());
+
+  console.log('[SalaryRate] field types:',sfFields.map(f=>f.InternalName+':'+f.TypeAsString).join(', '));
+  console.log('[SalaryRate] saving:',JSON.stringify(data));
   const btn=document.getElementById('btn-sal-save');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';}
   try {
     if(S.editingSalaryId) { await spUpdate('SalaryRates',S.editingSalaryId,data); toast('Rate updated'); }
     else { await spCreate('SalaryRates',data); toast('Rate added'); }
+    S.salaryRateFields=null;
     bootstrap.Modal.getInstance(document.getElementById('modalSalaryRate'))?.hide();
-    renderSalary(); // full reload so expanded Client/Rank are fresh
-  } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
+    renderSalary();
+  } catch(e){ toast(`Save failed: ${e.message}`,'danger'); console.error('[SalaryRate] error — data was:',JSON.stringify(data)); }
   finally { if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save';} }
 }
 
