@@ -1174,7 +1174,7 @@ async function saveSalaryModal() {
     Currency:document.getElementById('sf-cur').value||'USD',
     SeniorityLevel:document.getElementById('sf-sen').value||null,
     CBACode:document.getElementById('sf-cba').value.trim()||null,
-    IsNegotiatedRate:document.getElementById('sf-neg').checked,
+    IsNegotiatedRate:document.getElementById('sf-neg').checked ? 1 : 0,
   };
   // Remove nulls to avoid overwriting with null on edit
   Object.keys(data).forEach(k=>{ if(data[k]===null) delete data[k]; });
