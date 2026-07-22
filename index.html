@@ -38,6 +38,19 @@
     .login-card .sub { color: #666; margin-bottom: 2rem; font-size: .9rem; }
     .btn-ms { background: #0078d4; color: #fff; border: none; padding: .7rem 1.5rem; border-radius: 6px; font-size: .95rem; font-weight: 600; cursor: pointer; width: 100%; }
     .btn-ms:hover { background: #006cbf; }
+    /* Mobile: white hamburger icon on dark navbar */
+    .navbar-toggler { border-color: rgba(255,255,255,.4) !important; }
+    .navbar-toggler-icon { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255%2C255%2C255%2C0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important; }
+    @media (max-width: 991px) {
+      .cand-row td { font-size: .78rem; }
+      .btn-sm { min-height: 32px; }
+    }
+    @media print {
+      body > nav, #toast-wrap, .modal-footer, .modal-header .btn-close { display:none !important; }
+      .modal { position:static !important; }
+      .modal-dialog { max-width:100% !important; margin:0; }
+      #ws-output table { font-size:.8rem; }
+    }
   </style>
 </head>
 <body>
@@ -141,6 +154,54 @@
       <div class="modal-footer py-2">
         <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">No — Keep Open</button>
         <button class="btn btn-sm btn-success" id="btn-placed-close-ok"><i class="bi bi-lock me-1"></i>Yes — Close Vacancy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Salary Rate add/edit -->
+<div class="modal fade" id="modalSalaryRate" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header card-hd">
+        <h6 class="modal-title text-white mb-0" id="modal-sal-title"><i class="bi bi-cash-stack me-2"></i>Salary Rate</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="sal-form"></div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-sm btn-primary" id="btn-sal-save"><i class="bi bi-floppy me-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Wage Scale Generator -->
+<div class="modal fade" id="modalWageScale" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header card-hd">
+        <h6 class="modal-title text-white mb-0"><i class="bi bi-table me-2"></i>Wage Scale Generator</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-auto">
+            <label class="form-label form-label-sm mb-1">Year</label>
+            <select class="form-select form-select-sm" id="ws-year"></select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label form-label-sm mb-1">Client</label>
+            <select class="form-select form-select-sm" id="ws-client" style="min-width:160px"></select>
+          </div>
+          <div class="col-auto pt-3">
+            <button class="btn btn-sm btn-primary" onclick="generateWageScale()"><i class="bi bi-play-fill me-1"></i>Generate</button>
+          </div>
+        </div>
+        <div id="ws-output"></div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -344,6 +405,15 @@ async function spUpdate(list, id, data) {
   if (!r.ok) { const t=await r.text(); throw new Error(`Update ${list}(${id}): ${r.status} — ${t.substring(0,300)}`); }
 }
 
+async function spDelete(list, id) {
+  const token = await getToken();
+  const r = await fetch(`${API}/lists/getbytitle('${enc(list)}')/items(${id})`, {
+    method:'POST',
+    headers:{ Authorization:`Bearer ${token}`, Accept:'application/json;odata=verbose', 'IF-MATCH':'*', 'X-HTTP-Method':'DELETE' },
+  });
+  if (!r.ok) { const t=await r.text(); throw new Error(`Delete ${list}(${id}): ${r.status} — ${t.substring(0,200)}`); }
+}
+
 function listType(list) {
   const m={ VesselMaster:'SP.Data.VesselMasterListItem', ClientMaster:'SP.Data.ClientMasterListItem', RankList:'SP.Data.RankListListItem', AgencyList:'SP.Data.AgencyListListItem', SalaryRates:'SP.Data.SalaryRatesListItem', Vacancies:'SP.Data.VacanciesListItem', Candidates:'SP.Data.CandidatesListItem', StatusHistory:'SP.Data.StatusHistoryListItem' };
   return m[list]||'SP.ListItem';
@@ -387,6 +457,9 @@ async function loadRefData() {
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════════
 function nav(name,param=null) {
+  // Close mobile navbar if open
+  const navColl=document.getElementById('navColl');
+  if(navColl?.classList.contains('show')) bootstrap.Collapse.getInstance(navColl)?.hide();
   ['open','all','detail','salary','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
   document.querySelectorAll('.nav-link[id^="nav-"]').forEach(l=>l.classList.remove('active'));
   const navEl=document.getElementById('nav-'+(name==='detail'?S.prevViewName:name));
@@ -988,21 +1061,195 @@ async function saveCandidateModal() {
 async function renderSalary() {
   const el=document.getElementById('v-salary'); spin(el);
   try {
-    const rates=await spGet('SalaryRates','?$select=Id,Title,EffectiveYear,SalaryMin,SalaryMax,Currency,CBACode,SeniorityLevel,IsNegotiatedRate,ClientId,Client/Title,RankId,Rank/Title&$expand=Client,Rank&$orderby=EffectiveYear desc,Client/Title,Rank/Title&$top=1000');
-    if(!rates.length){el.innerHTML=`<h4 class="sec-title">Salary Reference</h4><div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>No salary rates entered yet.</div>`;return;}
-    const years=[...new Set(rates.map(r=>r.EffectiveYear).filter(Boolean))].sort((a,b)=>b-a);
-    const clientOpts=[...new Set(rates.map(r=>r.Client?.Title).filter(Boolean))].sort().map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
+    const rates=await spGet('SalaryRates','?$select=Id,Title,EffectiveYear,SalaryMin,SalaryMax,Currency,CBACode,SeniorityLevel,IsNegotiatedRate,ClientId,Client/Title,Client/Id,RankId,Rank/Title,Rank/Id&$expand=Client,Rank&$orderby=EffectiveYear desc,Client/Title,Rank/Title&$top=1000');
     window._salRates=rates;
-    el.innerHTML=`<h4 class="sec-title">Salary Reference</h4><div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2"><div class="col-auto"><select class="form-select form-select-sm" id="sr-year" onchange="filterSalary()"><option value="">All years</option>${years.map(y=>`<option value="${y}">${y}</option>`).join('')}</select></div><div class="col-auto"><select class="form-select form-select-sm" id="sr-client" onchange="filterSalary()"><option value="">All clients</option>${clientOpts}</select></div><div class="col"><input class="form-control form-control-sm" id="sr-search" type="text" placeholder="Rank…" oninput="filterSalary()"></div></div></div></div><div id="salary-table"></div>`;
-    const curYear=new Date().getFullYear(); if(years.includes(curYear)) document.getElementById('sr-year').value=curYear;
+    // Also refresh the compact cache used by vacancy auto-fill
+    S.salaryRates=rates;
+    const years=[...new Set(rates.map(r=>r.EffectiveYear).filter(Boolean))].sort((a,b)=>b-a);
+    const allClientNames=[...new Set(rates.map(r=>r.Client?.Title).filter(Boolean))].sort();
+    const clientOpts=allClientNames.map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
+    const yearOpts=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    el.innerHTML=`
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h4 class="sec-title mb-0 me-auto">Salary Reference</h4>
+        <button class="btn btn-sm btn-outline-secondary" onclick="openWageScale()"><i class="bi bi-table me-1"></i>Wage Scale</button>
+        <button class="btn btn-sm btn-primary" onclick="openSalaryModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Rate</button>
+      </div>
+      <div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+        <div class="col-auto"><label class="form-label form-label-sm mb-1">Year</label>
+          <select class="form-select form-select-sm" id="sr-year" onchange="filterSalary()"><option value="">All years</option>${yearOpts}</select></div>
+        <div class="col-auto"><label class="form-label form-label-sm mb-1">Client</label>
+          <select class="form-select form-select-sm" id="sr-client" onchange="filterSalary()"><option value="">All clients</option>${clientOpts}</select></div>
+        <div class="col"><label class="form-label form-label-sm mb-1">Rank</label>
+          <input class="form-control form-control-sm" id="sr-search" type="text" placeholder="Search rank…" oninput="filterSalary()"></div>
+        <div class="col-auto pt-3"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('sr-year').value='';document.getElementById('sr-client').value='';document.getElementById('sr-search').value='';filterSalary()">Clear</button></div>
+      </div></div></div>
+      <div id="salary-table"></div>`;
+    const curYear=new Date().getFullYear();
+    if(years.includes(curYear)) document.getElementById('sr-year').value=curYear;
     filterSalary();
   } catch(e){el.innerHTML=errBox(e);}
 }
+
 function filterSalary() {
   const year=document.getElementById('sr-year')?.value||'',client=document.getElementById('sr-client')?.value||'',q=(document.getElementById('sr-search')?.value||'').toLowerCase();
   const rates=(window._salRates||[]).filter(r=>{if(year&&String(r.EffectiveYear)!==year)return false;if(client&&r.Client?.Title!==client)return false;if(q&&!(r.Rank?.Title||'').toLowerCase().includes(q))return false;return true;});
-  const rows=rates.length?rates.map(r=>`<tr><td>${r.EffectiveYear||'—'}</td><td>${h(r.Client?.Title||'—')}</td><td>${h(r.Rank?.Title||'—')}</td><td class="text-nowrap">${fmtSalary(r.SalaryMin,r.SalaryMax,r.Currency)}</td><td>${r.SeniorityLevel||'—'}</td><td>${h(r.CBACode||'—')}</td><td>${r.IsNegotiatedRate?'<span class="badge bg-warning text-dark">Negotiated</span>':''}</td></tr>`).join(''):`<tr><td colspan="7" class="text-center text-muted py-4">No rates match.</td></tr>`;
-  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0"><thead style="background:var(--mc-navy);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Seniority</th><th>CBA</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''}</div></div>`;
+  const rows=rates.length?rates.map(r=>`<tr>
+    <td>${r.EffectiveYear||'—'}</td>
+    <td>${h(r.Client?.Title||'—')}</td>
+    <td>${h(r.Rank?.Title||'—')}</td>
+    <td class="text-nowrap">${fmtSalary(r.SalaryMin,r.SalaryMax,r.Currency)}</td>
+    <td>${h(r.SeniorityLevel||'—')}</td>
+    <td>${h(r.CBACode||'—')}</td>
+    <td>${r.IsNegotiatedRate?'<span class="badge bg-warning text-dark" style="font-size:.68rem">Negotiated</span>':''}</td>
+    <td class="text-end text-nowrap pe-2">
+      <button class="btn btn-xs btn-outline-primary me-1" style="padding:1px 7px;font-size:.75rem" onclick="openSalaryModal(${r.Id})"><i class="bi bi-pencil"></i></button>
+      <button class="btn btn-xs btn-outline-danger" style="padding:1px 7px;font-size:.75rem" onclick="deleteSalaryRate(${r.Id})"><i class="bi bi-trash"></i></button>
+    </td>
+  </tr>`).join(''):`<tr><td colspan="8" class="text-center text-muted py-4">${(window._salRates||[]).length?'No rates match filters.':'No salary rates yet — click Add Rate.'}</td></tr>`;
+  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead style="background:var(--mc-navy);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Seniority</th><th>CBA</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
+}
+
+// ── Salary rate modal ─────────────────────────────────────────────
+function openSalaryModal(id) {
+  const rate=id?(window._salRates||[]).find(r=>r.Id===id):null;
+  const curYear=new Date().getFullYear();
+  // Build client options
+  const clientOpts=S.clients.map(c=>`<option value="${c.Id}"${rate&&rate.ClientId==c.Id?' selected':''}>${h(c.Title)}</option>`).join('');
+  // Build rank options grouped by category
+  const cats=[...new Set(S.ranks.map(r=>r.RankCategory).filter(Boolean))];
+  const rankOpts=cats.map(cat=>{
+    const opts=S.ranks.filter(r=>r.RankCategory===cat).map(r=>`<option value="${r.Id}"${rate&&rate.RankId==r.Id?' selected':''}>${h(r.Title)}</option>`).join('');
+    return opts?`<optgroup label="${h(cat)}">${opts}</optgroup>`:'';
+  }).join('')+S.ranks.filter(r=>!r.RankCategory).map(r=>`<option value="${r.Id}"${rate&&rate.RankId==r.Id?' selected':''}>${h(r.Title)}</option>`).join('');
+  const currencies=['USD','EUR','GBP','NOK','SEK','DKK'];
+  const curOpts=currencies.map(c=>`<option${(rate?.Currency||'USD')===c?' selected':''}>${c}</option>`).join('');
+  const senOpts=['','Junior','Standard','Senior'].map(s=>`<option${(rate?.SeniorityLevel||'')===s?' selected':''}>${s}</option>`).join('');
+  document.getElementById('modal-sal-title').textContent=id?'Edit Salary Rate':'Add Salary Rate';
+  document.getElementById('sal-form').innerHTML=`
+    <div class="row g-3 mb-2">
+      <div class="col-md-3"><label class="form-label fw-bold">Year <span class="text-danger">*</span></label>
+        <input type="number" class="form-control" id="sf-year" min="2020" max="2035" value="${rate?.EffectiveYear||curYear}"></div>
+      <div class="col-md-5"><label class="form-label fw-bold">Client <span class="text-danger">*</span></label>
+        <select class="form-select" id="sf-client"><option value="">— select —</option>${clientOpts}</select></div>
+      <div class="col-md-4"><label class="form-label fw-bold">Currency</label>
+        <select class="form-select" id="sf-cur">${curOpts}</select></div>
+    </div>
+    <div class="mb-3"><label class="form-label fw-bold">Rank <span class="text-danger">*</span></label>
+      <select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
+    <div class="row g-3 mb-2">
+      <div class="col-md-4"><label class="form-label fw-bold">Salary Min</label>
+        <input type="number" class="form-control" id="sf-min" step="50" value="${rate?.SalaryMin||''}"></div>
+      <div class="col-md-4"><label class="form-label fw-bold">Salary Max</label>
+        <input type="number" class="form-control" id="sf-max" step="50" value="${rate?.SalaryMax||''}"></div>
+      <div class="col-md-4"><label class="form-label fw-bold">Seniority</label>
+        <select class="form-select" id="sf-sen">${senOpts}</select></div>
+    </div>
+    <div class="row g-3 mb-2">
+      <div class="col-md-6"><label class="form-label fw-bold">CBA Code</label>
+        <input type="text" class="form-control" id="sf-cba" value="${h(rate?.CBACode||'')}"></div>
+      <div class="col-md-6 d-flex align-items-end pb-1">
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="sf-neg"${rate?.IsNegotiatedRate?' checked':''}>
+        <label class="form-check-label" for="sf-neg">Negotiated Rate</label></div>
+      </div>
+    </div>`;
+  S.editingSalaryId=id||null;
+  document.getElementById('btn-sal-save').onclick=saveSalaryModal;
+  new bootstrap.Modal(document.getElementById('modalSalaryRate')).show();
+}
+
+async function saveSalaryModal() {
+  const year=parseInt(document.getElementById('sf-year').value)||null;
+  const clientId=parseInt(document.getElementById('sf-client').value)||null;
+  const rankId=parseInt(document.getElementById('sf-rank').value)||null;
+  if(!year||!clientId||!rankId){toast('Year, Client and Rank are required','warning');return;}
+  const client=S.clients.find(c=>c.Id===clientId), rank=S.ranks.find(r=>r.Id===rankId);
+  const data={
+    Title:`${year} · ${client?.Title||''} · ${rank?.Title||''}`,
+    EffectiveYear:year,
+    ClientId:clientId,
+    RankId:rankId,
+    SalaryMin:parseFloat(document.getElementById('sf-min').value)||null,
+    SalaryMax:parseFloat(document.getElementById('sf-max').value)||null,
+    Currency:document.getElementById('sf-cur').value||'USD',
+    SeniorityLevel:document.getElementById('sf-sen').value||null,
+    CBACode:document.getElementById('sf-cba').value.trim()||null,
+    IsNegotiatedRate:document.getElementById('sf-neg').checked,
+  };
+  // Remove nulls to avoid overwriting with null on edit
+  Object.keys(data).forEach(k=>{ if(data[k]===null) delete data[k]; });
+  const btn=document.getElementById('btn-sal-save');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';}
+  try {
+    if(S.editingSalaryId) { await spUpdate('SalaryRates',S.editingSalaryId,data); toast('Rate updated'); }
+    else { await spCreate('SalaryRates',data); toast('Rate added'); }
+    bootstrap.Modal.getInstance(document.getElementById('modalSalaryRate'))?.hide();
+    renderSalary(); // full reload so expanded Client/Rank are fresh
+  } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
+  finally { if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save';} }
+}
+
+async function deleteSalaryRate(id) {
+  const rate=(window._salRates||[]).find(r=>r.Id===id);
+  const label=rate?`${rate.EffectiveYear||''} · ${rate.Client?.Title||''} · ${rate.Rank?.Title||''}`:`#${id}`;
+  if(!confirm(`Delete rate:\n${label}\n\nThis cannot be undone.`)) return;
+  try {
+    await spDelete('SalaryRates',id);
+    toast('Rate deleted');
+    renderSalary();
+  } catch(e){ toast(`Delete failed: ${e.message}`,'danger'); }
+}
+
+// ── Wage Scale Generator ──────────────────────────────────────────
+function openWageScale() {
+  const rates=window._salRates||[];
+  const years=[...new Set(rates.map(r=>r.EffectiveYear).filter(Boolean))].sort((a,b)=>b-a);
+  const curYear=new Date().getFullYear();
+  const yearOpts=years.map(y=>`<option value="${y}"${y===curYear?' selected':''}>${y}</option>`).join('');
+  const allClientNames=[...new Set(rates.map(r=>r.Client?.Title).filter(Boolean))].sort();
+  const clientOpts=allClientNames.map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
+  document.getElementById('ws-year').innerHTML=`<option value="">All years</option>${yearOpts}`;
+  if(years.includes(curYear)) document.getElementById('ws-year').value=curYear;
+  document.getElementById('ws-client').innerHTML=`<option value="">All clients</option>${clientOpts}`;
+  document.getElementById('ws-output').innerHTML='<p class="text-muted text-center py-3">Select filters and click Generate.</p>';
+  new bootstrap.Modal(document.getElementById('modalWageScale')).show();
+}
+
+function generateWageScale() {
+  const year=document.getElementById('ws-year').value||'';
+  const client=document.getElementById('ws-client').value||'';
+  const rates=(window._salRates||[]).filter(r=>{
+    if(year&&String(r.EffectiveYear)!==year) return false;
+    if(client&&r.Client?.Title!==client) return false;
+    return true;
+  });
+  if(!rates.length){document.getElementById('ws-output').innerHTML='<p class="text-muted text-center py-3">No rates found for the selected filters.</p>';return;}
+  // Group by Rank Category (using S.ranks for sort order)
+  const rankMap={};
+  S.ranks.forEach(r=>{ rankMap[r.Id]={cat:r.RankCategory||'Other',sort:r.SortOrder||999,title:r.Title}; });
+  const cats=[...new Set(rates.map(r=>rankMap[r.RankId]?.cat||'Other'))];
+  // Sort cats by first rank's sort order in that cat
+  cats.sort((a,b)=>{
+    const aMin=Math.min(...rates.filter(r=>(rankMap[r.RankId]?.cat||'Other')===a).map(r=>rankMap[r.RankId]?.sort||999));
+    const bMin=Math.min(...rates.filter(r=>(rankMap[r.RankId]?.cat||'Other')===b).map(r=>rankMap[r.RankId]?.sort||999));
+    return aMin-bMin;
+  });
+  const labelYear=year||'All years', labelClient=client||'All clients';
+  let html=`<div class="d-flex align-items-center mb-3 gap-2">
+    <div class="fw-bold">${h(labelClient)} — ${h(String(labelYear))}</div>
+    <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+  </div>`;
+  for(const cat of cats) {
+    const catRates=rates.filter(r=>(rankMap[r.RankId]?.cat||'Other')===cat);
+    catRates.sort((a,b)=>(rankMap[a.RankId]?.sort||999)-(rankMap[b.RankId]?.sort||999));
+    html+=`<div class="mb-3"><div class="fw-bold text-uppercase" style="font-size:.75rem;letter-spacing:.05em;color:var(--mc-navy);border-bottom:2px solid var(--mc-blue);padding-bottom:2px;margin-bottom:4px">${h(cat)}</div>
+    <table class="table table-sm table-bordered mb-0" style="font-size:.83rem"><thead style="background:#f0f4f8"><tr><th>Rank</th><th>Min</th><th>Max</th><th>Currency</th><th>CBA</th><th>Seniority</th></tr></thead><tbody>`;
+    for(const r of catRates) {
+      html+=`<tr><td>${h(r.Rank?.Title||'—')}</td><td class="text-end">${r.SalaryMin?Number(r.SalaryMin).toLocaleString('de-DE'):'—'}</td><td class="text-end">${r.SalaryMax?Number(r.SalaryMax).toLocaleString('de-DE'):'—'}</td><td>${h(r.Currency||'')}</td><td>${h(r.CBACode||'—')}</td><td>${h(r.SeniorityLevel||'—')}</td></tr>`;
+    }
+    html+=`</tbody></table></div>`;
+  }
+  document.getElementById('ws-output').innerHTML=html;
 }
 
 // ═══════════════════════════════════════════════════════════════════
