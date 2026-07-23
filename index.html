@@ -225,6 +225,12 @@
             </label>
             <span class="text-muted" style="font-size:.8rem">— or paste data below —</span>
           </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="imp-delete-first">
+            <label class="form-check-label text-danger fw-bold" for="imp-delete-first">
+              Delete ALL existing salary rates before importing (clean slate)
+            </label>
+          </div>
           <textarea class="form-control font-monospace mb-3" id="imp-paste" rows="8" placeholder="Year,Client,Rank,Min,Max,Currency,Seniority,CBA,Negotiated&#10;2026,BD-Shipsnavo GmbH,Master,8500,9500,USD,Senior,,0&#10;2026,BD-Shipsnavo GmbH,Chief Officer,6500,7500,USD,Senior,,0"></textarea>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-primary" onclick="parseSalaryImport()"><i class="bi bi-search me-1"></i>Preview Import</button>
@@ -1127,6 +1133,7 @@ async function renderSalary() {
         <h4 class="sec-title mb-0 me-auto">Salary Reference</h4>
         <button class="btn btn-sm btn-outline-secondary" onclick="openWageScale()"><i class="bi bi-table me-1"></i>Wage Scale</button>
         <button class="btn btn-sm btn-outline-success" onclick="openSalaryImport()"><i class="bi bi-upload me-1"></i>Import CSV</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteAllSalaryRates()"><i class="bi bi-trash me-1"></i>Delete All</button>
         <button class="btn btn-sm btn-primary" onclick="openSalaryModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Rate</button>
       </div>
       <div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
@@ -1278,6 +1285,20 @@ async function saveSalaryModal() {
     renderSalary();
   } catch(e){ toast(`Save failed: ${e.message}`,'danger'); console.error('[SalaryRate] error — data was:',JSON.stringify(data)); }
   finally { if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save';} }
+}
+
+async function deleteAllSalaryRates() {
+  const all=await spGet('SalaryRates','?$select=Id&$top=2000').catch(()=>[]);
+  if(!all.length){toast('No rates to delete','warning');return;}
+  if(!confirm(`Delete ALL ${all.length} salary rate${all.length!==1?'s':''}?\n\nThis cannot be undone.`)) return;
+  const btn=event.currentTarget;
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm"></span>';
+  try {
+    for(const e of all) await spDelete('SalaryRates',e.Id);
+    toast(`All ${all.length} rates deleted`);
+    renderSalary();
+  } catch(e){ toast(`Delete failed: ${e.message}`,'danger'); }
+  finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-trash me-1"></i>Delete All'; }
 }
 
 async function deleteSalaryRate(id) {
@@ -1482,10 +1503,31 @@ function parseSalaryImport() {
 async function runSalaryImport() {
   const rows=(S.importRows||[]).filter(r=>r.ok);
   if(!rows.length) return;
+  const deleteFirst=document.getElementById('imp-delete-first')?.checked;
+  if(deleteFirst && !confirm('This will permanently delete ALL existing salary rates, then import the new ones.\n\nContinue?')) return;
+
   document.getElementById('imp-step2').style.display='none';
   document.getElementById('imp-step3').style.display='';
   const log=document.getElementById('imp-progress-log');
-  log.innerHTML='Starting import…\n';
+  log.innerHTML='';
+
+  // Step 1: delete all existing rates if requested
+  if(deleteFirst) {
+    log.innerHTML+='Deleting existing rates…\n';
+    try {
+      const existing=await spGet('SalaryRates','?$select=Id&$top=2000');
+      let del=0;
+      for(const e of existing){ await spDelete('SalaryRates',e.Id); del++; log.scrollTop=log.scrollHeight; }
+      log.innerHTML+=`✓ Deleted ${del} existing rate${del!==1?'s':''}.\n\n`;
+    } catch(e){ log.innerHTML+=`✗ Delete failed: ${e.message}\n`; }
+  }
+
+  // Step 2: load existing rates to check for duplicates (Year+ClientId+RankId)
+  log.innerHTML+='Checking for duplicates…\n';
+  const existingRates=await spGet('SalaryRates','?$select=Id,EffectiveYear,ClientId,RankId&$top=2000').catch(()=>[]);
+  function isDupe(year,clientId,rankId){
+    return existingRates.some(e=>e.EffectiveYear==year&&e.ClientId==clientId&&e.RankId==rankId);
+  }
 
   // Discover field types once
   const sfFields=await ensureSalaryRateFields();
@@ -1499,8 +1541,15 @@ async function runSalaryImport() {
   }
   const isNegType=typeOf('IsNegotiatedRate');
 
-  let ok=0, fail=0;
+  log.innerHTML+='Starting import…\n';
+  let ok=0, skipped=0, fail=0;
   for(const r of rows){
+    if(isDupe(r.year,r.clientMatch.Id,r.rankMatch.Id)){
+      skipped++;
+      log.innerHTML+=`⚠ Skipped (duplicate): ${r.year} · ${r.clientMatch.Title} · ${r.rankMatch.Title}\n`;
+      log.scrollTop=log.scrollHeight;
+      continue;
+    }
     const isNegVal=isNegType==='Boolean'?r.isNeg:(r.isNeg?1:0);
     const data={
       Title:`${r.year} · ${r.clientMatch.Title} · ${r.rankMatch.Title}`,
@@ -1517,14 +1566,14 @@ async function runSalaryImport() {
     try {
       await spCreate('SalaryRates',data);
       ok++;
-      log.innerHTML+=`✓ Row ${r.rowNum}: ${r.year} · ${r.clientMatch.Title} · ${r.rankMatch.Title}\n`;
+      log.innerHTML+=`✓ ${r.year} · ${r.clientMatch.Title} · ${r.rankMatch.Title}\n`;
     } catch(e){
       fail++;
       log.innerHTML+=`✗ Row ${r.rowNum}: ${e.message}\n`;
     }
     log.scrollTop=log.scrollHeight;
   }
-  log.innerHTML+=`\n── Done: ${ok} imported, ${fail} failed ──\n`;
+  log.innerHTML+=`\n── Done: ${ok} imported, ${skipped} skipped (duplicates), ${fail} failed ──\n`;
   S.salaryRateFields=null;
   if(ok>0) { toast(`${ok} rate${ok!==1?'s':''} imported ✓`); renderSalary(); }
 }
