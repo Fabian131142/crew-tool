@@ -1133,7 +1133,7 @@ async function renderSalary() {
         <h4 class="sec-title mb-0 me-auto">Salary Reference</h4>
         <button class="btn btn-sm btn-outline-secondary" onclick="openWageScale()"><i class="bi bi-table me-1"></i>Wage Scale</button>
         <button class="btn btn-sm btn-outline-success" onclick="openSalaryImport()"><i class="bi bi-upload me-1"></i>Import CSV</button>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteAllSalaryRates()"><i class="bi bi-trash me-1"></i>Delete All</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteAllSalaryRates(this)"><i class="bi bi-trash me-1"></i>Delete All</button>
         <button class="btn btn-sm btn-primary" onclick="openSalaryModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Rate</button>
       </div>
       <div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
@@ -1287,12 +1287,11 @@ async function saveSalaryModal() {
   finally { if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save';} }
 }
 
-async function deleteAllSalaryRates() {
-  const all=await spGet('SalaryRates','?$select=Id&$top=2000').catch(()=>[]);
-  if(!all.length){toast('No rates to delete','warning');return;}
-  if(!confirm(`Delete ALL ${all.length} salary rate${all.length!==1?'s':''}?\n\nThis cannot be undone.`)) return;
-  const btn=event.currentTarget;
+async function deleteAllSalaryRates(btn) {
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm"></span>';
+  const all=await spGet('SalaryRates','?$select=Id&$top=2000').catch(()=>[]);
+  if(!all.length){toast('No rates to delete','warning');btn.disabled=false;btn.innerHTML='<i class="bi bi-trash me-1"></i>Delete All';return;}
+  if(!confirm(`Delete ALL ${all.length} salary rate${all.length!==1?'s':''}?\n\nThis cannot be undone.`)){btn.disabled=false;btn.innerHTML='<i class="bi bi-trash me-1"></i>Delete All';return;}
   try {
     for(const e of all) await spDelete('SalaryRates',e.Id);
     toast(`All ${all.length} rates deleted`);
