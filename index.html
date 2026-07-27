@@ -160,6 +160,48 @@
 </div>
 
 <!-- Salary Rate add/edit -->
+<!-- ── Position List Modal ─────────────────────────────────────────── -->
+<div class="modal fade" id="modalPositionList" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-word me-2"></i>Generate Open Position List</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-md-2"><label class="form-label fw-bold">Week</label>
+            <input type="number" class="form-control" id="pl-week" min="1" max="53"></div>
+          <div class="col-md-2"><label class="form-label fw-bold">Year</label>
+            <input type="number" class="form-control" id="pl-year"></div>
+          <div class="col-md-8 d-flex align-items-end gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('#pl-vacancy-list input').forEach(c=>c.checked=true)">Select All</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('#pl-vacancy-list input').forEach(c=>c.checked=false)">Deselect All</button>
+          </div>
+        </div>
+        <label class="form-label fw-bold">Select vacancies to include</label>
+        <div id="pl-vacancy-list" class="border rounded p-2" style="max-height:260px;overflow-y:auto"></div>
+        <label class="form-label fw-bold mt-3">Agency Recipients</label>
+        <div id="pl-agency-list" class="border rounded p-2" style="max-height:160px;overflow-y:auto">
+          <span class="text-muted" style="font-size:.85rem">Loading agencies…</span>
+        </div>
+        <div id="pl-agency-warn" class="alert alert-warning mt-2 py-2 d-none" style="font-size:.82rem">
+          <i class="bi bi-exclamation-triangle me-1"></i>No email addresses found in AgencyList. Add an <strong>Email</strong> column (single line of text) to the AgencyList in SharePoint to enable sending.
+        </div>
+      </div>
+      <div class="modal-footer flex-wrap gap-2">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-outline-primary" id="btn-pl-generate" onclick="generatePositionList()">
+          <i class="bi bi-file-earmark-word me-1"></i>Download .docx
+        </button>
+        <button class="btn btn-primary" id="btn-pl-send" onclick="sendToAgencies()">
+          <i class="bi bi-send me-1"></i>Send Email to Agencies
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="modalSalaryRate" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -330,6 +372,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -337,8 +380,10 @@
 const CLIENT_ID = 'aa970388-238d-4faf-877d-1fe78d3cd8de';
 const TENANT_ID = '3285e781-a828-40a7-8f13-00b489371bb9';
 const SP_SITE   = 'https://martraconeu.sharepoint.com/sites/Management';
-const SP_SCOPE  = 'https://martraconeu.sharepoint.com/.default openid profile';
-const API       = `${SP_SITE}/_api/web`;
+const SP_SCOPE    = 'https://martraconeu.sharepoint.com/.default openid profile';
+const GRAPH_SCOPE = 'https://graph.microsoft.com/Mail.Send';
+const SENDER_ADDR = 'recruitment@martracon.eu';
+const API         = `${SP_SITE}/_api/web`;
 const REDIRECT  = window.location.origin + window.location.pathname;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -372,6 +417,14 @@ async function doLogin() {
 }
 
 async function handleCallback() {
+  // If this page loaded inside a popup for Graph auth, relay code to opener and close
+  if (window.opener && window.opener !== window) {
+    const pm = new URLSearchParams(window.location.search);
+    window.opener.postMessage({type:'oauth_cb',code:pm.get('code'),state:pm.get('state'),error:pm.get('error'),error_description:pm.get('error_description')},window.location.origin);
+    document.body.innerHTML='<div style="padding:2rem;text-align:center;font-family:sans-serif;color:#1B3A6B"><strong>Authenticated ✓</strong><br>You may close this window.</div>';
+    setTimeout(()=>window.close(),800);
+    return 'popup';
+  }
   const p = new URLSearchParams(window.location.search);
   const code = p.get('code');
   if (!code) return false;
@@ -402,6 +455,48 @@ async function getToken() {
   const exp = parseInt(sessionStorage.getItem('at_exp') || '0');
   if (!at || Date.now() > exp - 60000) { doLogin(); throw new Error('Re-authenticating…'); }
   return at;
+}
+
+async function getGraphToken() {
+  const at=sessionStorage.getItem('g_at');
+  const exp=parseInt(sessionStorage.getItem('g_exp')||'0');
+  if(at && Date.now()<exp-60000) return at;
+  // Acquire Graph token via popup (user stays on the page)
+  return new Promise(async(resolve,reject)=>{
+    const {verifier,challenge}=await generatePKCE();
+    const state='gph_'+rndStr(28);
+    const params=new URLSearchParams({client_id:CLIENT_ID,response_type:'code',
+      redirect_uri:REDIRECT,scope:GRAPH_SCOPE,state,code_challenge:challenge,
+      code_challenge_method:'S256'});
+    const popup=window.open(
+      `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${params}`,
+      'graphauth','width=520,height=680,left=200,top=100,resizable=yes,scrollbars=yes');
+    if(!popup){reject(new Error('Popup blocked — please allow popups for this site'));return;}
+    async function handler(evt){
+      if(evt.origin!==window.location.origin||evt.data?.type!=='oauth_cb')return;
+      clearInterval(timer);
+      window.removeEventListener('message',handler);
+      if(evt.data.error){reject(new Error(evt.data.error_description||evt.data.error));return;}
+      if(evt.data.state!==state){reject(new Error('State mismatch — retry'));return;}
+      try{
+        const r=await fetch(`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,{
+          method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({client_id:CLIENT_ID,grant_type:'authorization_code',
+            code:evt.data.code,redirect_uri:REDIRECT,code_verifier:verifier})
+        });
+        const t=await r.json();
+        if(t.error){reject(new Error(t.error_description||t.error));return;}
+        sessionStorage.setItem('g_at',t.access_token);
+        sessionStorage.setItem('g_exp',Date.now()+t.expires_in*1000);
+        resolve(t.access_token);
+      }catch(e){reject(e);}
+    }
+    window.addEventListener('message',handler);
+    const timer=setInterval(()=>{
+      if(popup.closed){clearInterval(timer);window.removeEventListener('message',handler);reject(new Error('Login window closed'));}
+    },1000);
+    setTimeout(()=>{clearInterval(timer);window.removeEventListener('message',handler);if(!popup.closed)popup.close();reject(new Error('Graph login timed out'));},300000);
+  });
 }
 
 function doLogout() {
@@ -547,6 +642,7 @@ async function renderOpen() {
       <h4 class="sec-title mb-0 me-auto">Open Positions</h4>
       <span class="badge bg-primary px-3 py-2">${openCt} Open</span>
       <span class="badge bg-warning text-dark px-3 py-2">${offerCt} Offer Made</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openPositionList()"><i class="bi bi-file-earmark-word me-1"></i>Position List</button>
       <button class="btn btn-sm btn-primary" onclick="goDetail(null)"><i class="bi bi-plus-lg me-1"></i>New Vacancy</button>
     </div>${buildVacTable(vacs,'No open vacancies at this time.')}`;
   } catch(e) { el.innerHTML=errBox(e); }
@@ -584,7 +680,7 @@ function filterAll() {
 }
 function loadVacancies(filter) {
   const fq=filter?`?$filter=${encodeURIComponent(filter)}&`:'?';
-  return spGet('Vacancies',`${fq}$select=Id,Title,Status,ReceivedDate,JoiningWeek,JoiningYear,JoiningDateOverride,SalaryMin,SalaryMax,SalaryCurrency,NationalityRequirements,IsLegacyMigrated,VesselId,Vessel/Title,ClientId,Client/Title,RankId,Rank/Title&$expand=Vessel,Client,Rank&$orderby=ReceivedDate desc&$top=2000`);
+  return spGet('Vacancies',`${fq}$select=Id,Title,Status,ReceivedDate,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,NationalityRequirements,TradingArea,CrewOnboard,Remarks,IsLegacyMigrated,VesselId,Vessel/Title,ClientId,Client/Title,RankId,Rank/Title&$expand=Vessel,Client,Rank&$orderby=ReceivedDate desc&$top=2000`);
 }
 function buildVacTable(vacs,emptyMsg='No vacancies found.',showLegacy=false) {
   const rows=vacs.length?vacs.map(v=>`<tr class="vac-row" onclick="goDetail(${v.Id})">
@@ -682,6 +778,12 @@ function buildDetailHTML(vac,history) {
         </div>
         <div id="neg-note-row" class="mb-3"${vac?.SalarySource!=='Negotiated'?' style="display:none"':''}><label class="form-label fw-bold">Negotiated Note</label><textarea class="form-control" id="f-snote" rows="2">${h(vac?.SalaryNegotiatedNote||'')}</textarea></div>
         <div id="sal-hint-row" class="mb-3 d-none"><div class="alert alert-info py-2 mb-0" style="font-size:.82rem" id="sal-hint"></div></div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6"><label class="form-label fw-bold">Trading Area</label>
+            <input type="text" class="form-control" id="f-trading" placeholder="e.g. South and East Africa trade" value="${h(vac?.TradingArea||'')}"></div>
+          <div class="col-md-6"><label class="form-label fw-bold">Crew / Engine Team on Board</label>
+            <input type="text" class="form-control" id="f-crew" placeholder="e.g. CE, 3E, OLR" value="${h(vac?.CrewOnboard||'')}"></div>
+        </div>
         <div class="mb-3"><label class="form-label fw-bold">Nationality Requirements</label>
           <div class="d-flex flex-wrap gap-1 mb-1">${['EU / NON-EU / UKR / RUS','EU only','Non-EU only','NON-EU / UKR / RUS'].map(n=>`<button type="button" class="btn btn-outline-secondary nat-btn" onclick="document.getElementById('f-nat').value='${n}'">${n}</button>`).join('')}</div>
           <textarea class="form-control" id="f-nat" rows="2">${h(vac?.NationalityRequirements||'')}</textarea></div>
@@ -767,7 +869,7 @@ async function saveVacancy(id) {
   const vessel=S.vessels.find(v=>v.Id==vesselId), rank=S.ranks.find(r=>r.Id==rankId), titleStr=`${vessel?.Title||'?'} — ${rank?.Title||'?'} — ${received}`;
   const joindateVal=document.getElementById('f-joindate')?.value;
   const data={ Title:titleStr, VesselId:parseInt(vesselId), RankId:parseInt(rankId), ...(clientId?{ClientId:parseInt(clientId)}:{}),
-    ReceivedDate:`${received}T00:00:00Z`, JoiningWeek:parseInt(document.getElementById('f-week')?.value)||null, JoiningYear:parseInt(document.getElementById('f-year')?.value)||null, JoiningDateOverride:joindateVal?`${joindateVal}T00:00:00Z`:null, ContractDurationValue:parseFloat(document.getElementById('f-cdur')?.value)||null, ContractDurationUnit:document.getElementById('f-cunit')?.value||'Months', ContractTolerance:parseFloat(document.getElementById('f-ctol')?.value)||null, SalaryMin:parseFloat(document.getElementById('f-smin')?.value)||null, SalaryMax:parseFloat(document.getElementById('f-smax')?.value)||null, SalaryCurrency:document.getElementById('f-scur')?.value||'EUR', SalarySource:document.getElementById('f-ssrc')?.value||'Scale', SalaryNegotiatedNote:document.getElementById('f-snote')?.value||null, NationalityRequirements:document.getElementById('f-nat')?.value||null, Remarks:document.getElementById('f-remarks')?.value||null };
+    ReceivedDate:`${received}T00:00:00Z`, JoiningWeek:parseInt(document.getElementById('f-week')?.value)||null, JoiningYear:parseInt(document.getElementById('f-year')?.value)||null, JoiningDateOverride:joindateVal?`${joindateVal}T00:00:00Z`:null, ContractDurationValue:parseFloat(document.getElementById('f-cdur')?.value)||null, ContractDurationUnit:document.getElementById('f-cunit')?.value||'Months', ContractTolerance:parseFloat(document.getElementById('f-ctol')?.value)||null, SalaryMin:parseFloat(document.getElementById('f-smin')?.value)||null, SalaryMax:parseFloat(document.getElementById('f-smax')?.value)||null, SalaryCurrency:document.getElementById('f-scur')?.value||'EUR', SalarySource:document.getElementById('f-ssrc')?.value||'Scale', SalaryNegotiatedNote:document.getElementById('f-snote')?.value||null, TradingArea:document.getElementById('f-trading')?.value||null, CrewOnboard:document.getElementById('f-crew')?.value||null, NationalityRequirements:document.getElementById('f-nat')?.value||null, Remarks:document.getElementById('f-remarks')?.value||null };
   const btn=document.getElementById('btn-save'); if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';}
   try {
     if(id&&id!=='null') { await spUpdate('Vacancies',id,data); toast('Changes saved'); renderDetail(id); }
@@ -1668,8 +1770,8 @@ async function renderAdmin() {
     ['AgencyList','Agencies','bi-people',`${S.agencies.length} active`],
     ['SalaryRates','Salary Rates','bi-cash-stack',''],
   ].map(([list,label,icon,count])=>{
-    const iconHtml=icon.startsWith('svg:')?icon.slice(4):`<i class="bi ${icon} fs-2 mb-2" style="color:var(--mc-blue)"></i>`;
-    return `<div class="col-6 col-md-4 col-lg-3 col-xl-2"><a href="${SP_SITE}/Lists/${list}" target="_blank" class="card text-decoration-none shadow-sm h-100 text-center p-3">${iconHtml}<div class="fw-bold">${label}</div>${count?`<div class="text-muted" style="font-size:.78rem">${count}</div>`:''}</a></div>`;
+    const iconHtml=icon.startsWith('svg:')?icon.slice(4).replace('<svg ','<svg style="display:block;margin:0 auto;color:var(--mc-blue)" '):`<i class="bi ${icon} fs-2" style="color:var(--mc-blue)"></i>`;
+    return `<div class="col-6 col-md-4 col-lg-3 col-xl-2"><a href="${SP_SITE}/Lists/${list}" target="_blank" class="card text-decoration-none shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center gap-1">${iconHtml}<div class="fw-bold">${label}</div>${count?`<div class="text-muted" style="font-size:.78rem">${count}</div>`:''}</a></div>`;
   }).join('')}</div>
   <h5 class="sec-title">One-Time Setup</h5>
   <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
@@ -1691,7 +1793,7 @@ async function renderAdmin() {
 async function init() {
   try {
     // Handle OAuth callback (code in URL after Microsoft login redirect)
-    await handleCallback();
+    if (await handleCallback() === 'popup') return;
 
     // Check if we have a valid token in session
     const at  = sessionStorage.getItem('at');
@@ -1721,6 +1823,292 @@ async function init() {
       <p style="color:#555">${h(e.message)}</p>
       <button onclick="sessionStorage.clear();location.reload()" style="padding:.6rem 1.5rem;background:#1F3864;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:1rem">Try again</button>
     </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AGENCY CONTACTS (maintained here — update as needed)
+// ═══════════════════════════════════════════════════════════════════
+const AGENCY_CONTACTS = [
+  { name:'Adriatic Crewing',                               email:'larisa.gillespie@acma.hr' },
+  { name:'Alexander Eugenevish',                           email:'alex555spb@yandex.ru' },
+  { name:'Amergo Group',                                   email:'crewing@amergogroup.com' },
+  { name:'Amergo Group (crew2)',                           email:'crew2@amergogroup.com' },
+  { name:'Ana Gretimybe',                                  email:'asolosenko@gretimybe.lt' },
+  { name:'Balteam',                                        email:'helpdesk@balteam.pl' },
+  { name:'Baltic Transocean (bu)',                         email:'bu@baltic-transocean.com' },
+  { name:'Baltic Transocean (info)',                       email:'info@baltic-transocean.com' },
+  { name:'GCA',                                            email:'crewing@gcagency.ge' },
+  { name:'Grono',                                          email:'crewing2@grono.pl' },
+  { name:'IQrew Management (Galina Fedorova)',             email:'galina.fedorova@iqrewing.com' },
+  { name:'Kristina German (Gretimybe)',                    email:'kgerman@gretimybe.lt' },
+  { name:'Martracon Crewing-Manila',                       email:'crewing-manila@martracon.ph' },
+  { name:'MMS Poland',                                     email:'mms@mms.com.pl' },
+  { name:'Nerey Crewing',                                  email:'kodgebash@nerey.net' },
+  { name:'Nerey (Olga Kharytonova)',                       email:'kharytonova@nerey.net' },
+  { name:'OJ Crew (Anna)',                                 email:'anna@ojcrew.com' },
+  { name:'OJ Crew (Main)',                                 email:'recruitment@ojcrew.com' },
+  { name:'OJ Crew (Poland)',                               email:'poland@ojcrew.com' },
+  { name:'OJ Crew (Vlad)',                                 email:'vlad@ojcrew.com' },
+  { name:'Saga Agency',                                    email:'saga@sagaagency.com' },
+  { name:'Seafactor',                                      email:'crewing@seafactor.com' },
+  { name:'Seamar Crewing',                                 email:'seamarcrew@gmail.com' },
+  { name:'Seamar Crewing 2',                               email:'seamar@internet.ru' },
+  { name:'Staff Center',                                   email:'crewing@scglobal.group' },
+  { name:'Viktor Shkodin (Gretimybe)',                     email:'vskodin@gretimybe.lt' },
+  { name:'Vostok',                                         email:'crew@vostokservis.com' },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// OPEN POSITION LIST (.docx generator)
+// ═══════════════════════════════════════════════════════════════════
+function isoWeek(date) {
+  const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
+  d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));
+  return Math.ceil((((d-new Date(Date.UTC(d.getUTCFullYear(),0,1)))/86400000)+1)/7);
+}
+
+async function openPositionList() {
+  const now=new Date();
+  document.getElementById('pl-week').value=isoWeek(now);
+  document.getElementById('pl-year').value=now.getFullYear();
+  const listEl=document.getElementById('pl-vacancy-list');
+  const agEl=document.getElementById('pl-agency-list');
+  const agWarn=document.getElementById('pl-agency-warn');
+  listEl.innerHTML='<div class="text-muted p-2">Loading…</div>';
+  agEl.innerHTML='<span class="text-muted" style="font-size:.85rem">Loading…</span>';
+  agWarn.classList.add('d-none');
+  new bootstrap.Modal(document.getElementById('modalPositionList')).show();
+
+  // Load vacancies
+  const vacs=await spGet('Vacancies',`?$filter=${encodeURIComponent("Status eq 'Open' or Status eq 'Offer Made'")}&$select=Id,Title,Status,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,TradingArea,CrewOnboard,NationalityRequirements,Remarks,VesselId,Vessel/Title,Vessel/Id,RankId,Rank/Title,Rank/Id,ClientId&$expand=Vessel,Rank&$orderby=Vessel/Title,Rank/Title&$top=500`).catch(()=>[]);
+  window._plVacs=vacs;
+
+  // Render vacancies
+  if(!vacs.length){listEl.innerHTML='<p class="text-muted p-2">No open vacancies found.</p>';}
+  else {
+    listEl.innerHTML=vacs.map(v=>`
+      <div class="form-check py-2 border-bottom">
+        <input class="form-check-input" type="checkbox" id="plv-${v.Id}" value="${v.Id}" checked>
+        <label class="form-check-label" for="plv-${v.Id}">
+          <strong>${h(v.Vessel?.Title||'—')}</strong> — ${h(v.Rank?.Title||'—')}
+          <span class="badge ${v.Status==='Offer Made'?'bg-warning text-dark':'bg-primary'} ms-1" style="font-size:.65rem">${h(v.Status)}</span>
+          <span class="text-muted ms-2" style="font-size:.8rem">${joiningStr(v)}</span>
+        </label>
+      </div>`).join('');
+  }
+
+  // Render agency list from hardcoded AGENCY_CONTACTS
+  agEl.innerHTML=AGENCY_CONTACTS.map((a,i)=>`
+    <div class="form-check py-1 border-bottom">
+      <input class="form-check-input" type="checkbox" id="pla-${i}" value="${i}" checked>
+      <label class="form-check-label" for="pla-${i}" style="font-size:.85rem">
+        ${h(a.name)} <span class="text-muted">&lt;${h(a.email)}&gt;</span>
+      </label>
+    </div>`).join('');
+  document.getElementById('btn-pl-send').disabled=false;
+}
+
+async function generatePositionList() {
+  const week=document.getElementById('pl-week').value||isoWeek(new Date());
+  const year=document.getElementById('pl-year').value||new Date().getFullYear();
+  const selectedIds=[...document.querySelectorAll('#pl-vacancy-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
+  if(!selectedIds.length){toast('Select at least one vacancy','warning');return;}
+  const selectedVacs=(window._plVacs||[]).filter(v=>selectedIds.includes(v.Id));
+  const btn=document.getElementById('btn-pl-generate');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Generating…';
+  try {
+    const {Document,Packer,Table,TableRow,TableCell,Paragraph,TextRun,WidthType,ShadingType,BorderStyle,AlignmentType}=docx;
+    const thinBorder={style:BorderStyle.SINGLE,size:4,color:'BBBBBB'};
+
+    function mkCell(text,bgHex,textHex,bold,widthPct){
+      const shade=bgHex?{type:ShadingType.SOLID,fill:bgHex,color:'auto'}:{type:ShadingType.CLEAR,fill:'auto',color:'auto'};
+      return new TableCell({
+        shading:shade,
+        width:{size:widthPct,type:WidthType.PERCENTAGE},
+        children:[new Paragraph({
+          spacing:{before:80,after:80},
+          indent:{left:120},
+          children:[new TextRun({text:String(text||''),bold:!!bold,color:textHex||'000000',size:20,font:'Calibri'})]
+        })]
+      });
+    }
+    function dataRow(label,value){
+      return new TableRow({children:[mkCell(label,'F2F3F4','555555',false,30),mkCell(value,null,'000000',false,70)]});
+    }
+    function hlRow(label,value,bgHex){
+      return new TableRow({children:[mkCell(label,bgHex,'FFFFFF',true,30),mkCell(value,bgHex,'FFFFFF',true,70)]});
+    }
+    function hdrRow(left,right){
+      return new TableRow({children:[mkCell(left,'1B3A6B','FFFFFF',true,30),mkCell(right,'1B3A6B','FFFFFF',true,70)]});
+    }
+
+    function buildTable(vac){
+      const vessel=S.vessels.find(v=>v.Id===vac.VesselId)||{};
+      const vesselName='MV '+(vac.Vessel?.Title||vessel.Title||'—');
+      const rankName=vac.Rank?.Title||'—';
+      const typeStr=[vessel.VesselType,vessel.DWT?`DWT ${vessel.DWT}`:vessel.GRT?`GRT ${vessel.GRT}`:''].filter(Boolean).join(' / ')||'—';
+      const joining=joiningStr(vac)||'—';
+      const contract=vac.ContractDurationValue?`${vac.ContractDurationValue} ${vac.ContractDurationUnit||'Months'}${vac.ContractTolerance?` +/-${vac.ContractTolerance}m`:''}` :'—';
+      const salary=vac.SalaryMin?`${Number(vac.SalaryMin).toLocaleString('de-DE')} ${vac.SalaryCurrency||'EUR'}`:'—';
+
+      const rows=[
+        hdrRow(vesselName,rankName),
+        dataRow('Type:',typeStr),
+        dataRow('Flag:',vessel.Flag||'—'),
+        dataRow('Built:',vessel.BuiltYear?String(vessel.BuiltYear):'—'),
+      ];
+      if(vac.TradingArea) rows.push(dataRow('Trading area:',vac.TradingArea));
+      rows.push(hlRow('Joining:',joining,'CC0000'));
+      rows.push(dataRow('Contract:',contract));
+      rows.push(dataRow('Salary:',salary));
+      if(vessel.EngineSpecs) rows.push(dataRow('Engine:',vessel.EngineSpecs));
+      if(vac.CrewOnboard) rows.push(dataRow('Engine Team:',vac.CrewOnboard));
+      if(vac.NationalityRequirements) rows.push(hlRow('Nationality requires:',vac.NationalityRequirements,'B54800'));
+      if(vac.Remarks){
+        const lines=vac.Remarks.split('\n').filter(Boolean);
+        lines.forEach((line,i)=>rows.push(hlRow(i===0?'Remark:':'',line,'7D6008')));
+      }
+      return new Table({
+        width:{size:100,type:WidthType.PERCENTAGE},
+        borders:{top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder,insideHorizontal:thinBorder,insideVertical:thinBorder},
+        rows
+      });
+    }
+
+    function para(text,opts={}){
+      return new Paragraph({
+        spacing:{before:opts.spaceBefore||0,after:opts.spaceAfter||120},
+        children:[new TextRun({text,bold:opts.bold||false,size:opts.size||22,color:opts.color||'000000',font:'Calibri'})]
+      });
+    }
+
+    const children=[
+      para(`Martracon Group — Open Position List — Week ${week}/${year}`,{bold:true,size:28,color:'1B3A6B',spaceAfter:200}),
+      para('Good day, dear colleagues!',{spaceAfter:100}),
+      para('Kindly see below our update for a weekly overview of our current open positions.',{spaceAfter:100}),
+      para('When proposing candidates, please put the vessel name + position of seafarer in the subject and send to recruitment@martracon.eu',{bold:true,spaceAfter:300}),
+    ];
+
+    for(let i=0;i<selectedVacs.length;i++){
+      children.push(buildTable(selectedVacs[i]));
+      children.push(para('',{spaceAfter:240}));
+    }
+
+    const doc=new Document({
+      creator:'Martracon Crew Tool',
+      title:`Open Position List Week ${week}/${year}`,
+      sections:[{
+        properties:{page:{margin:{top:720,right:720,bottom:720,left:720}}},
+        children
+      }]
+    });
+
+    const blob=await Packer.toBlob(doc);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`Martracon_Position_List_W${week}_${year}.docx`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    bootstrap.Modal.getInstance(document.getElementById('modalPositionList'))?.hide();
+    toast(`Generated — ${selectedVacs.length} position${selectedVacs.length!==1?'s':''} ✓`);
+  } catch(e){
+    toast(`Generation failed: ${e.message}`,'danger');
+    console.error('[PositionList]',e);
+  } finally {
+    btn.disabled=false; btn.innerHTML='<i class="bi bi-file-earmark-word me-1"></i>Generate .docx';
+  }
+}
+
+async function sendToAgencies() {
+  const week=document.getElementById('pl-week').value||isoWeek(new Date());
+  const year=document.getElementById('pl-year').value||new Date().getFullYear();
+  const selectedIds=[...document.querySelectorAll('#pl-vacancy-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
+  if(!selectedIds.length){toast('Select at least one vacancy','warning');return;}
+  const selectedAgIdxs=[...document.querySelectorAll('#pl-agency-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
+  if(!selectedAgIdxs.length){toast('Select at least one agency','warning');return;}
+
+  const selectedVacs=(window._plVacs||[]).filter(v=>selectedIds.includes(v.Id));
+  const selectedAgs=AGENCY_CONTACTS.filter((_,i)=>selectedAgIdxs.includes(i));
+
+  const btn=document.getElementById('btn-pl-send');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+  try {
+    // Get Graph API token (opens popup on first use for Mail.Send consent)
+    const gToken=await getGraphToken();
+
+    // Build HTML email — inline CSS for Outlook compatibility
+    function cs(bg,fg,bold){return `background:${bg||'transparent'};color:${fg||'#222222'};${bold?'font-weight:bold;':''}padding:5px 9px;border:1px solid #CCCCCC;font-family:Calibri,Arial,sans-serif;font-size:11pt;vertical-align:top`;}
+    function hR(l,r){return `<tr><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(l)}</td><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(r)}</td></tr>`;}
+    function dR(l,v){return `<tr><td style="${cs('#F2F3F4','#555555',false)}">${h(l)}</td><td style="${cs('','#222222',false)}">${h(v)}</td></tr>`;}
+    function lR(l,v,bg){return `<tr><td style="${cs(bg,'#FFFFFF',true)}">${h(l)}</td><td style="${cs(bg,'#FFFFFF',true)}">${h(v)}</td></tr>`;}
+
+    let tables='';
+    for(const vac of selectedVacs){
+      const vessel=S.vessels.find(v=>v.Id===vac.VesselId)||{};
+      const vesselName='MV '+(vac.Vessel?.Title||vessel.Title||'—');
+      const rankName=vac.Rank?.Title||'—';
+      const typeStr=[vessel.VesselType,vessel.DWT?`DWT ${vessel.DWT}`:vessel.GRT?`GRT ${vessel.GRT}`:''].filter(Boolean).join(' / ')||'—';
+      const contract=vac.ContractDurationValue?`${vac.ContractDurationValue} ${vac.ContractDurationUnit||'Months'}${vac.ContractTolerance?` +/-${vac.ContractTolerance}m`:''}` :'—';
+      const salary=vac.SalaryMin?`${Number(vac.SalaryMin).toLocaleString('de-DE')} ${vac.SalaryCurrency||'EUR'}`:'—';
+      let rows=hR(vesselName,rankName);
+      rows+=dR('Type:',typeStr);
+      rows+=dR('Flag:',vessel.Flag||'—');
+      rows+=dR('Built:',vessel.BuiltYear||'—');
+      if(vac.TradingArea)rows+=dR('Trading area:',vac.TradingArea);
+      rows+=lR('Joining:',joiningStr(vac)||'—','#CC0000');
+      rows+=dR('Contract:',contract);
+      rows+=dR('Salary:',salary);
+      if(vessel.EngineSpecs)rows+=dR('Engine:',vessel.EngineSpecs);
+      if(vac.CrewOnboard)rows+=dR('Engine Team:',vac.CrewOnboard);
+      if(vac.NationalityRequirements)rows+=lR('Nationality requires:',vac.NationalityRequirements,'#B54800');
+      if(vac.Remarks){
+        const lines=vac.Remarks.split('\n').filter(Boolean);
+        lines.forEach((line,i)=>{rows+=lR(i===0?'Remark:':'',line,'#7D6008');});
+      }
+      tables+=`<table width="100%" style="border-collapse:collapse;margin-bottom:20px">${rows}</table>`;
+    }
+
+    const htmlBody=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222222;margin:0;padding:24px;max-width:700px">
+<p style="font-size:15pt;font-weight:bold;color:#1B3A6B;margin-top:0;margin-bottom:16px">Martracon Group &mdash; Open Position List &mdash; Week ${week}/${year}</p>
+<p style="margin:0 0 8px 0">Good day, dear colleagues!</p>
+<p style="margin:0 0 8px 0">Kindly see below our update for a weekly overview of our current open positions.</p>
+<p style="margin:0 0 24px 0"><strong>When proposing candidates, please put the vessel name + position of seafarer in the subject and send to <a href="mailto:${SENDER_ADDR}" style="color:#1B3A6B">${SENDER_ADDR}</a></strong></p>
+${tables}
+<p style="margin-top:24px;color:#888888;font-size:9pt">Sent via Martracon Crew Management Tool</p>
+</body></html>`;
+
+    const message={
+      subject:`Martracon Group - Open Position List Week ${week}/${year} Update`,
+      body:{contentType:'HTML',content:htmlBody},
+      from:{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}},
+      toRecipients:[{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}}],
+      bccRecipients:selectedAgs.map(a=>({emailAddress:{address:a.email,name:a.name}}))
+    };
+
+    const resp=await fetch('https://graph.microsoft.com/v1.0/me/sendMail',{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${gToken}`,'Content-Type':'application/json'},
+      body:JSON.stringify({message,saveToSentItems:true})
+    });
+    if(resp.status===202||resp.status===200){
+      bootstrap.Modal.getInstance(document.getElementById('modalPositionList'))?.hide();
+      toast(`Email sent to ${selectedAgs.length} agenc${selectedAgs.length===1?'y':'ies'} ✓`);
+    } else {
+      const err=await resp.json().catch(()=>({}));
+      const msg=err?.error?.message||`HTTP ${resp.status}`;
+      if(resp.status===403){
+        toast(`Permission denied — the Azure AD app needs Mail.Send scope and Send As access on ${SENDER_ADDR}. Details: ${msg}`,'danger');
+      } else {
+        throw new Error(msg);
+      }
+    }
+  } catch(e){
+    toast(`Send failed: ${e.message}`,'danger');
+    console.error('[sendToAgencies]',e);
+  } finally {
+    btn.disabled=false; btn.innerHTML='<i class="bi bi-send me-1"></i>Send Email to Agencies';
   }
 }
 
