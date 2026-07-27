@@ -1120,7 +1120,7 @@ async function saveCandidateModal() {
 async function renderSalary() {
   const el=document.getElementById('v-salary'); spin(el);
   try {
-    const rates=await spGet('SalaryRates','?$select=Id,Title,EffectiveYear,SalaryMin,SalaryMax,Currency,CBACode,SeniorityLevel,IsNegotiatedRate,ClientId,Client/Title,Client/Id,RankId,Rank/Title,Rank/Id&$expand=Client,Rank&$orderby=EffectiveYear desc,Client/Title,Rank/Title&$top=1000');
+    const rates=await spGet('SalaryRates','?$select=Id,Title,EffectiveYear,SalaryMin,SalaryMax,Currency,CBACode,SeniorityLevel,IsNegotiatedRate,ContractDuration,ClientId,Client/Title,Client/Id,RankId,Rank/Title,Rank/Id&$expand=Client,Rank&$orderby=EffectiveYear desc,Client/Title,Rank/Title&$top=1000');
     window._salRates=rates;
     // Also refresh the compact cache used by vacancy auto-fill
     S.salaryRates=rates;
@@ -1160,7 +1160,7 @@ function filterSalary() {
     <td>${h(r.Client?.Title||'—')}</td>
     <td>${h(r.Rank?.Title||'—')}</td>
     <td class="text-nowrap">${fmtSalary(r.SalaryMin,r.SalaryMax,r.Currency)}</td>
-    <td>${h(r.SeniorityLevel||'—')}</td>
+    <td class="text-nowrap">${h(r.ContractDuration||'—')}</td>
     <td>${h(r.CBACode||'—')}</td>
     <td>${r.IsNegotiatedRate?'<span class="badge bg-warning text-dark" style="font-size:.68rem">Negotiated</span>':''}</td>
     <td class="text-end text-nowrap pe-2" onclick="event.stopPropagation()">
@@ -1168,7 +1168,7 @@ function filterSalary() {
       <button class="btn btn-xs btn-outline-danger" style="padding:1px 7px;font-size:.75rem" onclick="deleteSalaryRate(${r.Id})"><i class="bi bi-trash"></i></button>
     </td>
   </tr>`).join(''):`<tr><td colspan="8" class="text-center text-muted py-4">${(window._salRates||[]).length?'No rates match filters.':'No salary rates yet — click Add Rate.'}</td></tr>`;
-  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead style="background:var(--mc-navy);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Seniority</th><th>CBA</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
+  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead style="background:var(--mc-navy);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Duration</th><th>CBA</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
 }
 
 // ── Salary field type discovery (cached) ─────────────────────────
@@ -1221,6 +1221,10 @@ function openSalaryModal(id) {
     <div class="row g-3 mb-2">
       <div class="col-md-6"><label class="form-label fw-bold">CBA Code</label>
         <input type="text" class="form-control" id="sf-cba" value="${h(rate?.CBACode||'')}"></div>
+      <div class="col-md-6"><label class="form-label fw-bold">Contract Duration</label>
+        <input type="text" class="form-control" id="sf-dur" placeholder="e.g. 3 months" value="${h(rate?.ContractDuration||'')}"></div>
+    </div>
+    <div class="row g-3 mb-2">
       <div class="col-md-6 d-flex align-items-end pb-1">
         <div class="form-check"><input class="form-check-input" type="checkbox" id="sf-neg"${rate?.IsNegotiatedRate?' checked':''}>
         <label class="form-check-label" for="sf-neg">Negotiated Rate</label></div>
@@ -1272,6 +1276,7 @@ async function saveSalaryModal() {
   if(!isNaN(maxRaw)) data.SalaryMax=maxRaw;
   sfAdd(data,'SeniorityLevel',document.getElementById('sf-sen').value);
   sfAdd(data,'CBACode',document.getElementById('sf-cba').value.trim());
+  sfAdd(data,'ContractDuration',document.getElementById('sf-dur').value.trim());
 
   console.log('[SalaryRate] field types:',sfFields.map(f=>f.InternalName+':'+f.TypeAsString).join(', '));
   console.log('[SalaryRate] saving:',JSON.stringify(data));
@@ -1354,9 +1359,9 @@ function generateWageScale() {
     const catRates=rates.filter(r=>(rankMap[r.RankId]?.cat||'Other')===cat);
     catRates.sort((a,b)=>(rankMap[a.RankId]?.sort||999)-(rankMap[b.RankId]?.sort||999));
     html+=`<div class="mb-3"><div class="fw-bold text-uppercase" style="font-size:.75rem;letter-spacing:.05em;color:var(--mc-navy);border-bottom:2px solid var(--mc-blue);padding-bottom:2px;margin-bottom:4px">${h(cat)}</div>
-    <table class="table table-sm table-bordered mb-0" style="font-size:.83rem"><thead style="background:#f0f4f8"><tr><th>Rank</th><th>Min</th><th>Max</th><th>Currency</th><th>CBA</th><th>Seniority</th></tr></thead><tbody>`;
+    <table class="table table-sm table-bordered mb-0" style="font-size:.83rem"><thead style="background:#f0f4f8"><tr><th>Rank</th><th>Min</th><th>Max</th><th>Currency</th><th>Duration</th><th>CBA</th></tr></thead><tbody>`;
     for(const r of catRates) {
-      html+=`<tr><td>${h(r.Rank?.Title||'—')}</td><td class="text-end">${r.SalaryMin?Number(r.SalaryMin).toLocaleString('de-DE'):'—'}</td><td class="text-end">${r.SalaryMax?Number(r.SalaryMax).toLocaleString('de-DE'):'—'}</td><td>${h(r.Currency||'')}</td><td>${h(r.CBACode||'—')}</td><td>${h(r.SeniorityLevel||'—')}</td></tr>`;
+      html+=`<tr><td>${h(r.Rank?.Title||'—')}</td><td class="text-end">${r.SalaryMin?Number(r.SalaryMin).toLocaleString('de-DE'):'—'}</td><td class="text-end">${r.SalaryMax?Number(r.SalaryMax).toLocaleString('de-DE'):'—'}</td><td>${h(r.Currency||'')}</td><td>${h(r.ContractDuration||'—')}</td><td>${h(r.CBACode||'—')}</td></tr>`;
     }
     html+=`</tbody></table></div>`;
   }
@@ -1417,6 +1422,7 @@ function parseSalaryImport() {
   const iYear=col('year','effectiveyear'), iClient=col('client'), iRank=col('rank');
   const iMin=col('min','salarymin'), iMax=col('max','salarymax'), iCur=col('currency','cur');
   const iSen=col('seniority','level'), iCBA=col('cba','cbacode'), iNeg=col('neg','negotiated');
+  const iDur=col('duration','contractduration','dur');
 
   if(iYear<0||iClient<0||iRank<0){toast('CSV must have Year, Client and Rank columns','warning');return;}
 
@@ -1444,6 +1450,7 @@ function parseSalaryImport() {
     const senRaw=iSen>=0?(c[iSen]||'').trim():'';
     const cbaRaw=iCBA>=0?(c[iCBA]||'').trim():'';
     const negRaw=iNeg>=0?(c[iNeg]||'').trim():'0';
+    const durRaw=iDur>=0?(c[iDur]||'').trim():'';
 
     const year=parseInt(yearRaw)||null;
     const min=minRaw?parseFloat(minRaw):null;
@@ -1459,7 +1466,7 @@ function parseSalaryImport() {
     if(!rankRaw) errors.push('no rank');
     else if(!rankMatch) errors.push(`rank not found: "${rankRaw}"`);
 
-    parsed.push({ rowNum:i, yearRaw, clientRaw, rankRaw, minRaw, maxRaw, curRaw:curRaw||'USD', senRaw, cbaRaw, isNeg,
+    parsed.push({ rowNum:i, yearRaw, clientRaw, rankRaw, minRaw, maxRaw, curRaw:curRaw||'USD', senRaw, cbaRaw, durRaw, isNeg,
       year, min, max, clientMatch, rankMatch, errors, ok:errors.length===0 });
   }
 
@@ -1562,6 +1569,7 @@ async function runSalaryImport() {
     if(r.max!==null&&!isNaN(r.max)) data.SalaryMax=r.max;
     sfAdd(data,'SeniorityLevel',r.senRaw);
     sfAdd(data,'CBACode',r.cbaRaw);
+    sfAdd(data,'ContractDuration',r.durRaw);
     try {
       await spCreate('SalaryRates',data);
       ok++;
