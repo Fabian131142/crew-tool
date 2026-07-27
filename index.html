@@ -792,7 +792,7 @@ function buildDetailHTML(vac,history) {
         <div class="row g-3 mb-3">
           <div class="col-md-3"><label class="form-label fw-bold">Contract Duration</label><input type="number" class="form-control" id="f-cdur" min="0.5" max="24" step="0.5" value="${vac?.ContractDurationValue||''}"></div>
           <div class="col-md-3"><label class="form-label fw-bold">Unit</label><select class="form-select" id="f-cunit"><option value="Months"${(vac?.ContractDurationUnit||'Months')==='Months'?' selected':''}>Months</option><option value="Weeks"${vac?.ContractDurationUnit==='Weeks'?' selected':''}>Weeks</option></select></div>
-          <div class="col-md-3"><label class="form-label fw-bold">+/− Tolerance</label><input type="number" class="form-control" id="f-ctol" min="0" max="6" step="0.5" value="${vac?.ContractTolerance||''}"></div>
+          <div class="col-md-3"><label class="form-label fw-bold">+/− Tolerance</label><div class="input-group"><input type="number" class="form-control" id="f-ctol" min="0" max="12" step="0.5" value="${vac?.ContractTolerance||''}"><span class="input-group-text">weeks</span></div></div>
         </div>
         <div class="row g-3 mb-2">
           <div class="col-md-3"><label class="form-label fw-bold">Salary Min</label><input type="number" class="form-control" id="f-smin" step="50" value="${vac?.SalaryMin||''}"></div>
@@ -871,14 +871,27 @@ function refreshVesselSidebar(vesselId) {
   body.innerHTML=`<strong>${h(v.Title)}</strong><br><span class="text-muted">Flag:</span> ${h(v.Flag||'—')} &nbsp;<span class="text-muted">Built:</span> ${v.BuiltYear||'—'} &nbsp;<span class="text-muted">Type:</span> ${h(v.VesselType||'—')}<br><span class="text-muted">Entity:</span> ${h(v.MartraconEntity||'—')} &nbsp;<span class="text-muted">Service:</span> ${h(v.ServiceType||'—')}<br><span class="text-muted">Union:</span> ${h(v.Union||'—')}<br><span class="text-muted">Mgt. nationality:</span> ${h(v.ManagementNationality||'—')}`;
 }
 
+function parseContractDuration(str) {
+  if(!str) return null;
+  const m=String(str).trim().match(/^(\d+(?:\.\d+)?)\s*(month|months|week|weeks)/i);
+  if(!m) return null;
+  return {value:parseFloat(m[1]),unit:/week/i.test(m[2])?'Weeks':'Months'};
+}
 function onRankChange() {
   const clientId=document.getElementById('f-client-id')?.value, rankId=document.getElementById('f-rank')?.value;
   if(!clientId||!rankId) return;
   const year=new Date().getFullYear();
   const rate=S.salaryRates.find(r=>String(r.ClientId)===String(clientId)&&String(r.RankId)===String(rankId)&&r.EffectiveYear==year)||S.salaryRates.find(r=>String(r.ClientId)===String(clientId)&&String(r.RankId)===String(rankId));
   const hint=document.getElementById('sal-hint'), hintRow=document.getElementById('sal-hint-row');
-  if(rate) { if(rate.SalaryMin) document.getElementById('f-smin').value=rate.SalaryMin; if(rate.SalaryMax) document.getElementById('f-smax').value=rate.SalaryMax; if(rate.Currency) document.getElementById('f-scur').value=rate.Currency; if(hint) hint.innerHTML=`<i class="bi bi-info-circle me-1"></i>Pre-filled from ${rate.EffectiveYear||'stored'} salary scale${rate.CBACode?' · CBA: '+h(rate.CBACode):''}. Always editable.`; if(hintRow) hintRow.classList.remove('d-none'); }
-  else { if(hintRow) hintRow.classList.add('d-none'); }
+  if(rate) {
+    if(rate.SalaryMin) document.getElementById('f-smin').value=rate.SalaryMin;
+    if(rate.SalaryMax) document.getElementById('f-smax').value=rate.SalaryMax;
+    if(rate.Currency) document.getElementById('f-scur').value=rate.Currency;
+    const dur=parseContractDuration(rate.ContractDuration);
+    if(dur) { document.getElementById('f-cdur').value=dur.value; document.getElementById('f-cunit').value=dur.unit; }
+    if(hint) hint.innerHTML=`<i class="bi bi-info-circle me-1"></i>Pre-filled from ${rate.EffectiveYear||'stored'} salary scale${rate.CBACode?' · CBA: '+h(rate.CBACode):''}${dur?' · Contract: '+rate.ContractDuration:''} Always editable.`;
+    if(hintRow) hintRow.classList.remove('d-none');
+  } else { if(hintRow) hintRow.classList.add('d-none'); }
 }
 
 function toggleNegNote() { const src=document.getElementById('f-ssrc')?.value, row=document.getElementById('neg-note-row'); if(row) row.style.display=src==='Negotiated'?'':'none'; }
@@ -1906,7 +1919,7 @@ async function openPositionList() {
   new bootstrap.Modal(document.getElementById('modalPositionList')).show();
 
   // Load vacancies
-  const vacs=await spGet('Vacancies',`?$filter=${encodeURIComponent("Status eq 'Open' or Status eq 'Offer Made'")}&$select=Id,Title,Status,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,TradingArea,CrewOnboard,NationalityRequirements,Remarks,VesselId,Vessel/Title,Vessel/Id,RankId,Rank/Title,Rank/Id,ClientId&$expand=Vessel,Rank&$orderby=Vessel/Title,Rank/Title&$top=500`).catch(()=>[]);
+  const vacs=await spGet('Vacancies',`?$filter=${encodeURIComponent("Status eq 'Open' or Status eq 'Offer Made'")}&$select=Id,Title,Status,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,NationalityRequirements,Remarks,VesselId,Vessel/Title,Vessel/Id,RankId,Rank/Title,Rank/Id,ClientId&$expand=Vessel,Rank&$orderby=Vessel/Title,Rank/Title&$top=500`).catch(e=>{toast(`Position List query failed: ${e.message}`,'danger');return [];});
   window._plVacs=vacs;
 
   // Render vacancies
