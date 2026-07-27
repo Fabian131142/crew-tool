@@ -372,7 +372,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -381,7 +381,7 @@ const CLIENT_ID = 'aa970388-238d-4faf-877d-1fe78d3cd8de';
 const TENANT_ID = '3285e781-a828-40a7-8f13-00b489371bb9';
 const SP_SITE   = 'https://martraconeu.sharepoint.com/sites/Management';
 const SP_SCOPE    = 'https://martraconeu.sharepoint.com/.default openid profile';
-const GRAPH_SCOPE = 'https://graph.microsoft.com/Mail.Send';
+const GRAPH_SCOPE = 'https://graph.microsoft.com/Mail.ReadWrite';
 const SENDER_ADDR = 'recruitment@martracon.eu';
 const API         = `${SP_SITE}/_api/web`;
 const REDIRECT  = window.location.origin + window.location.pathname;
@@ -1948,6 +1948,7 @@ async function openPositionList() {
 }
 
 async function generatePositionList() {
+  if(typeof docx==='undefined'){toast('Word library not loaded — try refreshing the page (Ctrl+Shift+R)','danger');return;}
   const week=document.getElementById('pl-week').value||isoWeek(new Date());
   const year=document.getElementById('pl-year').value||new Date().getFullYear();
   const selectedIds=[...document.querySelectorAll('#pl-vacancy-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
@@ -2117,6 +2118,7 @@ ${tables}
 <p style="margin-top:24px;color:#888888;font-size:9pt">Sent via Martracon Crew Management Tool</p>
 </body></html>`;
 
+    // If the cached token was from the old Mail.Send scope, it won't work for drafts — clear it
     const message={
       subject:`Martracon Group - Open Position List Week ${week}/${year} Update`,
       body:{contentType:'HTML',content:htmlBody},
@@ -2125,22 +2127,32 @@ ${tables}
       bccRecipients:selectedAgs.map(a=>({emailAddress:{address:a.email,name:a.name}}))
     };
 
-    const resp=await fetch('https://graph.microsoft.com/v1.0/me/sendMail',{
+    // Create a DRAFT (not send) — user reviews and sends manually from Outlook
+    let resp=await fetch('https://graph.microsoft.com/v1.0/me/messages',{
       method:'POST',
       headers:{'Authorization':`Bearer ${gToken}`,'Content-Type':'application/json'},
-      body:JSON.stringify({message,saveToSentItems:true})
+      body:JSON.stringify(message)
     });
-    if(resp.status===202||resp.status===200){
+    // If the cached token has wrong scope (old Mail.Send token), clear and retry once
+    if(resp.status===401||resp.status===403){
+      sessionStorage.removeItem('g_at'); sessionStorage.removeItem('g_exp');
+      const freshToken=await getGraphToken();
+      resp=await fetch('https://graph.microsoft.com/v1.0/me/messages',{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${freshToken}`,'Content-Type':'application/json'},
+        body:JSON.stringify(message)
+      });
+    }
+    if(resp.ok){
+      const draft=await resp.json();
       bootstrap.Modal.getInstance(document.getElementById('modalPositionList'))?.hide();
-      toast(`Email sent to ${selectedAgs.length} agenc${selectedAgs.length===1?'y':'ies'} ✓`);
+      toast(`Draft created for ${selectedAgs.length} agenc${selectedAgs.length===1?'y':'ies'} — opening Outlook…`);
+      // Open the draft directly in Outlook web
+      const webLink=draft.webLink||'https://outlook.office.com/mail/drafts';
+      setTimeout(()=>window.open(webLink,'_blank'),600);
     } else {
       const err=await resp.json().catch(()=>({}));
-      const msg=err?.error?.message||`HTTP ${resp.status}`;
-      if(resp.status===403){
-        toast(`Permission denied — the Azure AD app needs Mail.Send scope and Send As access on ${SENDER_ADDR}. Details: ${msg}`,'danger');
-      } else {
-        throw new Error(msg);
-      }
+      throw new Error(err?.error?.message||`HTTP ${resp.status}`);
     }
   } catch(e){
     toast(`Send failed: ${e.message}`,'danger');
