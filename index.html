@@ -680,7 +680,7 @@ function filterAll() {
 }
 function loadVacancies(filter) {
   const fq=filter?`?$filter=${encodeURIComponent(filter)}&`:'?';
-  return spGet('Vacancies',`${fq}$select=Id,Title,Status,ReceivedDate,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,NationalityRequirements,TradingArea,CrewOnboard,Remarks,IsLegacyMigrated,VesselId,Vessel/Title,ClientId,Client/Title,RankId,Rank/Title&$expand=Vessel,Client,Rank&$orderby=ReceivedDate desc&$top=2000`);
+  return spGet('Vacancies',`${fq}$select=Id,Title,Status,ReceivedDate,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,NationalityRequirements,Remarks,IsLegacyMigrated,VesselId,Vessel/Title,ClientId,Client/Title,RankId,Rank/Title&$expand=Vessel,Client,Rank&$orderby=ReceivedDate desc&$top=2000`);
 }
 function buildVacTable(vacs,emptyMsg='No vacancies found.',showLegacy=false) {
   const rows=vacs.length?vacs.map(v=>`<tr class="vac-row" onclick="goDetail(${v.Id})">
@@ -2082,7 +2082,7 @@ ${tables}
     const message={
       subject:`Martracon Group - Open Position List Week ${week}/${year} Update`,
       body:{contentType:'HTML',content:htmlBody},
-      from:{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}},
+      replyTo:[{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}}],
       toRecipients:[{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}}],
       bccRecipients:selectedAgs.map(a=>({emailAddress:{address:a.email,name:a.name}}))
     };
