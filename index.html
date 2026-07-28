@@ -53,19 +53,23 @@
       font-weight: 700; font-size: .88rem; color: #fff !important;
       display: flex; align-items: center; gap: 9px; letter-spacing: .2px;
     }
+    /* CI Logo colours — DO NOT change these; they match the Martracon corporate identity exactly */
+    --mc-logo-gold:  #F9CF3C;   /* warm golden yellow from the logo */
+    --mc-logo-slate: #3E5576;   /* dark slate-blue letter colour from the logo */
+
     /* Mini logo mark – 3×3 grid */
     .mc-logo-mark {
       display: inline-grid;
       grid-template-columns: repeat(3, 11px);
       gap: 1.5px;
-      background: rgba(0,0,0,.55);
+      background: #000;
       padding: 1.5px;
       border-radius: 3px;
       flex-shrink: 0;
     }
     .mc-logo-mark span {
-      background: var(--mc-gold);
-      color: var(--mc-navy);
+      background: var(--mc-logo-gold);
+      color: var(--mc-logo-slate);
       font-size: 5.5px;
       font-weight: 900;
       height: 11px;
@@ -140,7 +144,13 @@
       padding: .65rem .8rem;
       white-space: nowrap;
       letter-spacing: .2px;
+      /* Sticky header — works when table is inside a scrollable container */
+      position: sticky;
+      top: 0;
+      z-index: 5;
     }
+    /* For tables in the main page (outside modals), offset by the fixed navbar height */
+    #app-container .table thead th { top: 0; }
     .table tbody tr { transition: background .12s; }
     .table tbody tr:hover td { background: var(--mc-blue-lt) !important; }
     .table td { border-color: var(--mc-border); vertical-align: middle; padding: .58rem .8rem; }
@@ -279,6 +289,12 @@
     .wave-layer:nth-child(3) { animation: wave-move 26s linear infinite; opacity: .4; }
     @keyframes wave-move { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
+    /* CI logo colours on login screen (same values as above) */
+    .login-logo-grid {
+      --lg-bg: #F9CF3C;
+      --lg-fg: #3E5576;
+    }
+
     /* Login card — frosted glass */
     .login-card {
       position: relative; z-index: 10;
@@ -298,19 +314,19 @@
       to   { opacity: 1; transform: none; }
     }
 
-    /* Logo grid on login card */
+    /* Logo grid on login card — CI fixed, do not alter colours */
     .login-logo-grid {
       display: inline-grid;
       grid-template-columns: repeat(3, 52px);
       gap: 4px;
-      background: rgba(0,0,0,.55);
+      background: #000;
       padding: 4px;
       border-radius: 10px;
       margin-bottom: 1.5rem;
     }
     .login-logo-grid span {
-      background: var(--mc-gold);
-      color: var(--mc-navy);
+      background: var(--lg-bg, #F9CF3C);
+      color: var(--lg-fg, #3E5576);
       font-size: 1.25rem;
       font-weight: 900;
       height: 52px;
@@ -605,7 +621,13 @@
             </div>
           </div>
         </div>
-        <iframe id="ep-frame" style="width:100%;height:500px;border:none" sandbox="allow-same-origin"></iframe>
+        <!-- Custom intro message (editable) -->
+        <div class="p-3 border-bottom" style="background:#fffdf0">
+          <label class="form-label fw-bold mb-1" style="font-size:.83rem"><i class="bi bi-pencil-square me-1"></i>Custom Message / Introduction <span class="text-muted fw-normal">(optional — shown above the position table)</span></label>
+          <textarea id="ep-custom-body" class="form-control" rows="3" placeholder="e.g. Dear Ladies and Gentlemen,&#10;Please find below our latest open positions for your review and consideration." style="font-size:.88rem;resize:vertical"></textarea>
+          <button class="btn btn-sm btn-outline-secondary mt-2 py-0" onclick="refreshEmailPreview()"><i class="bi bi-arrow-clockwise me-1"></i>Update Preview</button>
+        </div>
+        <iframe id="ep-frame" style="width:100%;height:430px;border:none" sandbox="allow-same-origin"></iframe>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Back to edit</button>
@@ -728,12 +750,23 @@
         </div>
         <label class="form-label fw-bold">Select vacancies to include</label>
         <div id="pl-vacancy-list" class="border rounded p-2" style="max-height:260px;overflow-y:auto"></div>
-        <label class="form-label fw-bold mt-3">Agency Recipients</label>
-        <div id="pl-agency-list" class="border rounded p-2" style="max-height:160px;overflow-y:auto">
+        <div class="d-flex align-items-center gap-2 mt-3 mb-1 flex-wrap">
+          <label class="form-label fw-bold mb-0">Agency Recipients</label>
+          <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.78rem" onclick="document.querySelectorAll('#pl-agency-list input[type=checkbox]').forEach(c=>c.checked=true)">Select All</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.78rem" onclick="document.querySelectorAll('#pl-agency-list input[type=checkbox]').forEach(c=>c.checked=false)">Deselect All</button>
+          <button type="button" class="btn btn-xs btn-warning py-0 px-2 text-dark" style="font-size:.78rem" onclick="selectFavoriteAgencies()">⭐ Select Favorites</button>
+        </div>
+        <div id="pl-agency-list" class="border rounded p-2" style="max-height:180px;overflow-y:auto">
           <span class="text-muted" style="font-size:.85rem">Loading agencies…</span>
         </div>
+        <!-- Add custom / unlisted email -->
+        <div class="mt-2 d-flex gap-2 align-items-center">
+          <input type="email" id="pl-custom-email-name" class="form-control form-control-sm" style="max-width:200px" placeholder="Agency name">
+          <input type="email" id="pl-custom-email-addr" class="form-control form-control-sm" style="max-width:220px" placeholder="email@address.com">
+          <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="addCustomPlEmail()" style="white-space:nowrap"><i class="bi bi-plus"></i> Add</button>
+        </div>
         <div id="pl-agency-warn" class="alert alert-warning mt-2 py-2 d-none" style="font-size:.82rem">
-          <i class="bi bi-exclamation-triangle me-1"></i>No email addresses found in AgencyList. Add an <strong>Email</strong> column (single line of text) to the AgencyList in SharePoint to enable sending.
+          <i class="bi bi-exclamation-triangle me-1"></i>No email addresses configured. Add agencies via Admin → Agencies.
         </div>
       </div>
       <div class="modal-footer flex-wrap gap-2">
@@ -2546,7 +2579,7 @@ async function renderAdmin() {
 // ═══════════════════════════════════════════════════════════════════
 // VESSEL MANAGER — REFERENCE DATA
 // ═══════════════════════════════════════════════════════════════════
-const MARITIME_FLAGS=['Antigua and Barbuda','Bahamas','Belize','Bermuda','Cambodia','Cayman Islands','China','Cyprus','Denmark','Faroe Islands','Germany','Gibraltar','Greece','Hong Kong','Isle of Man','Italy','Japan','Liberia','Luxembourg','Madeira','Malta','Marshall Islands','Netherlands','Norway (NIS)','Norway (NOR)','Panama','Philippines','Portugal','Saint Kitts and Nevis','Singapore','Tuvalu','United Kingdom','United States','Vanuatu'];
+const MARITIME_FLAGS=['Antigua & Barbuda','Bahamas','Belize','Bermuda','Cambodia','Cayman Islands','China','Cyprus','Denmark','Faroe Islands','Germany','Gibraltar','Greece','Hong Kong','Isle of Man','Italy','Japan','Liberia','Luxembourg','Madeira','Malta','Marshall Islands','Netherlands','Norway (NIS)','Norway (NOR)','Panama','Philippines','Portugal','Saint Kitts and Nevis','Singapore','Tuvalu','United Kingdom','United States','Vanuatu'];
 const TRADING_AREAS=['Worldwide','North Europe','Baltic','Mediterranean','Black Sea','West Africa','South Africa','East Africa','Persian Gulf / Middle East','Red Sea','Indian Subcontinent','South East Asia','Far East','Australia / Pacific','North America','Caribbean / Central America','South America / South Atlantic','Arctic'];
 
 async function openVesselManager() {
@@ -2586,23 +2619,24 @@ function renderVesselTable() {
   });
   if(!vessels.length){ body.innerHTML='<p class="text-muted p-3">No vessels found.</p>'; return; }
   function th(label,key){ const active=sk===key, arr=active?(sd==='asc'?'▲':'▼'):'<span style="opacity:.3">⇅</span>'; return `<th style="cursor:pointer;white-space:nowrap;user-select:none" onclick="sortVesselTable('${key}')">${label} ${arr}</th>`; }
-  body.innerHTML=`<table class="table table-hover table-sm mb-0" style="font-size:.85rem">
-    <thead class="table-light"><tr>
-      ${th('Vessel','Title')}${th('Type','VesselType')}${th('Flag','Flag')}${th('Built','BuiltYear')}${th('DWT','DWT')}<th>Client</th><th>Entity</th><th>Trading Area</th><th>Status</th><th></th>
+  body.innerHTML=`<div style="max-height:62vh;overflow-y:auto"><table class="table table-hover table-sm mb-0" style="font-size:.85rem">
+    <thead><tr>
+      ${th('Vessel','Title')}${th('Type','VesselType')}${th('Flag','Flag')}${th('Built','BuiltYear')}${th('DWT','DWT')}${th('Client','Client')}${th('Entity','MartraconEntity')}${th('Service','ServiceType')}<th>Trading Area</th>${th('Status','IsActive')}<th></th>
     </tr></thead><tbody>
     ${vessels.map(v=>`<tr style="cursor:pointer" onclick="editVessel(${v.Id})">
-      <td class="fw-bold">${h(v.Title)}</td>
+      <td class="fw-bold"><i class="bi bi-anchor me-1 text-muted" style="font-size:.75rem;opacity:.55"></i>${h(v.Title)}</td>
       <td>${h(v.VesselType||'—')}</td>
       <td>${h(v.Flag||'—')}</td>
       <td>${v.BuiltYear||'—'}</td>
       <td id="dwt-cell-${v.Id}" onclick="event.stopPropagation();inlineDwtEdit(${v.Id},this)" title="Click to edit DWT" style="cursor:text;min-width:70px">${v.DWT?Number(v.DWT).toLocaleString('de-DE'):'—'}</td>
       <td>${h(v.Client?.Title||'—')}</td>
       <td>${h(v.MartraconEntity||'—')}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(v.TradingArea||'')}">${h(v.TradingArea||'—')}</td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(v.ServiceType||'')}">${h(v.ServiceType||'—')}</td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(v.TradingArea||'')}">${h(v.TradingArea||'—')}</td>
       <td><span class="badge ${v.IsActive!==false?'bg-success':'bg-secondary'}">${v.IsActive!==false?'Active':'Inactive'}</span></td>
       <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="editVessel(${v.Id})" title="Edit"><i class="bi bi-pencil"></i></button></td>
     </tr>`).join('')}
-    </tbody></table>`;
+    </tbody></table></div>`;
 }
 
 async function inlineDwtEdit(id, cell) {
@@ -2685,8 +2719,8 @@ function editVessel(id) {
     <div class="col-md-3"><label class="form-label fw-bold">Output (kW)</label>
       <input type="number" class="form-control" id="vf-eng-output" step="50" min="0" value="${engOutput}" placeholder="e.g. 6800"></div>
     <div class="col-md-4 d-flex align-items-end gap-3 pb-2">
-      <div class="form-check"><input class="form-check-input" type="radio" name="vf-stroke" id="vf-2stroke" value="2-stroke"${engStroke.includes('2')?' checked':''}><label class="form-check-label" for="vf-2stroke">2-stroke</label></div>
-      <div class="form-check"><input class="form-check-input" type="radio" name="vf-stroke" id="vf-4stroke" value="4-stroke"${engStroke.includes('4')?' checked':''}><label class="form-check-label" for="vf-4stroke">4-stroke</label></div>
+      <div class="form-check"><input class="form-check-input" type="radio" name="vf-stroke" id="vf-2stroke" value="2-stroke"${engStroke==='2-stroke'?' checked':''}><label class="form-check-label" for="vf-2stroke">2-stroke</label></div>
+      <div class="form-check"><input class="form-check-input" type="radio" name="vf-stroke" id="vf-4stroke" value="4-stroke"${engStroke==='4-stroke'?' checked':''}><label class="form-check-label" for="vf-4stroke">4-stroke</label></div>
     </div>
   </div>
   <div class="mb-3">
@@ -2736,6 +2770,15 @@ function unlockVesselMasterData() {
 async function saveVessel() {
   const title=document.getElementById('vf-title')?.value?.trim();
   if(!title){toast('Vessel name is required','warning');return;}
+  const isNewVessel=!S._editingVesselId;
+  // Mandatory for new vessels: Type, Flag, Built Year, Engine stroke
+  if(isNewVessel){
+    if(!document.getElementById('vf-type')?.value){toast('Vessel Type is required','warning');return;}
+    if(!document.getElementById('vf-flag')?.value){toast('Flag is required','warning');return;}
+    if(!document.getElementById('vf-built')?.value){toast('Built Year is required','warning');return;}
+    if(!document.getElementById('vf-abbr')?.value?.trim()){toast('Abbreviation is required','warning');return;}
+    if(!document.querySelector('input[name="vf-stroke"]:checked')){toast('Please select 2-stroke or 4-stroke engine','warning');return;}
+  }
   const clientId=document.getElementById('vf-client')?.value;
   // Build engine specs string from 3 fields
   const engMaker=document.getElementById('vf-eng-maker')?.value?.trim()||'';
@@ -2889,14 +2932,20 @@ async function openPositionList() {
       </div>`).join('');
   }
 
-  // Render agency list from hardcoded AGENCY_CONTACTS
-  agEl.innerHTML=AGENCY_CONTACTS.map((a,i)=>`
-    <div class="form-check py-1 border-bottom">
+  // Render agency list — favorites at top with ★
+  const favs=AGENCY_CONTACTS.filter(a=>agencyFav(a.name));
+  const nonFavs=AGENCY_CONTACTS.filter(a=>!agencyFav(a.name));
+  const ordered=[...favs,...nonFavs];
+  agEl.innerHTML=ordered.map((a,i)=>{
+    const isFav=agencyFav(a.name);
+    return `<div class="form-check py-1 border-bottom">
       <input class="form-check-input" type="checkbox" id="pla-${i}" value="${i}" checked>
       <label class="form-check-label" for="pla-${i}" style="font-size:.85rem">
-        ${h(a.name)} <span class="text-muted">&lt;${h(a.email)}&gt;</span>
+        ${isFav?'<span class="text-warning me-1" title="Favorite">★</span>':''}${h(a.name)} <span class="text-muted">&lt;${h(a.email)}&gt;</span>
       </label>
-    </div>`).join('');
+    </div>`;}).join('');
+  // store ordered list so sendToAgencies can find by index
+  window._plAgencies=ordered;
   document.getElementById('btn-pl-send').disabled=false;
 }
 
@@ -3033,45 +3082,88 @@ const REF_CONFIGS = {
   },
   rank: {
     list:'RankList', label:'Rank', icon:'bi-person-badge', spLink:'RankList',
-    // RankList uses RankCategory and SortOrder (not Department)
     query:'?$select=*&$orderby=SortOrder,Title&$top=500',
-    cols:['Rank Title','Category','Status'],
-    row:(r)=>[h(r.Title),h(r.RankCategory||'—'),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
+    cols:['Rank Title','STCW Code','Category','Sort','Status'],
+    row:(r)=>[h(r.Title),h(r.STCWCode||'—'),h(r.RankCategory||'—'),r.SortOrder||'—',r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
     form:(r)=>`
       <div class="row g-3 mb-3">
-        <div class="col-md-7"><label class="form-label fw-bold">Rank Title <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Chief Officer"></div>
-        <div class="col-md-5"><label class="form-label fw-bold">Category</label>
-          <select class="form-select" id="rf-dept">
-            ${['Deck Officer','Engine Officer','Rating','Catering','Electro-Technical','Other'].map(d=>`<option value="${d}"${r?.RankCategory===d?' selected':''}>${d}</option>`).join('')}
-          </select></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Rank Title <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Chief Officer" required></div>
+        <div class="col-md-6"><label class="form-label fw-bold">STCW Code</label>
+          <input type="text" class="form-control" id="rf-stcw" value="${h(r?.STCWCode||'')}" placeholder="e.g. II/2, III/1"></div>
       </div>
-      <div class="mb-3"><label class="form-label fw-bold">Sort Order <span class="text-muted fw-normal" style="font-size:.8rem">(lower = shown first)</span></label>
-        <input type="number" class="form-control" id="rf-sort" min="1" max="999" value="${r?.SortOrder||''}"></div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-8"><label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
+          <select class="form-select" id="rf-dept">
+            <option value="">— select —</option>
+            ${['Deck Officer','Engine Officer','Deck Rating','Engine Rating','Combined Rating','Catering','Electro-Technical','Other'].map(d=>`<option value="${d}"${r?.RankCategory===d?' selected':''}>${d}</option>`).join('')}
+          </select></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Sort Order <span class="text-danger">*</span></label>
+          <input type="number" class="form-control" id="rf-sort" min="1" max="999" value="${r?.SortOrder||''}" placeholder="e.g. 10"></div>
+      </div>
       <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`,
-    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,RankCategory:document.getElementById('rf-dept')?.value||null,SortOrder:parseInt(document.getElementById('rf-sort')?.value)||null,IsActive:document.getElementById('rf-active')?.checked??true}; }
+    getData:()=>{
+      const t=document.getElementById('rf-title')?.value?.trim();
+      const cat=document.getElementById('rf-dept')?.value;
+      const sort=document.getElementById('rf-sort')?.value;
+      if(!t){toast('Rank Title is required','warning');return null;}
+      if(!cat){toast('Category is required','warning');return null;}
+      if(!sort){toast('Sort Order is required','warning');return null;}
+      return {Title:t,STCWCode:document.getElementById('rf-stcw')?.value?.trim()||null,RankCategory:cat,SortOrder:parseInt(sort),IsActive:document.getElementById('rf-active')?.checked??true};
+    }
   },
   agency: {
     list:'AgencyList', label:'Agency', icon:'bi-people', spLink:'AgencyList',
-    // Use $select=* to pick up Email if it exists, gracefully ignore if not
     query:'?$select=*&$orderby=Title&$top=500',
-    cols:['Agency Name','Email','Type','Status'],
-    row:(r)=>[h(r.Title),h(r.Email||r.AgencyEmail||'—'),h(r.AgencyType||'—'),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
-    form:(r)=>`
-      <div class="mb-3"><label class="form-label fw-bold">Agency Name <span class="text-danger">*</span></label>
+    cols:['Agency Name','Email','Phone','Fav.','Status'],
+    row:(r)=>{
+      const isFav=agencyFav(r.Title);
+      return [
+        `${isFav?'<span class="text-warning me-1" title="Favorite">★</span>':''}${h(r.Title)}`,
+        r.Email?`<a href="mailto:${h(r.Email)}" onclick="event.stopPropagation()" class="text-decoration-none">${h(r.Email)}</a>`:'—',
+        h(r.Phone||'—'),
+        `<button class="btn btn-sm py-0 px-1 ${isFav?'btn-warning':'btn-outline-secondary'}" style="font-size:.72rem" onclick="event.stopPropagation();toggleAgencyFav(${r.Id},'${h(r.Title)}');renderRefTable()" title="${isFav?'Remove from favorites':'Add to favorites'}">${isFav?'★ Fav':'☆ Fav'}</button>`,
+        r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'
+      ];
+    },
+    form:(r)=>{
+      const isFav=agencyFav(r?.Title||'');
+      return `
+      <div class="mb-3"><label class="form-label fw-bold">Manning Agency Name <span class="text-danger">*</span></label>
         <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Adriatic Crewing"></div>
       <div class="row g-3 mb-3">
-        <div class="col-md-8"><label class="form-label fw-bold">Email</label>
-          <input type="email" class="form-control" id="rf-email" value="${h(r?.Email||r?.AgencyEmail||'')}" placeholder="agency@example.com"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Type</label>
-          <select class="form-select" id="rf-agtype">
-            ${['Crewing','Manning','Placement','Other'].map(t=>`<option value="${t}"${r?.AgencyType===t?' selected':''}>${t}</option>`).join('')}
-          </select></div>
+        <div class="col-md-7"><label class="form-label fw-bold">Primary Email</label>
+          <input type="email" class="form-control" id="rf-email" value="${h(r?.Email||'')}" placeholder="agency@example.com"></div>
+        <div class="col-md-5"><label class="form-label fw-bold">Phone</label>
+          <input type="text" class="form-control" id="rf-phone" value="${h(r?.Phone||'')}" placeholder="+49 40 123456"></div>
       </div>
-      <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`,
-    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,Email:document.getElementById('rf-email')?.value||null,AgencyType:document.getElementById('rf-agtype')?.value||null,IsActive:document.getElementById('rf-active')?.checked??true}; }
+      <div class="mb-3"><label class="form-label fw-bold">Additional Emails <span class="text-muted fw-normal" style="font-size:.8rem">(comma-separated)</span></label>
+        <input type="text" class="form-control" id="rf-emails-extra" value="${h(r?.EmailList||'')}" placeholder="cc@agency.com, info@agency.com"></div>
+      <div class="form-check form-switch mb-2">
+        <input class="form-check-input" type="checkbox" id="rf-fav"${isFav?' checked':''}>
+        <label class="form-check-label fw-bold" for="rf-fav">⭐ Favorite Agency <span class="text-muted fw-normal" style="font-size:.8rem">(shown at top of position list)</span></label>
+      </div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`;
+    },
+    getData:()=>{
+      const t=document.getElementById('rf-title')?.value?.trim();
+      if(!t){toast('Agency name is required','warning');return null;}
+      const isFav=document.getElementById('rf-fav')?.checked??false;
+      if(isFav) localStorage.setItem('mc_fav_ag_'+t,'1');
+      else localStorage.removeItem('mc_fav_ag_'+t);
+      return {Title:t,Email:document.getElementById('rf-email')?.value||null,Phone:document.getElementById('rf-phone')?.value||null,EmailList:document.getElementById('rf-emails-extra')?.value||null,AgencyType:'Manning Agency',IsActive:document.getElementById('rf-active')?.checked??true};
+    },
+    canDelete: true,
   }
 };
+
+// ── Agency favorite helpers (stored in localStorage) ────────────────
+function agencyFav(title){ return !!localStorage.getItem('mc_fav_ag_'+(title||'')); }
+function toggleAgencyFav(id,title){
+  const key='mc_fav_ag_'+title;
+  if(localStorage.getItem(key)) localStorage.removeItem(key);
+  else localStorage.setItem(key,'1');
+}
 
 async function openRefManager(type) {
   const cfg=REF_CONFIGS[type]; if(!cfg) return;
@@ -3098,12 +3190,14 @@ function renderRefTable() {
   else if(filterVal==='inactive') items=items.filter(r=>r.IsActive===false);
   if(q) items=items.filter(r=>JSON.stringify(r).toLowerCase().includes(q));
   if(!items.length){ body.innerHTML='<p class="text-muted p-3">No records found.</p>'; return; }
-  body.innerHTML=`<table class="table table-hover table-sm mb-0" style="font-size:.85rem">
-    <thead class="table-light"><tr>${cfg.cols.map(c=>`<th>${c}</th>`).join('')}<th></th></tr></thead>
-    <tbody>${items.map(r=>`<tr style="cursor:pointer" onclick="editRefItem(${r.Id})">
-      ${cfg.row(r).map(c=>`<td>${c}</td>`).join('')}
-      <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="editRefItem(${r.Id})" title="Edit"><i class="bi bi-pencil"></i></button></td>
-    </tr>`).join('')}</tbody></table>`;
+  const rowArr=typeof cfg.row === 'function' && cfg.row.length===1;
+  body.innerHTML=`<div style="max-height:58vh;overflow-y:auto"><table class="table table-hover table-sm mb-0" style="font-size:.85rem">
+    <thead><tr>${cfg.cols.map(c=>`<th>${c}</th>`).join('')}<th style="width:90px"></th></tr></thead>
+    <tbody>${items.map(r=>{
+      const cells=(cfg.row(r)).map(c=>`<td>${c}</td>`).join('');
+      const delBtn=cfg.canDelete?`<button class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" onclick="event.stopPropagation();deleteRefItem(${r.Id},'${h(r.Title).replace(/'/g,"\\'")}')" title="Delete"><i class="bi bi-trash"></i></button>`:'';
+      return `<tr style="cursor:pointer" onclick="editRefItem(${r.Id})">${cells}<td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn btn-sm btn-outline-primary py-0 px-1" onclick="editRefItem(${r.Id})" title="Edit"><i class="bi bi-pencil"></i></button>${delBtn}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
 }
 
 function editRefItem(id) {
@@ -3130,13 +3224,26 @@ async function saveRefItem() {
     const id=S._editingRefId;
     if(id){ await spUpdate(cfg.list,id,data); toast(`${cfg.label} updated ✓`); }
     else { await spCreate(cfg.list,data); toast(`${cfg.label} created ✓`); }
-    bootstrap.Modal.getInstance(document.getElementById('modalRefForm'))?.hide();
-    // Reload items for manager
+    // Reload items immediately so manager table shows the new/updated record
     window._refManagerItems=await spGet(cfg.list,cfg.query).catch(()=>window._refManagerItems||[]);
+    renderRefTable(); // update table NOW, before the modal transition
+    bootstrap.Modal.getInstance(document.getElementById('modalRefForm'))?.hide();
     // Refresh global ref data so dropdowns update
     await loadRefData().catch(()=>{});
   } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
   finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save'; }
+}
+
+async function deleteRefItem(id, title) {
+  const cfg=REF_CONFIGS[window._refManagerType]; if(!cfg) return;
+  if(!confirm(`⚠️ Delete "${title}"?\n\nThis action cannot be undone. Existing records linked to this item may be affected.\n\nClick OK to confirm deletion.`)) return;
+  try {
+    await spDelete(cfg.list, id);
+    toast(`${cfg.label} deleted`);
+    window._refManagerItems=(window._refManagerItems||[]).filter(r=>r.Id!==id);
+    renderRefTable();
+    await loadRefData().catch(()=>{});
+  } catch(e){ toast(`Delete failed: ${e.message}`,'danger'); }
 }
 
 // ── Joining date mutual exclusivity ─────────────────────────────────
@@ -3197,7 +3304,7 @@ function filterBccDropdown() {
 
 function isEngineRank(rankTitle){return /engineer|eto|electrician|electric|fitter|oiler|wiper|motorman|engine cadet/i.test(rankTitle||'');}
 
-function buildEmailHtml(selectedVacs,week,year,sigName){
+function buildEmailHtml(selectedVacs,week,year,sigName,customIntro=''){
   function cs(bg,fg,bold){return `background:${bg||'transparent'};color:${fg||'#222222'};${bold?'font-weight:bold;':''}padding:5px 9px;border:1px solid #CCCCCC;font-family:Calibri,Arial,sans-serif;font-size:11pt;vertical-align:top`;}
   function hR(l,r){return `<tr><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(l)}</td><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(r)}</td></tr>`;}
   function dR(l,v){return `<tr><td style="${cs('#F2F3F4','#555555',false)}">${h(l)}</td><td style="${cs('','#222222',false)}">${h(v)}</td></tr>`;}
@@ -3230,8 +3337,9 @@ function buildEmailHtml(selectedVacs,week,year,sigName){
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222222;margin:0;padding:24px;max-width:700px">
 <p style="font-size:15pt;font-weight:bold;color:#1B3A6B;margin-top:0;margin-bottom:16px">Martracon Group &mdash; Open Position List &mdash; Week ${week}/${year}</p>
-<p style="margin:0 0 8px 0">Good day, dear colleagues!</p>
-<p style="margin:0 0 8px 0">Kindly see below our update for a weekly overview of our current open positions.</p>
+${customIntro
+  ? customIntro.split('\n').map(l=>`<p style="margin:0 0 8px 0">${h(l)}</p>`).join('')
+  : `<p style="margin:0 0 8px 0">Good day, dear colleagues!</p><p style="margin:0 0 8px 0">Kindly see below our update for a weekly overview of our current open positions.</p>`}
 <p style="margin:0 0 24px 0"><strong>When proposing candidates, please put the vessel name + position of seafarer in the subject and send to <a href="mailto:${SENDER_ADDR}" style="color:#1B3A6B">${SENDER_ADDR}</a></strong></p>
 ${tables}
 <table style="border-collapse:collapse;margin-top:24px;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#222222">
@@ -3251,22 +3359,52 @@ ${SENDER_MOBILE?`<tr><td style="color:#444444">${h(SENDER_MOBILE)}</td></tr>`:''
 </body></html>`;
 }
 
+function selectFavoriteAgencies() {
+  // Deselect all, then check only favorites
+  document.querySelectorAll('#pl-agency-list input[type=checkbox]').forEach(cb=>{ cb.checked=false; });
+  const ordered=window._plAgencies||AGENCY_CONTACTS;
+  ordered.forEach((a,i)=>{ if(agencyFav(a.name)){ const cb=document.getElementById('pla-'+i); if(cb) cb.checked=true; } });
+}
+function addCustomPlEmail() {
+  const nameEl=document.getElementById('pl-custom-email-name');
+  const addrEl=document.getElementById('pl-custom-email-addr');
+  const name=nameEl?.value?.trim()||''; const addr=addrEl?.value?.trim()||'';
+  if(!addr||!addr.includes('@')){toast('Enter a valid email address','warning');return;}
+  const list=window._plAgencies||(window._plAgencies=[]); list.push({name:name||addr,email:addr});
+  const agEl=document.getElementById('pl-agency-list');
+  const i=list.length-1;
+  agEl.insertAdjacentHTML('beforeend',`<div class="form-check py-1 border-bottom"><input class="form-check-input" type="checkbox" id="pla-${i}" value="${i}" checked><label class="form-check-label" for="pla-${i}" style="font-size:.85rem">${h(name||addr)} <span class="text-muted">&lt;${h(addr)}&gt;</span></label></div>`);
+  if(nameEl) nameEl.value=''; if(addrEl) addrEl.value='';
+  toast('Added to recipient list');
+}
+function refreshEmailPreview() {
+  if(!window._pendingEmail) return;
+  const customText=(document.getElementById('ep-custom-body')?.value||'').trim();
+  const html=buildEmailHtml(window._pendingEmail.selectedVacs||[],window._pendingEmail.week,window._pendingEmail.year,S.userName,customText);
+  window._pendingEmail.htmlBody=html;
+  document.getElementById('ep-frame').srcdoc=html;
+}
+
 async function sendToAgencies() {
   const week=document.getElementById('pl-week').value||isoWeek(new Date());
   const year=document.getElementById('pl-year').value||new Date().getFullYear();
   const selectedIds=[...document.querySelectorAll('#pl-vacancy-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
   if(!selectedIds.length){toast('Select at least one vacancy','warning');return;}
   const selectedAgIdxs=[...document.querySelectorAll('#pl-agency-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
-  if(!selectedAgIdxs.length){toast('Select at least one agency','warning');return;}
+  if(!selectedAgIdxs.length){toast('Select at least one agency recipient','warning');return;}
   const selectedVacs=(window._plVacs||[]).filter(v=>selectedIds.includes(v.Id));
-  const selectedAgs=AGENCY_CONTACTS.filter((_,i)=>selectedAgIdxs.includes(i));
+  const ordered=window._plAgencies||AGENCY_CONTACTS;
+  const selectedAgs=ordered.filter((_,i)=>selectedAgIdxs.includes(i));
   const subject=`Martracon Group - Open Position List Week ${week}/${year} Update`;
-  const htmlBody=buildEmailHtml(selectedVacs,week,year,S.userName);
+  const htmlBody=buildEmailHtml(selectedVacs,week,year,S.userName,'');
   // Store for confirmSendEmail (selectedAgs is a mutable copy)
-  window._pendingEmail={subject,htmlBody,selectedAgs:[...selectedAgs],week,year};
+  window._pendingEmail={subject,htmlBody,selectedAgs:[...selectedAgs],selectedVacs,week,year};
   // Show preview modal
   document.getElementById('ep-subject').value=subject;
   document.getElementById('ep-to').textContent=`${SENDER_ADDR} (Martracon Recruitment)`;
+  // Reset custom intro
+  const customEl=document.getElementById('ep-custom-body');
+  if(customEl) customEl.value='';
   renderBccChips();
   const frame=document.getElementById('ep-frame');
   frame.srcdoc=htmlBody;
@@ -3277,7 +3415,10 @@ async function sendToAgencies() {
 }
 
 async function confirmSendEmail() {
-  const{htmlBody,selectedAgs}=window._pendingEmail||{};
+  const{selectedAgs,selectedVacs,week,year}=window._pendingEmail||{};
+  // Rebuild body with latest custom intro before sending
+  const customIntro=(document.getElementById('ep-custom-body')?.value||'').trim();
+  const htmlBody=buildEmailHtml(selectedVacs||[],week,year,S.userName,customIntro);
   // Read subject from the editable input (user may have changed it)
   const subject=document.getElementById('ep-subject')?.value?.trim()||window._pendingEmail?.subject||'';
   if(!subject||!selectedAgs?.length){toast('No email pending','warning');return;}
