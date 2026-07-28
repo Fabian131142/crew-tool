@@ -943,7 +943,11 @@ async function saveVacancy(id) {
   const vessel=S.vessels.find(v=>v.Id==vesselId), rank=S.ranks.find(r=>r.Id==rankId), titleStr=`${vessel?.Title||'?'} — ${rank?.Title||'?'} — ${received}`;
   const joindateVal=document.getElementById('f-joindate')?.value;
   const data={ Title:titleStr, VesselId:parseInt(vesselId), RankId:parseInt(rankId), ...(clientId?{ClientId:parseInt(clientId)}:{}),
-    ReceivedDate:`${received}T00:00:00Z`, JoiningWeek:parseInt(document.getElementById('f-week')?.value)||null, JoiningYear:parseInt(document.getElementById('f-year')?.value)||null, JoiningDateOverride:joindateVal?`${joindateVal}T00:00:00Z`:null, ContractDurationValue:parseFloat(document.getElementById('f-cdur')?.value)||null, ContractDurationUnit:document.getElementById('f-cunit')?.value||'Months', ContractTolerance:parseFloat(document.getElementById('f-ctol')?.value)||null, SalaryMin:parseFloat(document.getElementById('f-smin')?.value)||null, SalaryMax:parseFloat(document.getElementById('f-smax')?.value)||null, SalaryCurrency:document.getElementById('f-scur')?.value||'EUR', SalarySource:document.getElementById('f-ssrc')?.value||'Scale', SalaryNegotiatedNote:document.getElementById('f-snote')?.value||null, TradingArea:document.getElementById('f-trading')?.value||null, PlaceOfJoining:document.getElementById('f-poj')?.value||null, CrewOnboard:document.getElementById('f-crew')?.value||null, NationalityRequirements:document.getElementById('f-nat')?.value||null, Remarks:document.getElementById('f-remarks')?.value||null };
+    ReceivedDate:`${received}T00:00:00Z`, JoiningWeek:parseInt(document.getElementById('f-week')?.value)||null, JoiningYear:parseInt(document.getElementById('f-year')?.value)||null, JoiningDateOverride:joindateVal?`${joindateVal}T00:00:00Z`:null, ContractDurationValue:parseFloat(document.getElementById('f-cdur')?.value)||null, ContractDurationUnit:document.getElementById('f-cunit')?.value||'Months', ContractTolerance:parseFloat(document.getElementById('f-ctol')?.value)||null, SalaryMin:parseFloat(document.getElementById('f-smin')?.value)||null, SalaryMax:parseFloat(document.getElementById('f-smax')?.value)||null, SalaryCurrency:document.getElementById('f-scur')?.value||'EUR', SalarySource:document.getElementById('f-ssrc')?.value||'Scale', SalaryNegotiatedNote:document.getElementById('f-snote')?.value||null, NationalityRequirements:document.getElementById('f-nat')?.value||null, Remarks:document.getElementById('f-remarks')?.value||null };
+  // These fields require their SharePoint columns to exist first — added conditionally
+  const tradingVal=document.getElementById('f-trading')?.value||''; if(tradingVal) data.TradingArea=tradingVal;
+  const pojVal=document.getElementById('f-poj')?.value||''; if(pojVal) data.PlaceOfJoining=pojVal;
+  const crewVal=document.getElementById('f-crew')?.value||''; if(crewVal) data.CrewOnboard=crewVal;
   const btn=document.getElementById('btn-save'); if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';}
   try {
     if(id&&id!=='null') { await spUpdate('Vacancies',id,data); toast('Changes saved'); renderDetail(id); }
@@ -1955,7 +1959,7 @@ async function openPositionList() {
   new bootstrap.Modal(document.getElementById('modalPositionList')).show();
 
   // Load vacancies
-  const vacs=await spGet('Vacancies',`?$filter=${encodeURIComponent("Status eq 'Open' or Status eq 'Offer Made'")}&$select=Id,Title,Status,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,TradingArea,PlaceOfJoining,CrewOnboard,NationalityRequirements,Remarks,VesselId,Vessel/Title,Vessel/Id,RankId,Rank/Title,Rank/Id,ClientId&$expand=Vessel,Rank&$orderby=Vessel/Title,Rank/Title&$top=500`).catch(e=>{toast(`Position List query failed: ${e.message}`,'danger');return [];});
+  const vacs=await spGet('Vacancies',`?$filter=${encodeURIComponent("Status eq 'Open' or Status eq 'Offer Made'")}&$select=*,Vessel/Title,Vessel/Id,Rank/Title,Rank/Id&$expand=Vessel,Rank&$orderby=Vessel/Title,Rank/Title&$top=500`).catch(e=>{toast(`Position List query failed: ${e.message}`,'danger');return [];});
   window._plVacs=vacs;
 
   // Render vacancies
