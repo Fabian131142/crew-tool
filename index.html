@@ -9,26 +9,31 @@
   <style>
     /* ══════════════════════════════════════════
        MARTRACON DESIGN SYSTEM
+       CI Colours: Yellow #FFDC84 · Blue #405A70
+       DO NOT change these — they are corporate identity.
     ══════════════════════════════════════════ */
     :root {
-      --mc-navy:      #1a3557;
-      --mc-navy-deep: #0d1f35;
-      --mc-slate:     #3d5578;
-      --mc-gold:      #f5c840;
-      --mc-gold-dark: #d9a800;
-      --mc-gold-glow: rgba(245,200,64,.22);
-      --mc-blue:      #4a8fd4;
-      --mc-blue-lt:   #e8f2fc;
-      --mc-bg:        #eef2f8;
-      --mc-surface:   #ffffff;
-      --mc-border:    #dce6f4;
-      --mc-text:      #192535;
-      --mc-muted:     #6b7fa0;
+      /* ── Martracon CI brand colours (exact, locked) ── */
+      --mc-yellow:      #FFDC84;    /* CI yellow  RGB 255 220 132 */
+      --mc-blue:        #405A70;    /* CI blue    RGB  64  90 112 */
+      --mc-blue-dark:   #334a5c;    /* hover / deeper shade */
+      --mc-blue-deep:   #263749;    /* deep backgrounds, login */
+      --mc-yellow-glow: rgba(255,220,132,.22);
+
+      /* ── Derived UI colours ── */
+      --mc-bg:          #f0f4f8;
+      --mc-surface:     #ffffff;
+      --mc-border:      #d4e0ec;
+      --mc-blue-lt:     #eaf1f8;
+      --mc-text:        #1c2d3e;
+      --mc-muted:       #5e7b93;
+
+      /* ── Spacing / shape ── */
       --radius:       10px;
       --radius-sm:    6px;
-      --shadow:       0 2px 10px rgba(26,53,87,.09);
-      --shadow-md:    0 4px 20px rgba(26,53,87,.13);
-      --shadow-lg:    0 10px 40px rgba(26,53,87,.18);
+      --shadow:       0 2px 10px rgba(64,90,112,.10);
+      --shadow-md:    0 4px 20px rgba(64,90,112,.14);
+      --shadow-lg:    0 10px 40px rgba(64,90,112,.20);
     }
 
     /* ── Base ── */
@@ -43,9 +48,9 @@
 
     /* ── Navbar ── */
     .navbar {
-      background: var(--mc-navy) !important;
-      border-bottom: 3px solid var(--mc-gold) !important;
-      box-shadow: 0 2px 20px rgba(0,0,0,.3) !important;
+      background: var(--mc-blue) !important;
+      border-bottom: 3px solid var(--mc-yellow) !important;
+      box-shadow: 0 2px 20px rgba(0,0,0,.25) !important;
       padding-top: .35rem !important;
       padding-bottom: .35rem !important;
     }
@@ -53,23 +58,24 @@
       font-weight: 700; font-size: .88rem; color: #fff !important;
       display: flex; align-items: center; gap: 9px; letter-spacing: .2px;
     }
-    /* CI Logo colours — DO NOT change these; they match the Martracon corporate identity exactly */
-    --mc-logo-gold:  #F9CF3C;   /* warm golden yellow from the logo */
-    --mc-logo-slate: #3E5576;   /* dark slate-blue letter colour from the logo */
 
-    /* Mini logo mark – 3×3 grid */
+    /* ══════════════════════════════════════════
+       MARTRACON LOGO MARK (3×3 grid)
+       CI FIXED — Yellow #FFDC84 · Blue #405A70 · Grid #000000
+       DO NOT alter these colours or proportions.
+    ══════════════════════════════════════════ */
     .mc-logo-mark {
       display: inline-grid;
       grid-template-columns: repeat(3, 11px);
       gap: 1.5px;
-      background: #000;
+      background: #000000;
       padding: 1.5px;
       border-radius: 3px;
       flex-shrink: 0;
     }
     .mc-logo-mark span {
-      background: var(--mc-logo-gold);
-      color: var(--mc-logo-slate);
+      background: #FFDC84;
+      color: #405A70;
       font-size: 5.5px;
       font-weight: 900;
       height: 11px;
@@ -78,18 +84,19 @@
       justify-content: center;
       line-height: 1;
     }
+
     .nav-link {
-      color: rgba(255,255,255,.68) !important;
+      color: rgba(255,255,255,.72) !important;
       padding: .38rem .72rem !important;
       border-radius: var(--radius-sm);
       font-size: .83rem;
       font-weight: 500;
       transition: color .18s, background .18s;
     }
-    .nav-link:hover { color: #fff !important; background: rgba(255,255,255,.1); }
+    .nav-link:hover { color: #fff !important; background: rgba(255,255,255,.12); }
     .nav-link.active {
-      color: var(--mc-gold) !important;
-      background: rgba(245,200,64,.13);
+      color: #FFDC84 !important;
+      background: rgba(255,220,132,.14);
       font-weight: 600;
     }
     #user-display { font-size: .77rem; color: rgba(255,255,255,.45); }
@@ -98,10 +105,10 @@
 
     /* ── Section titles ── */
     .sec-title {
-      color: var(--mc-navy);
+      color: var(--mc-blue);
       font-weight: 700;
       font-size: 1.12rem;
-      border-bottom: 2px solid var(--mc-gold);
+      border-bottom: 2px solid var(--mc-yellow);
       padding-bottom: .4rem;
       margin-bottom: 1.3rem;
     }
@@ -115,7 +122,7 @@
     }
     .card:hover { box-shadow: var(--shadow-md) !important; }
     .card-header {
-      background: var(--mc-navy) !important;
+      background: var(--mc-blue) !important;
       color: #fff !important;
       font-size: .85rem;
       font-weight: 600;
@@ -124,7 +131,7 @@
       padding: .6rem 1rem !important;
     }
     .card-hd {
-      background: var(--mc-navy);
+      background: var(--mc-blue);
       color: #fff;
       font-size: .85rem;
       font-weight: 600;
@@ -136,7 +143,7 @@
     .table-responsive { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
     .table { margin-bottom: 0; }
     .table thead th {
-      background: var(--mc-navy);
+      background: var(--mc-blue);
       color: #fff;
       font-weight: 600;
       font-size: .81rem;
@@ -184,7 +191,7 @@
     .vac-row { cursor: pointer; }
     .cand-row:hover td { background: var(--mc-blue-lt) !important; }
     .hist-item {
-      border-left: 3px solid var(--mc-gold);
+      border-left: 3px solid var(--mc-yellow);
       padding: .4rem .8rem;
       margin-bottom: .5rem;
       background: #fff;
@@ -200,15 +207,15 @@
       font-size: .9rem;
     }
     .form-control:focus, .form-select:focus {
-      border-color: var(--mc-gold);
-      box-shadow: 0 0 0 3px var(--mc-gold-glow);
+      border-color: var(--mc-yellow);
+      box-shadow: 0 0 0 3px var(--mc-yellow-glow);
     }
     .form-control[readonly], .form-control:disabled { background: #f0f4f8; color: #666; }
-    .form-label { font-size: .84rem; color: var(--mc-navy); }
+    .form-label { font-size: .84rem; color: var(--mc-blue); }
 
     /* ── Buttons ── */
-    .btn-primary { background: var(--mc-navy) !important; border-color: var(--mc-navy) !important; font-weight: 500; border-radius: var(--radius-sm); }
-    .btn-primary:hover { background: var(--mc-slate) !important; border-color: var(--mc-slate) !important; }
+    .btn-primary { background: var(--mc-blue) !important; border-color: var(--mc-blue) !important; font-weight: 500; border-radius: var(--radius-sm); }
+    .btn-primary:hover { background: var(--mc-blue-dark) !important; border-color: var(--mc-blue-dark) !important; }
     .btn { border-radius: var(--radius-sm); }
 
     /* ── Toast ── */
@@ -219,7 +226,7 @@
     .loading { display: flex; align-items: center; justify-content: center; min-height: 200px; }
     .nat-btn { font-size: .72rem; padding: .15rem .4rem; }
     .modal-content { border-radius: var(--radius) !important; border: none !important; box-shadow: var(--shadow-lg) !important; }
-    .modal-header { background: var(--mc-navy); color: #fff; border-radius: var(--radius) var(--radius) 0 0 !important; padding: .85rem 1.2rem; }
+    .modal-header { background: var(--mc-blue); color: #fff; border-radius: var(--radius) var(--radius) 0 0 !important; padding: .85rem 1.2rem; }
     .modal-header .btn-close { filter: invert(1) grayscale(1) brightness(2); }
     .modal-title { font-weight: 700; font-size: .95rem; }
     .modal-footer { background: #f8fafd; border-top: 1px solid var(--mc-border); border-radius: 0 0 var(--radius) var(--radius) !important; }
@@ -248,8 +255,8 @@
       top: 10%; right: 14%;
       width: 56px; height: 56px;
       border-radius: 50%;
-      background: radial-gradient(circle at 38% 38%, #fef9e7, #f5d060 60%, #c8a020);
-      box-shadow: 0 0 40px 16px rgba(245,200,64,.15), 0 0 80px 30px rgba(245,200,64,.06);
+      background: radial-gradient(circle at 38% 38%, #fef9e7, #FFDC84 60%, #c8a020);
+      box-shadow: 0 0 40px 16px rgba(255,220,132,.15), 0 0 80px 30px rgba(255,220,132,.06);
       z-index: 1;
     }
 
@@ -289,10 +296,10 @@
     .wave-layer:nth-child(3) { animation: wave-move 26s linear infinite; opacity: .4; }
     @keyframes wave-move { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-    /* CI logo colours on login screen (same values as above) */
+    /* ── Login logo grid CI colours — locked, DO NOT change ── */
     .login-logo-grid {
-      --lg-bg: #F9CF3C;
-      --lg-fg: #3E5576;
+      --lg-bg: #FFDC84;   /* CI yellow  RGB 255 220 132 */
+      --lg-fg: #405A70;   /* CI blue    RGB  64  90 112 */
     }
 
     /* Login card — frosted glass */
@@ -325,8 +332,8 @@
       margin-bottom: 1.5rem;
     }
     .login-logo-grid span {
-      background: var(--lg-bg, #F9CF3C);
-      color: var(--lg-fg, #3E5576);
+      background: var(--lg-bg, #FFDC84);
+      color: var(--lg-fg, #405A70);
       font-size: 1.25rem;
       font-weight: 900;
       height: 52px;
@@ -426,11 +433,11 @@
       <circle cx="268" cy="27" r="2.5" fill="none" stroke="#3a6080" stroke-width="1.2"/>
       <!-- Funnel -->
       <rect x="196" y="12" width="16" height="40" fill="#0d1f35" rx="1"/>
-      <!-- Martracon gold stripe on funnel -->
-      <rect x="196" y="22" width="16" height="6" fill="#f5c840"/>
+      <!-- Martracon CI yellow stripe on funnel — DO NOT change #FFDC84 -->
+      <rect x="196" y="22" width="16" height="6" fill="#FFDC84"/>
       <!-- Mast / antenna -->
       <line x1="241" y1="2" x2="241" y2="-6" stroke="#2c5070" stroke-width="1.5"/>
-      <circle cx="241" cy="-7" r="2.2" fill="#f5c840" opacity=".8"/>
+      <circle cx="241" cy="-7" r="2.2" fill="#FFDC84" opacity=".9"/>
       <!-- Running lights -->
       <circle cx="17" cy="50" r="2" fill="rgba(255,220,0,.65)"/>
       <!-- Waterline reflection shimmer -->
@@ -591,7 +598,7 @@
 <div class="modal fade" id="modalEmailPreview" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
         <h5 class="modal-title"><i class="bi bi-envelope-open me-2"></i>Email Preview — review before sending</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -642,7 +649,7 @@
 <div class="modal fade" id="modalRefManager" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
         <h5 class="modal-title" id="ref-manager-title"><i class="bi bi-list-ul me-2"></i>Manager</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -669,7 +676,7 @@
 <div class="modal fade" id="modalRefForm" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
-      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
         <h5 class="modal-title" id="ref-form-title"><i class="bi bi-pencil me-2"></i>Edit</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -686,7 +693,7 @@
 <div class="modal fade" id="modalVesselManager" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
         <h5 class="modal-title"><i class="bi bi-ship me-2"></i>Vessel Management</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -716,7 +723,7 @@
 <div class="modal fade" id="modalVesselForm" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
         <h5 class="modal-title" id="vessel-form-title"><i class="bi bi-ship me-2"></i>Vessel</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -733,7 +740,7 @@
 <div class="modal fade" id="modalPositionList" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
         <h5 class="modal-title"><i class="bi bi-file-earmark-word me-2"></i>Generate Open Position List</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -865,7 +872,7 @@
           <div id="imp-summary" class="mb-2"></div>
           <div class="table-responsive" style="max-height:380px;overflow-y:auto">
             <table class="table table-sm table-bordered mb-0 align-middle" style="font-size:.8rem">
-              <thead style="background:var(--mc-navy);color:#fff;position:sticky;top:0">
+              <thead style="background:var(--mc-blue);color:#fff;position:sticky;top:0">
                 <tr><th>#</th><th>Year</th><th>Client</th><th>Rank</th><th>Min</th><th>Max</th><th>Currency</th><th>Seniority</th><th>CBA</th><th>Neg.</th><th>Status</th></tr>
               </thead>
               <tbody id="imp-tbody"></tbody>
@@ -1003,7 +1010,7 @@ async function handleCallback() {
   if (window.opener && window.opener !== window) {
     const pm = new URLSearchParams(window.location.search);
     window.opener.postMessage({type:'oauth_cb',code:pm.get('code'),state:pm.get('state'),error:pm.get('error'),error_description:pm.get('error_description')},window.location.origin);
-    document.body.innerHTML='<div style="padding:2rem;text-align:center;font-family:sans-serif;color:#1B3A6B"><strong>Authenticated ✓</strong><br>You may close this window.</div>';
+    document.body.innerHTML='<div style="padding:2rem;text-align:center;font-family:sans-serif;color:#405A70"><strong>Authenticated ✓</strong><br>You may close this window.</div>';
     setTimeout(()=>window.close(),800);
     return 'popup';
   }
@@ -1296,7 +1303,7 @@ function buildVacTable(vacs,emptyMsg='No vacancies found.',showLegacy=false,sort
     ${showLegacy?`<td>${v.IsLegacyMigrated?'<span class="badge bg-secondary" style="font-size:.65rem">legacy</span>':''}</td>`:''}
   </tr>`).join(''):`<tr><td colspan="${showLegacy?10:9}" class="text-center text-muted py-5">${emptyMsg}</td></tr>`;
   return `<div class="card shadow-sm"><div class="table-responsive"><table class="table table-hover table-sm mb-0 align-middle">
-    <thead style="background:var(--mc-navy);color:#fff"><tr><th class="ps-3">${sortable?`<span style="cursor:pointer;user-select:none" onclick="sortAllVacs('Status')">Status ${window._sortKey==='Status'?(window._sortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span>`:'Status'}</th>${th('Vessel','Vessel')}${th('Rank','Rank')}${th('Client','Client')}${th('Received','ReceivedDate')}${th('Modified','Modified')}${th('Joining','Joining')}${th('Salary','SalaryMin')}<th>Nationality</th>${showLegacy?'<th></th>':''}</tr></thead>
+    <thead style="background:var(--mc-blue);color:#fff"><tr><th class="ps-3">${sortable?`<span style="cursor:pointer;user-select:none" onclick="sortAllVacs('Status')">Status ${window._sortKey==='Status'?(window._sortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span>`:'Status'}</th>${th('Vessel','Vessel')}${th('Rank','Rank')}${th('Client','Client')}${th('Received','ReceivedDate')}${th('Modified','Modified')}${th('Joining','Joining')}${th('Salary','SalaryMin')}<th>Nationality</th>${showLegacy?'<th></th>':''}</tr></thead>
     <tbody>${rows}</tbody></table></div>
     <div class="card-footer text-muted" style="font-size:.78rem">${vacs.length} record${vacs.length!==1?'s':''}</div></div>`;
 }
@@ -1423,7 +1430,7 @@ function buildDetailHTML(vac,history) {
   <div class="row g-3 mt-1">
     <div class="col-12">
       <div class="card shadow-sm">
-        <div class="card-header d-flex align-items-center" style="background:var(--mc-navy);color:#fff;font-size:.85rem;padding:.5rem .85rem">
+        <div class="card-header d-flex align-items-center" style="background:var(--mc-blue);color:#fff;font-size:.85rem;padding:.5rem .85rem">
           <i class="bi bi-people me-2"></i>Candidates
           <button class="btn btn-sm btn-light ms-auto py-0" style="font-size:.78rem" onclick="openCandidateModal(${vac.Id})"><i class="bi bi-plus-lg me-1"></i>Add Candidate</button>
         </div>
@@ -1667,7 +1674,7 @@ async function loadCandidatesSection(vacId) {
       const st=(f.CandidateStatus?c[f.CandidateStatus]:'')||c['CandidateStatus']||'Applied';
       const nt=(f.Notes?c[f.Notes]:'')||c['Notes']||'';
       return `<tr class="cand-row">
-        <td class="ps-3"><a href="javascript:void(0)" class="fw-bold text-decoration-none" style="color:var(--mc-navy)" onclick="openCandidateModal(${vacId},${c.Id})">${h(c.Title)}</a></td>
+        <td class="ps-3"><a href="javascript:void(0)" class="fw-bold text-decoration-none" style="color:var(--mc-blue)" onclick="openCandidateModal(${vacId},${c.Id})">${h(c.Title)}</a></td>
         <td>${h(nat||'—')}</td><td>${h(agn||'—')}</td>
         <td>${ph?`<a href="tel:${h(ph)}">${h(ph)}</a>`:'—'}</td>
         <td>${em?`<a href="mailto:${h(em)}">${h(em)}</a>`:'—'}</td>
@@ -1908,7 +1915,7 @@ function filterSalary() {
       <button class="btn btn-xs btn-outline-danger" style="padding:1px 7px;font-size:.75rem" onclick="deleteSalaryRate(${r.Id})"><i class="bi bi-trash"></i></button>
     </td>
   </tr>`).join(''):`<tr><td colspan="8" class="text-center text-muted py-4">${(window._salRates||[]).length?'No rates match filters.':'No salary rates yet — click Add Rate.'}</td></tr>`;
-  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead style="background:var(--mc-navy);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Duration</th><th>CBA</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
+  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead style="background:var(--mc-blue);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Duration</th><th>CBA</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
 }
 
 // ── Salary field type discovery (cached) ─────────────────────────
@@ -2098,7 +2105,7 @@ function generateWageScale() {
   for(const cat of cats) {
     const catRates=rates.filter(r=>(rankMap[r.RankId]?.cat||'Other')===cat);
     catRates.sort((a,b)=>(rankMap[a.RankId]?.sort||999)-(rankMap[b.RankId]?.sort||999));
-    html+=`<div class="mb-3"><div class="fw-bold text-uppercase" style="font-size:.75rem;letter-spacing:.05em;color:var(--mc-navy);border-bottom:2px solid var(--mc-blue);padding-bottom:2px;margin-bottom:4px">${h(cat)}</div>
+    html+=`<div class="mb-3"><div class="fw-bold text-uppercase" style="font-size:.75rem;letter-spacing:.05em;color:var(--mc-blue);border-bottom:2px solid var(--mc-blue);padding-bottom:2px;margin-bottom:4px">${h(cat)}</div>
     <table class="table table-sm table-bordered mb-0" style="font-size:.83rem"><thead style="background:#f0f4f8"><tr><th>Rank</th><th>Min</th><th>Max</th><th>Currency</th><th>Duration</th><th>CBA</th></tr></thead><tbody>`;
     for(const r of catRates) {
       html+=`<tr><td>${h(r.Rank?.Title||'—')}</td><td class="text-end">${r.SalaryMin?Number(r.SalaryMin).toLocaleString('de-DE'):'—'}</td><td class="text-end">${r.SalaryMax?Number(r.SalaryMax).toLocaleString('de-DE'):'—'}</td><td>${h(r.Currency||'')}</td><td>${h(r.ContractDuration||'—')}</td><td>${h(r.CBACode||'—')}</td></tr>`;
@@ -2572,7 +2579,7 @@ async function renderAdmin() {
     </div>
   </div>
   <h5 class="sec-title">Vacancy Stats</h5><div id="admin-stats"><div class="spinner-border spinner-border-sm text-secondary"></div></div>`;
-  try { const all=await loadVacancies(null); const by={}; all.forEach(v=>{by[v.Status]=(by[v.Status]||0)+1;}); document.getElementById('admin-stats').innerHTML=`<div class="row g-2">${Object.entries(by).map(([s,n])=>`<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-navy)">${n}</div><div>${statusBadge(s)}</div></div></div>`).join('')}<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-navy)">${all.length}</div><div class="text-muted" style="font-size:.8rem">Total</div></div></div></div>`; }
+  try { const all=await loadVacancies(null); const by={}; all.forEach(v=>{by[v.Status]=(by[v.Status]||0)+1;}); document.getElementById('admin-stats').innerHTML=`<div class="row g-2">${Object.entries(by).map(([s,n])=>`<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-blue)">${n}</div><div>${statusBadge(s)}</div></div></div>`).join('')}<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-blue)">${all.length}</div><div class="text-muted" style="font-size:.8rem">Total</div></div></div></div>`; }
   catch(e){document.getElementById('admin-stats').innerHTML=`<span class="text-muted small">${e.message}</span>`;}
 }
 
@@ -3306,7 +3313,7 @@ function isEngineRank(rankTitle){return /engineer|eto|electrician|electric|fitte
 
 function buildEmailHtml(selectedVacs,week,year,sigName,customIntro=''){
   function cs(bg,fg,bold){return `background:${bg||'transparent'};color:${fg||'#222222'};${bold?'font-weight:bold;':''}padding:5px 9px;border:1px solid #CCCCCC;font-family:Calibri,Arial,sans-serif;font-size:11pt;vertical-align:top`;}
-  function hR(l,r){return `<tr><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(l)}</td><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(r)}</td></tr>`;}
+  function hR(l,r){return `<tr><td style="${cs('#405A70','#FFFFFF',true)}">${h(l)}</td><td style="${cs('#405A70','#FFFFFF',true)}">${h(r)}</td></tr>`;}
   function dR(l,v){return `<tr><td style="${cs('#F2F3F4','#555555',false)}">${h(l)}</td><td style="${cs('','#222222',false)}">${h(v)}</td></tr>`;}
   function lR(l,v,bg){return `<tr><td style="${cs(bg,'#FFFFFF',true)}">${h(l)}</td><td style="${cs(bg,'#FFFFFF',true)}">${h(v)}</td></tr>`;}
   let tables='';
@@ -3336,11 +3343,11 @@ function buildEmailHtml(selectedVacs,week,year,sigName,customIntro=''){
   }
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222222;margin:0;padding:24px;max-width:700px">
-<p style="font-size:15pt;font-weight:bold;color:#1B3A6B;margin-top:0;margin-bottom:16px">Martracon Group &mdash; Open Position List &mdash; Week ${week}/${year}</p>
+<p style="font-size:15pt;font-weight:bold;color:#405A70;margin-top:0;margin-bottom:16px">Martracon Group &mdash; Open Position List &mdash; Week ${week}/${year}</p>
 ${customIntro
   ? customIntro.split('\n').map(l=>`<p style="margin:0 0 8px 0">${h(l)}</p>`).join('')
   : `<p style="margin:0 0 8px 0">Good day, dear colleagues!</p><p style="margin:0 0 8px 0">Kindly see below our update for a weekly overview of our current open positions.</p>`}
-<p style="margin:0 0 24px 0"><strong>When proposing candidates, please put the vessel name + position of seafarer in the subject and send to <a href="mailto:${SENDER_ADDR}" style="color:#1B3A6B">${SENDER_ADDR}</a></strong></p>
+<p style="margin:0 0 24px 0"><strong>When proposing candidates, please put the vessel name + position of seafarer in the subject and send to <a href="mailto:${SENDER_ADDR}" style="color:#405A70">${SENDER_ADDR}</a></strong></p>
 ${tables}
 <table style="border-collapse:collapse;margin-top:24px;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#222222">
 <tr><td style="padding-bottom:2px">Kind regards,</td></tr>
@@ -3348,10 +3355,10 @@ ${tables}
 <tr><td style="color:#444444">${h(SENDER_POSITION)}</td></tr>
 ${SENDER_MOBILE?`<tr><td style="color:#444444">${h(SENDER_MOBILE)}</td></tr>`:''}
 <tr><td style="padding:8px 0 0 0">&nbsp;</td></tr>
-<tr><td style="font-weight:bold;color:#1B3A6B;font-size:11pt">Martracon Group</td></tr>
+<tr><td style="font-weight:bold;color:#405A70;font-size:11pt">Martracon Group</td></tr>
 <tr><td>Nicolaou Zavos Centre, Eptanisou 28</td></tr>
 <tr><td>P.O Box 58106, 3731 Limassol, Cyprus</td></tr>
-<tr><td>Tel: +357 25 584368 / Email: <a href="mailto:${SENDER_ADDR}" style="color:#1B3A6B;text-decoration:none">${SENDER_ADDR}</a></td></tr>
+<tr><td>Tel: +357 25 584368 / Email: <a href="mailto:${SENDER_ADDR}" style="color:#405A70;text-decoration:none">${SENDER_ADDR}</a></td></tr>
 <tr><td style="padding-top:8px;font-size:8pt;color:#888888">VAT: CY-10073760 L; Managing Directors: Otto J. Boerger, Philipp J. Boerger</td></tr>
 <tr><td style="font-size:8pt;color:#888888">Company registration number: 73760 / Nicosia-Cyprus</td></tr>
 </table>
@@ -3512,8 +3519,8 @@ async function confirmSendEmail() {
     const lineY = H * 0.905;
     const grd = ctx.createLinearGradient(W * 0.45, lineY, W * 0.9, lineY);
     grd.addColorStop(0, 'transparent');
-    grd.addColorStop(0.4, `rgba(245,200,64,${(0.06 + 0.04 * Math.sin(t * 0.7)).toFixed(3)})`);
-    grd.addColorStop(0.7, `rgba(245,220,100,${(0.05 + 0.03 * Math.sin(t * 1.1)).toFixed(3)})`);
+    grd.addColorStop(0.4, `rgba(255,220,132,${(0.06 + 0.04 * Math.sin(t * 0.7)).toFixed(3)})`);
+    grd.addColorStop(0.7, `rgba(255,220,132,${(0.05 + 0.03 * Math.sin(t * 1.1)).toFixed(3)})`);
     grd.addColorStop(1, 'transparent');
     ctx.fillStyle = grd;
     ctx.fillRect(W * 0.45, lineY - 1, W * 0.55, 2);
