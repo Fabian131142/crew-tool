@@ -75,8 +75,9 @@
       <ul class="navbar-nav ms-auto gap-1 align-items-lg-center">
         <li class="nav-item"><a class="nav-link" id="nav-open"   href="javascript:void(0)" onclick="nav('open')"><i class="bi bi-list-ul me-1"></i>Open Vacancies</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-all"    href="javascript:void(0)" onclick="nav('all')"><i class="bi bi-archive me-1"></i>All Vacancies</a></li>
-        <li class="nav-item"><a class="nav-link" id="nav-salary" href="javascript:void(0)" onclick="nav('salary')"><i class="bi bi-cash-stack me-1"></i>Salary</a></li>
-        <li class="nav-item"><a class="nav-link" id="nav-admin"  href="javascript:void(0)" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Admin</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-salary"   href="javascript:void(0)" onclick="nav('salary')"><i class="bi bi-cash-stack me-1"></i>Salary</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-reports" href="javascript:void(0)" onclick="nav('reports')"><i class="bi bi-bar-chart-line me-1"></i>Reports</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-admin"   href="javascript:void(0)" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Admin</a></li>
       </ul>
       <span class="ms-3 d-none d-lg-inline" id="user-display"></span>
       <button class="btn btn-sm btn-outline-light ms-2" onclick="doLogout()" title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
@@ -89,6 +90,7 @@
   <div id="v-all" class="d-none"></div>
   <div id="v-detail" class="d-none"></div>
   <div id="v-salary" class="d-none"></div>
+  <div id="v-reports" class="d-none"></div>
   <div id="v-admin" class="d-none"></div>
 </div>
 
@@ -752,7 +754,7 @@ function nav(name,param=null) {
   // Close mobile navbar if open
   const navColl=document.getElementById('navColl');
   if(navColl?.classList.contains('show')) bootstrap.Collapse.getInstance(navColl)?.hide();
-  ['open','all','detail','salary','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
+  ['open','all','detail','salary','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
   document.querySelectorAll('.nav-link[id^="nav-"]').forEach(l=>l.classList.remove('active'));
   const navEl=document.getElementById('nav-'+(name==='detail'?S.prevViewName:name));
   if(navEl) navEl.classList.add('active');
@@ -765,6 +767,7 @@ function nav(name,param=null) {
   else if(name==='all') renderAll();
   else if(name==='detail') renderDetail(param);
   else if(name==='salary') renderSalary();
+  else if(name==='reports') renderReports();
   else if(name==='admin') renderAdmin();
 }
 function goDetail(id) { nav('detail',id); }
@@ -1889,6 +1892,7 @@ async function setupVesselColumns() {
   const fields=[
     {name:'DWT',type:'Number',decimals:0},
     {name:'GRT',type:'Number',decimals:0},
+    {name:'IMONumber',type:'Text'},
     {name:'EngineSpecs',type:'Text'},
     {name:'TradingArea',type:'Text'},
   ];
@@ -1976,6 +1980,112 @@ async function setupCandidateColumns() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// VIEW: REPORTING & STATISTICS
+// ═══════════════════════════════════════════════════════════════════
+async function renderReports() {
+  const el=document.getElementById('v-reports'); el.classList.remove('d-none');
+  el.innerHTML=`<h4 class="sec-title"><i class="bi bi-bar-chart-line me-2"></i>Reporting &amp; Statistics</h4>
+  <div id="reports-body"><div class="text-center py-4"><span class="spinner-border text-primary"></span></div></div>`;
+  try {
+    // Pull live data for stats
+    const [openVacs, allVacs, vessels, ranks, clients] = await Promise.all([
+      spGet('Vacancies','?$select=Id,Status,CreatedDate&$filter=Status eq \'Open\' or Status eq \'Offer Made\'&$top=500'),
+      spGet('Vacancies','?$select=Id,Status,CreatedDate&$top=1000'),
+      spGet('VesselMaster','?$select=Id,Title,IsActive,MartraconEntity,ServiceType&$top=500'),
+      spGet('RankList','?$select=Id,Title,IsActive&$top=200'),
+      spGet('ClientMaster','?$select=Id,Title,IsActive&$top=200'),
+    ]).catch(()=>[]);
+    const openCount   = Array.isArray(openVacs)?openVacs.length:0;
+    const totalVacs   = Array.isArray(allVacs)?allVacs.length:0;
+    const activeVess  = Array.isArray(vessels)?vessels.filter(v=>v.IsActive!==false).length:0;
+    const totalVess   = Array.isArray(vessels)?vessels.length:0;
+    const activeRanks = Array.isArray(ranks)?ranks.filter(r=>r.IsActive!==false).length:0;
+    const activeClients=Array.isArray(clients)?clients.filter(c=>c.IsActive!==false).length:0;
+    // Entity breakdown
+    const entityMap={};
+    if(Array.isArray(vessels)) vessels.forEach(v=>{const e=v.MartraconEntity||'Unknown';entityMap[e]=(entityMap[e]||0)+1;});
+    const entityRows=Object.entries(entityMap).sort((a,b)=>b[1]-a[1]).map(([k,n])=>
+      `<tr><td>${h(k)}</td><td class="text-end fw-bold">${n}</td><td><div class="progress mt-1" style="height:8px"><div class="progress-bar bg-primary" style="width:${Math.round(n/totalVess*100)||0}%"></div></div></td></tr>`).join('');
+    // Service type breakdown
+    const svcMap={};
+    if(Array.isArray(vessels)) vessels.forEach(v=>{const s=v.ServiceType||'Unknown';svcMap[s]=(svcMap[s]||0)+1;});
+    const svcRows=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).map(([k,n])=>
+      `<tr><td>${h(k)}</td><td class="text-end fw-bold">${n}</td></tr>`).join('');
+
+    document.getElementById('reports-body').innerHTML=`
+    <!-- KPI cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-0 shadow-sm">
+          <div class="card-body py-3">
+            <div style="font-size:2rem;font-weight:700;color:#1F3864">${openCount}</div>
+            <div class="text-muted" style="font-size:.82rem">Open Vacancies</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-0 shadow-sm">
+          <div class="card-body py-3">
+            <div style="font-size:2rem;font-weight:700;color:#1F3864">${totalVacs}</div>
+            <div class="text-muted" style="font-size:.82rem">Total Vacancies (all time)</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-0 shadow-sm">
+          <div class="card-body py-3">
+            <div style="font-size:2rem;font-weight:700;color:#1F3864">${activeVess}<span style="font-size:1rem;color:#aaa"> / ${totalVess}</span></div>
+            <div class="text-muted" style="font-size:.82rem">Active Vessels</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-0 shadow-sm">
+          <div class="card-body py-3">
+            <div style="font-size:2rem;font-weight:700;color:#1F3864">${activeClients}</div>
+            <div class="text-muted" style="font-size:.82rem">Active Clients</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Breakdown tables -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold" style="font-size:.9rem"><i class="bi bi-building me-2 text-primary"></i>Vessels by Entity</div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light"><tr><th>Entity</th><th class="text-end"># Vessels</th><th style="width:100px">Share</th></tr></thead>
+              <tbody>${entityRows||'<tr><td colspan="3" class="text-muted text-center py-3">No data</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold" style="font-size:.9rem"><i class="bi bi-gear me-2 text-primary"></i>Vessels by Service Type</div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light"><tr><th>Service Type</th><th class="text-end"># Vessels</th></tr></thead>
+              <tbody>${svcRows||'<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Placeholder for future sections -->
+    <div class="alert alert-light border d-flex align-items-start gap-3" style="font-size:.88rem">
+      <i class="bi bi-info-circle text-primary mt-1" style="font-size:1.1rem;flex-shrink:0"></i>
+      <div><strong>Dashboard under development.</strong> Additional sections — recruitment pipeline, placement history, agency performance, and crew nationality breakdowns — will be defined and added here. Use the Admin section to manage reference data.</div>
+    </div>`;
+  } catch(e) {
+    document.getElementById('reports-body').innerHTML=`<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Could not load report data: ${h(e.message)}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // VIEW: ADMIN
 // ═══════════════════════════════════════════════════════════════════
 async function renderAdmin() {
@@ -2034,7 +2144,7 @@ async function openVesselManager() {
   window._vesselSortKey='Title'; window._vesselSortDir='asc';
   new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
   try {
-    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
+    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
       spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500'));
   } catch(e){ window._allVessels=S.vessels; toast('Could not load all vessels: '+e.message,'warning'); }
   renderVesselTable();
@@ -2118,36 +2228,46 @@ function editVessel(id) {
   const flagOpts=MARITIME_FLAGS.map(f=>`<option${v?.Flag===f?' selected':''}>${f}</option>`).join('');
   const clientOpts=S.clients.map(c=>`<option value="${c.Id}"${v?.ClientId==c.Id?' selected':''}>${h(c.Title)}</option>`).join('');
   const typeOpts=['General cargo','Bulk carrier','Tanker','Container','RoRo','Reefer','Multi-purpose','Chemical tanker','Gas carrier','Offshore','Other'].map(t=>`<option${v?.VesselType===t?' selected':''}>${t}</option>`).join('');
-  const entityOpts=['MCM','MCH','MCP','MFM','Other'].map(e=>`<option value="${e}"${v?.MartraconEntity===e?' selected':''}>${e}</option>`).join('');
-  const serviceOpts=['Full Crew Management','Sporadic Placement','Partial Crew Management'].map(s=>`<option value="${s}"${v?.ServiceType===s?' selected':''}>${s}</option>`).join('');
+  const entityOpts=['MFM','MCM','MSM','MCG'].map(e=>`<option value="${e}"${v?.MartraconEntity===e?' selected':''}>${e}</option>`).join('');
+  const serviceOpts=['Full Crew Management','Partial Crew Management','Sporadic Placement'].map(s=>`<option value="${s}"${v?.ServiceType===s?' selected':''}>${s}</option>`).join('');
   // Parse existing engine specs "maker | output | stroke" or just free text
   let engMaker='', engOutput='', engStroke='2-stroke';
   if(v?.EngineSpecs){ const parts=v.EngineSpecs.split('|').map(s=>s.trim()); engMaker=parts[0]||''; engOutput=(parts[1]||'').replace(/[^\d]/g,''); engStroke=parts[2]||'2-stroke'; }
   // Trading areas multi-select
   const selAreas=new Set((v?.TradingArea||'').split(',').map(s=>s.trim()).filter(Boolean));
   const tradingCheckboxes=TRADING_AREAS.map((a,i)=>`<div class="form-check form-check-inline" style="min-width:200px"><input class="form-check-input" type="checkbox" id="vfta_${i}" value="${a}"${selAreas.has(a)?' checked':''}><label class="form-check-label" for="vfta_${i}" style="font-size:.82rem">${a}</label></div>`).join('');
+  // Master data fields are locked for existing vessels
+  const LOCKED_FIELDS=['vf-title','vf-abbr','vf-type','vf-flag','vf-built','vf-imo','vf-dwt','vf-grt'];
+  const lockAttr=(!isNew)?'readonly disabled':'' ; // will be set via JS after render
   document.getElementById('vessel-form-body').innerHTML=`
   <form id="vesselform" onsubmit="return false">
+  ${!isNew?`<div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-3" id="vf-lock-banner" style="font-size:.88rem">
+    <i class="bi bi-lock-fill text-warning" style="font-size:1.1rem;flex-shrink:0"></i>
+    <span><strong>Protected master data is locked.</strong> Vessel Name, Type, Flag, Built Year, IMO, DWT, GRT and Abbreviation are read-only.</span>
+    <button type="button" class="btn btn-sm btn-outline-warning ms-auto text-nowrap" onclick="unlockVesselMasterData()" style="white-space:nowrap"><i class="bi bi-unlock me-1"></i>Unlock</button>
+  </div>`:''}
   <div class="row g-3 mb-3">
     <div class="col-md-8"><label class="form-label fw-bold">Vessel Name <span class="text-danger">*</span></label>
-      <input type="text" class="form-control" id="vf-title" value="${h(v?.Title||'')}" placeholder="e.g. Annika Braren"></div>
+      <input type="text" class="form-control vf-protected" id="vf-title" value="${h(v?.Title||'')}" placeholder="e.g. Annika Braren"></div>
     <div class="col-md-4"><label class="form-label fw-bold">Abbreviation</label>
-      <input type="text" class="form-control" id="vf-abbr" value="${h(v?.Abbreviation||'')}" placeholder="e.g. AB"></div>
+      <input type="text" class="form-control vf-protected" id="vf-abbr" value="${h(v?.Abbreviation||'')}" placeholder="e.g. AB"></div>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-4"><label class="form-label fw-bold">Vessel Type</label>
-      <select class="form-select" id="vf-type"><option value="">— select —</option>${typeOpts}</select></div>
+      <select class="form-select vf-protected" id="vf-type"><option value="">— select —</option>${typeOpts}</select></div>
     <div class="col-md-4"><label class="form-label fw-bold">Flag</label>
-      <select class="form-select" id="vf-flag"><option value="">— select —</option>${flagOpts}</select></div>
+      <select class="form-select vf-protected" id="vf-flag"><option value="">— select —</option>${flagOpts}</select></div>
     <div class="col-md-4"><label class="form-label fw-bold">Built Year</label>
-      <select class="form-select" id="vf-built"><option value="">— select —</option>${yearOpts}</select></div>
+      <select class="form-select vf-protected" id="vf-built"><option value="">— select —</option>${yearOpts}</select></div>
   </div>
   <div class="row g-3 mb-3">
-    <div class="col-md-4"><label class="form-label fw-bold">DWT</label>
-      <input type="number" class="form-control" id="vf-dwt" step="1" min="0" value="${v?.DWT||''}"></div>
-    <div class="col-md-4"><label class="form-label fw-bold">GRT</label>
-      <input type="number" class="form-control" id="vf-grt" step="1" min="0" value="${v?.GRT||''}"></div>
-    <div class="col-md-4"><label class="form-label fw-bold">Union / CBA</label>
+    <div class="col-md-3"><label class="form-label fw-bold">IMO Number</label>
+      <input type="text" class="form-control vf-protected" id="vf-imo" value="${h(v?.IMONumber||'')}" placeholder="e.g. 9123456" maxlength="10"></div>
+    <div class="col-md-3"><label class="form-label fw-bold">DWT</label>
+      <input type="number" class="form-control vf-protected" id="vf-dwt" step="1" min="0" value="${v?.DWT||''}"></div>
+    <div class="col-md-3"><label class="form-label fw-bold">GRT</label>
+      <input type="number" class="form-control vf-protected" id="vf-grt" step="1" min="0" value="${v?.GRT||''}"></div>
+    <div class="col-md-3"><label class="form-label fw-bold">Union / CBA</label>
       <input type="text" class="form-control" id="vf-union" value="${h(v?.Union||'')}" placeholder="e.g. DSMM, ITF"></div>
   </div>
   <div class="row g-3 mb-2">
@@ -2180,12 +2300,28 @@ function editVessel(id) {
     </div>
   </div>
   </form>`;
+  // Lock protected fields for existing vessels
+  if(!isNew) document.querySelectorAll('#vessel-form-body .vf-protected').forEach(el=>{
+    el.readOnly=true; el.disabled=true;
+    el.style.background='#f0f0f0'; el.style.color='#666'; el.style.cursor='not-allowed';
+  });
   const managerModal=bootstrap.Modal.getInstance(document.getElementById('modalVesselManager'));
   if(managerModal) managerModal.hide();
   new bootstrap.Modal(document.getElementById('modalVesselForm')).show();
   document.getElementById('modalVesselForm').addEventListener('hidden.bs.modal',()=>{
     new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
   },{once:true});
+}
+
+function unlockVesselMasterData() {
+  if(!confirm('⚠️ You are about to unlock protected master data fields.\n\nThese fields (Vessel Name, Type, Flag, Built Year, IMO, DWT, GRT, Abbreviation) are locked because changes can affect historical records and system integrity.\n\nAre you sure you want to edit them?')) return;
+  document.querySelectorAll('#vessel-form-body .vf-protected').forEach(el=>{
+    el.readOnly=false; el.disabled=false;
+    el.style.background=''; el.style.color=''; el.style.cursor='';
+    el.classList.add('border-warning');
+  });
+  const banner=document.getElementById('vf-lock-banner');
+  if(banner) banner.innerHTML=`<i class="bi bi-unlock-fill text-warning" style="font-size:1.1rem;flex-shrink:0"></i><span class="text-warning"><strong>Protected fields are unlocked.</strong> Edit with care — changes affect historical records.</span>`;
 }
 
 async function saveVessel() {
@@ -2216,6 +2352,7 @@ async function saveVessel() {
   };
   const dwt=document.getElementById('vf-dwt')?.value; if(dwt) data.DWT=parseInt(dwt);
   const grt=document.getElementById('vf-grt')?.value; if(grt) data.GRT=parseInt(grt);
+  const imo=document.getElementById('vf-imo')?.value?.trim(); if(imo) data.IMONumber=imo;
   if(engStr) data.EngineSpecs=engStr;
   if(tradingStr) data.TradingArea=tradingStr;
   const btn=document.getElementById('btn-vessel-save');
@@ -2475,52 +2612,55 @@ async function generatePositionList() {
 const REF_CONFIGS = {
   client: {
     list:'ClientMaster', label:'Client', icon:'bi-building', spLink:'ClientMaster',
-    query:'?$select=Id,Title,Abbreviation,IsActive&$orderby=Title&$top=500',
-    cols:['Name','Abbreviation','Status'],
-    row:(r)=>[h(r.Title),h(r.Abbreviation||'—'),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
+    // Use $select=* to avoid 400 on optional columns that may not exist
+    query:'?$select=*&$orderby=Title&$top=500',
+    cols:['Name','Status'],
+    row:(r)=>[h(r.Title),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
     form:(r)=>`
-      <div class="row g-3 mb-3">
-        <div class="col-md-8"><label class="form-label fw-bold">Client Name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Rörd Braren Bereederungs GmbH"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Abbreviation</label>
-          <input type="text" class="form-control" id="rf-abbr" value="${h(r?.Abbreviation||'')}" placeholder="e.g. RBB"></div>
-      </div>
+      <div class="mb-3"><label class="form-label fw-bold">Client / Company Name <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Rörd Braren Bereederungs GmbH"></div>
       <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`,
-    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,Abbreviation:document.getElementById('rf-abbr')?.value||null,IsActive:document.getElementById('rf-active')?.checked??true}; }
+    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,IsActive:document.getElementById('rf-active')?.checked??true}; }
   },
   rank: {
     list:'RankList', label:'Rank', icon:'bi-person-badge', spLink:'RankList',
-    query:'?$select=Id,Title,Department,IsActive&$orderby=Title&$top=500',
-    cols:['Rank Title','Department','Status'],
-    row:(r)=>[h(r.Title),h(r.Department||'—'),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
+    // RankList uses RankCategory and SortOrder (not Department)
+    query:'?$select=*&$orderby=SortOrder,Title&$top=500',
+    cols:['Rank Title','Category','Status'],
+    row:(r)=>[h(r.Title),h(r.RankCategory||'—'),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
     form:(r)=>`
       <div class="row g-3 mb-3">
         <div class="col-md-7"><label class="form-label fw-bold">Rank Title <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Chief Officer"></div>
-        <div class="col-md-5"><label class="form-label fw-bold">Department</label>
+        <div class="col-md-5"><label class="form-label fw-bold">Category</label>
           <select class="form-select" id="rf-dept">
-            ${['Deck','Engine','Catering','Electro-Technical','Other'].map(d=>`<option${r?.Department===d?' selected':''}>${d}</option>`).join('')}
+            ${['Deck Officer','Engine Officer','Rating','Catering','Electro-Technical','Other'].map(d=>`<option value="${d}"${r?.RankCategory===d?' selected':''}>${d}</option>`).join('')}
           </select></div>
       </div>
+      <div class="mb-3"><label class="form-label fw-bold">Sort Order <span class="text-muted fw-normal" style="font-size:.8rem">(lower = shown first)</span></label>
+        <input type="number" class="form-control" id="rf-sort" min="1" max="999" value="${r?.SortOrder||''}"></div>
       <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`,
-    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,Department:document.getElementById('rf-dept')?.value||null,IsActive:document.getElementById('rf-active')?.checked??true}; }
+    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,RankCategory:document.getElementById('rf-dept')?.value||null,SortOrder:parseInt(document.getElementById('rf-sort')?.value)||null,IsActive:document.getElementById('rf-active')?.checked??true}; }
   },
   agency: {
     list:'AgencyList', label:'Agency', icon:'bi-people', spLink:'AgencyList',
-    query:'?$select=Id,Title,Email,Country,IsActive&$orderby=Title&$top=500',
-    cols:['Agency Name','Email','Country','Status'],
-    row:(r)=>[h(r.Title),h(r.Email||'—'),h(r.Country||'—'),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
+    // Use $select=* to pick up Email if it exists, gracefully ignore if not
+    query:'?$select=*&$orderby=Title&$top=500',
+    cols:['Agency Name','Email','Type','Status'],
+    row:(r)=>[h(r.Title),h(r.Email||r.AgencyEmail||'—'),h(r.AgencyType||'—'),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
     form:(r)=>`
+      <div class="mb-3"><label class="form-label fw-bold">Agency Name <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Adriatic Crewing"></div>
       <div class="row g-3 mb-3">
-        <div class="col-md-8"><label class="form-label fw-bold">Agency Name <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Adriatic Crewing"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Country</label>
-          <input type="text" class="form-control" id="rf-country" value="${h(r?.Country||'')}" placeholder="e.g. Croatia"></div>
+        <div class="col-md-8"><label class="form-label fw-bold">Email</label>
+          <input type="email" class="form-control" id="rf-email" value="${h(r?.Email||r?.AgencyEmail||'')}" placeholder="agency@example.com"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Type</label>
+          <select class="form-select" id="rf-agtype">
+            ${['Crewing','Manning','Placement','Other'].map(t=>`<option value="${t}"${r?.AgencyType===t?' selected':''}>${t}</option>`).join('')}
+          </select></div>
       </div>
-      <div class="mb-3"><label class="form-label fw-bold">Email</label>
-        <input type="email" class="form-control" id="rf-email" value="${h(r?.Email||'')}" placeholder="agency@example.com"></div>
       <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`,
-    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; const emailVal=document.getElementById('rf-email')?.value||null; return {Title:t,Email:emailVal,Country:document.getElementById('rf-country')?.value||null,IsActive:document.getElementById('rf-active')?.checked??true}; }
+    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,Email:document.getElementById('rf-email')?.value||null,AgencyType:document.getElementById('rf-agtype')?.value||null,IsActive:document.getElementById('rf-active')?.checked??true}; }
   }
 };
 
