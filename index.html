@@ -160,6 +160,40 @@
 </div>
 
 <!-- Salary Rate add/edit -->
+<!-- ── Email Preview Modal ───────────────────────────────────────────── -->
+<div class="modal fade" id="modalEmailPreview" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+        <h5 class="modal-title"><i class="bi bi-envelope-open me-2"></i>Email Preview — review before sending</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="p-3 border-bottom bg-light" style="font-size:.85rem">
+          <div class="row g-2">
+            <div class="col-auto fw-bold text-muted" style="width:70px">Subject:</div>
+            <div class="col" id="ep-subject"></div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-auto fw-bold text-muted" style="width:70px">To:</div>
+            <div class="col" id="ep-to"></div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-auto fw-bold text-muted" style="width:70px">BCC:</div>
+            <div class="col" id="ep-bcc" style="max-height:60px;overflow-y:auto"></div>
+          </div>
+        </div>
+        <iframe id="ep-frame" style="width:100%;height:500px;border:none" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Back to edit</button>
+        <button class="btn btn-primary" id="btn-ep-send" onclick="confirmSendEmail()">
+          <i class="bi bi-send me-1"></i>Send Now
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- ── Position List Modal ─────────────────────────────────────────── -->
 <div class="modal fade" id="modalPositionList" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -381,7 +415,7 @@ const CLIENT_ID = 'aa970388-238d-4faf-877d-1fe78d3cd8de';
 const TENANT_ID = '3285e781-a828-40a7-8f13-00b489371bb9';
 const SP_SITE   = 'https://martraconeu.sharepoint.com/sites/Management';
 const SP_SCOPE    = 'https://martraconeu.sharepoint.com/.default openid profile';
-const GRAPH_SCOPE = 'https://graph.microsoft.com/Mail.ReadWrite';
+const GRAPH_SCOPE = 'https://graph.microsoft.com/Mail.Send';
 const SENDER_ADDR = 'recruitment@martracon.eu';
 const API         = `${SP_SITE}/_api/web`;
 const REDIRECT  = window.location.origin + window.location.pathname;
@@ -803,9 +837,11 @@ function buildDetailHTML(vac,history) {
         <div id="neg-note-row" class="mb-3"${vac?.SalarySource!=='Negotiated'?' style="display:none"':''}><label class="form-label fw-bold">Negotiated Note</label><textarea class="form-control" id="f-snote" rows="2">${h(vac?.SalaryNegotiatedNote||'')}</textarea></div>
         <div id="sal-hint-row" class="mb-3 d-none"><div class="alert alert-info py-2 mb-0" style="font-size:.82rem" id="sal-hint"></div></div>
         <div class="row g-3 mb-3">
-          <div class="col-md-6"><label class="form-label fw-bold">Trading Area</label>
+          <div class="col-md-4"><label class="form-label fw-bold">Trading Area</label>
             <input type="text" class="form-control" id="f-trading" placeholder="e.g. South and East Africa trade" value="${h(vac?.TradingArea||'')}"></div>
-          <div class="col-md-6"><label class="form-label fw-bold">Crew / Engine Team on Board</label>
+          <div class="col-md-4"><label class="form-label fw-bold">Place of Joining</label>
+            <input type="text" class="form-control" id="f-poj" placeholder="e.g. Hamburg" value="${h(vac?.PlaceOfJoining||'')}"></div>
+          <div class="col-md-4"><label class="form-label fw-bold">Engine / Bridge Team on Board</label>
             <input type="text" class="form-control" id="f-crew" placeholder="e.g. CE, 3E, OLR" value="${h(vac?.CrewOnboard||'')}"></div>
         </div>
         <div class="mb-3"><label class="form-label fw-bold">Nationality Requirements</label>
@@ -907,7 +943,7 @@ async function saveVacancy(id) {
   const vessel=S.vessels.find(v=>v.Id==vesselId), rank=S.ranks.find(r=>r.Id==rankId), titleStr=`${vessel?.Title||'?'} — ${rank?.Title||'?'} — ${received}`;
   const joindateVal=document.getElementById('f-joindate')?.value;
   const data={ Title:titleStr, VesselId:parseInt(vesselId), RankId:parseInt(rankId), ...(clientId?{ClientId:parseInt(clientId)}:{}),
-    ReceivedDate:`${received}T00:00:00Z`, JoiningWeek:parseInt(document.getElementById('f-week')?.value)||null, JoiningYear:parseInt(document.getElementById('f-year')?.value)||null, JoiningDateOverride:joindateVal?`${joindateVal}T00:00:00Z`:null, ContractDurationValue:parseFloat(document.getElementById('f-cdur')?.value)||null, ContractDurationUnit:document.getElementById('f-cunit')?.value||'Months', ContractTolerance:parseFloat(document.getElementById('f-ctol')?.value)||null, SalaryMin:parseFloat(document.getElementById('f-smin')?.value)||null, SalaryMax:parseFloat(document.getElementById('f-smax')?.value)||null, SalaryCurrency:document.getElementById('f-scur')?.value||'EUR', SalarySource:document.getElementById('f-ssrc')?.value||'Scale', SalaryNegotiatedNote:document.getElementById('f-snote')?.value||null, NationalityRequirements:document.getElementById('f-nat')?.value||null, Remarks:document.getElementById('f-remarks')?.value||null };
+    ReceivedDate:`${received}T00:00:00Z`, JoiningWeek:parseInt(document.getElementById('f-week')?.value)||null, JoiningYear:parseInt(document.getElementById('f-year')?.value)||null, JoiningDateOverride:joindateVal?`${joindateVal}T00:00:00Z`:null, ContractDurationValue:parseFloat(document.getElementById('f-cdur')?.value)||null, ContractDurationUnit:document.getElementById('f-cunit')?.value||'Months', ContractTolerance:parseFloat(document.getElementById('f-ctol')?.value)||null, SalaryMin:parseFloat(document.getElementById('f-smin')?.value)||null, SalaryMax:parseFloat(document.getElementById('f-smax')?.value)||null, SalaryCurrency:document.getElementById('f-scur')?.value||'EUR', SalarySource:document.getElementById('f-ssrc')?.value||'Scale', SalaryNegotiatedNote:document.getElementById('f-snote')?.value||null, TradingArea:document.getElementById('f-trading')?.value||null, PlaceOfJoining:document.getElementById('f-poj')?.value||null, CrewOnboard:document.getElementById('f-crew')?.value||null, NationalityRequirements:document.getElementById('f-nat')?.value||null, Remarks:document.getElementById('f-remarks')?.value||null };
   const btn=document.getElementById('btn-save'); if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';}
   try {
     if(id&&id!=='null') { await spUpdate('Vacancies',id,data); toast('Changes saved'); renderDetail(id); }
@@ -1919,7 +1955,7 @@ async function openPositionList() {
   new bootstrap.Modal(document.getElementById('modalPositionList')).show();
 
   // Load vacancies
-  const vacs=await spGet('Vacancies',`?$filter=${encodeURIComponent("Status eq 'Open' or Status eq 'Offer Made'")}&$select=Id,Title,Status,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,NationalityRequirements,Remarks,VesselId,Vessel/Title,Vessel/Id,RankId,Rank/Title,Rank/Id,ClientId&$expand=Vessel,Rank&$orderby=Vessel/Title,Rank/Title&$top=500`).catch(e=>{toast(`Position List query failed: ${e.message}`,'danger');return [];});
+  const vacs=await spGet('Vacancies',`?$filter=${encodeURIComponent("Status eq 'Open' or Status eq 'Offer Made'")}&$select=Id,Title,Status,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,TradingArea,PlaceOfJoining,CrewOnboard,NationalityRequirements,Remarks,VesselId,Vessel/Title,Vessel/Id,RankId,Rank/Title,Rank/Id,ClientId&$expand=Vessel,Rank&$orderby=Vessel/Title,Rank/Title&$top=500`).catch(e=>{toast(`Position List query failed: ${e.message}`,'danger');return [];});
   window._plVacs=vacs;
 
   // Render vacancies
@@ -1986,23 +2022,26 @@ async function generatePositionList() {
       const vessel=S.vessels.find(v=>v.Id===vac.VesselId)||{};
       const vesselName='MV '+(vac.Vessel?.Title||vessel.Title||'—');
       const rankName=vac.Rank?.Title||'—';
-      const typeStr=[vessel.VesselType,vessel.DWT?`DWT ${vessel.DWT}`:vessel.GRT?`GRT ${vessel.GRT}`:''].filter(Boolean).join(' / ')||'—';
+      const dwtStr=vessel.DWT?`${Number(vessel.DWT).toLocaleString('de-DE')} t`:vessel.GRT?`${Number(vessel.GRT).toLocaleString('de-DE')} t GRT`:'—';
       const joining=joiningStr(vac)||'—';
-      const contract=vac.ContractDurationValue?`${vac.ContractDurationValue} ${vac.ContractDurationUnit||'Months'}${vac.ContractTolerance?` +/-${vac.ContractTolerance}m`:''}` :'—';
+      const contract=vac.ContractDurationValue?`${vac.ContractDurationValue} ${vac.ContractDurationUnit||'Months'}${vac.ContractTolerance?` +/- ${vac.ContractTolerance} weeks`:''}` :'—';
       const salary=vac.SalaryMin?`${Number(vac.SalaryMin).toLocaleString('de-DE')} ${vac.SalaryCurrency||'EUR'}`:'—';
+      const teamLabel=isEngineRank(rankName)?'Engine Team:':'Bridge Team:';
 
       const rows=[
         hdrRow(vesselName,rankName),
-        dataRow('Type:',typeStr),
+        dataRow('Type:',vessel.VesselType||'—'),
+        dataRow('DWT:',dwtStr),
         dataRow('Flag:',vessel.Flag||'—'),
         dataRow('Built:',vessel.BuiltYear?String(vessel.BuiltYear):'—'),
       ];
+      if(vessel.EngineSpecs) rows.push(dataRow('Engine:',vessel.EngineSpecs));
       if(vac.TradingArea) rows.push(dataRow('Trading area:',vac.TradingArea));
       rows.push(hlRow('Joining:',joining,'CC0000'));
+      if(vac.PlaceOfJoining) rows.push(dataRow('Place of joining:',vac.PlaceOfJoining));
       rows.push(dataRow('Contract:',contract));
       rows.push(dataRow('Salary:',salary));
-      if(vessel.EngineSpecs) rows.push(dataRow('Engine:',vessel.EngineSpecs));
-      if(vac.CrewOnboard) rows.push(dataRow('Engine Team:',vac.CrewOnboard));
+      if(vac.CrewOnboard) rows.push(dataRow(teamLabel,vac.CrewOnboard));
       if(vac.NationalityRequirements) rows.push(hlRow('Nationality requires:',vac.NationalityRequirements,'B54800'));
       if(vac.Remarks){
         const lines=vac.Remarks.split('\n').filter(Boolean);
@@ -2059,56 +2098,39 @@ async function generatePositionList() {
   }
 }
 
-async function sendToAgencies() {
-  const week=document.getElementById('pl-week').value||isoWeek(new Date());
-  const year=document.getElementById('pl-year').value||new Date().getFullYear();
-  const selectedIds=[...document.querySelectorAll('#pl-vacancy-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
-  if(!selectedIds.length){toast('Select at least one vacancy','warning');return;}
-  const selectedAgIdxs=[...document.querySelectorAll('#pl-agency-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
-  if(!selectedAgIdxs.length){toast('Select at least one agency','warning');return;}
+function isEngineRank(rankTitle){return /engineer|eto|electrician|electric|fitter|oiler|wiper|motorman|engine cadet/i.test(rankTitle||'');}
 
-  const selectedVacs=(window._plVacs||[]).filter(v=>selectedIds.includes(v.Id));
-  const selectedAgs=AGENCY_CONTACTS.filter((_,i)=>selectedAgIdxs.includes(i));
-
-  const btn=document.getElementById('btn-pl-send');
-  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
-  try {
-    // Get Graph API token (opens popup on first use for Mail.Send consent)
-    const gToken=await getGraphToken();
-
-    // Build HTML email — inline CSS for Outlook compatibility
-    function cs(bg,fg,bold){return `background:${bg||'transparent'};color:${fg||'#222222'};${bold?'font-weight:bold;':''}padding:5px 9px;border:1px solid #CCCCCC;font-family:Calibri,Arial,sans-serif;font-size:11pt;vertical-align:top`;}
-    function hR(l,r){return `<tr><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(l)}</td><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(r)}</td></tr>`;}
-    function dR(l,v){return `<tr><td style="${cs('#F2F3F4','#555555',false)}">${h(l)}</td><td style="${cs('','#222222',false)}">${h(v)}</td></tr>`;}
-    function lR(l,v,bg){return `<tr><td style="${cs(bg,'#FFFFFF',true)}">${h(l)}</td><td style="${cs(bg,'#FFFFFF',true)}">${h(v)}</td></tr>`;}
-
-    let tables='';
-    for(const vac of selectedVacs){
-      const vessel=S.vessels.find(v=>v.Id===vac.VesselId)||{};
-      const vesselName='MV '+(vac.Vessel?.Title||vessel.Title||'—');
-      const rankName=vac.Rank?.Title||'—';
-      const typeStr=[vessel.VesselType,vessel.DWT?`DWT ${vessel.DWT}`:vessel.GRT?`GRT ${vessel.GRT}`:''].filter(Boolean).join(' / ')||'—';
-      const contract=vac.ContractDurationValue?`${vac.ContractDurationValue} ${vac.ContractDurationUnit||'Months'}${vac.ContractTolerance?` +/-${vac.ContractTolerance}m`:''}` :'—';
-      const salary=vac.SalaryMin?`${Number(vac.SalaryMin).toLocaleString('de-DE')} ${vac.SalaryCurrency||'EUR'}`:'—';
-      let rows=hR(vesselName,rankName);
-      rows+=dR('Type:',typeStr);
-      rows+=dR('Flag:',vessel.Flag||'—');
-      rows+=dR('Built:',vessel.BuiltYear||'—');
-      if(vac.TradingArea)rows+=dR('Trading area:',vac.TradingArea);
-      rows+=lR('Joining:',joiningStr(vac)||'—','#CC0000');
-      rows+=dR('Contract:',contract);
-      rows+=dR('Salary:',salary);
-      if(vessel.EngineSpecs)rows+=dR('Engine:',vessel.EngineSpecs);
-      if(vac.CrewOnboard)rows+=dR('Engine Team:',vac.CrewOnboard);
-      if(vac.NationalityRequirements)rows+=lR('Nationality requires:',vac.NationalityRequirements,'#B54800');
-      if(vac.Remarks){
-        const lines=vac.Remarks.split('\n').filter(Boolean);
-        lines.forEach((line,i)=>{rows+=lR(i===0?'Remark:':'',line,'#7D6008');});
-      }
-      tables+=`<table width="100%" style="border-collapse:collapse;margin-bottom:20px">${rows}</table>`;
-    }
-
-    const htmlBody=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+function buildEmailHtml(selectedVacs,week,year){
+  function cs(bg,fg,bold){return `background:${bg||'transparent'};color:${fg||'#222222'};${bold?'font-weight:bold;':''}padding:5px 9px;border:1px solid #CCCCCC;font-family:Calibri,Arial,sans-serif;font-size:11pt;vertical-align:top`;}
+  function hR(l,r){return `<tr><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(l)}</td><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(r)}</td></tr>`;}
+  function dR(l,v){return `<tr><td style="${cs('#F2F3F4','#555555',false)}">${h(l)}</td><td style="${cs('','#222222',false)}">${h(v)}</td></tr>`;}
+  function lR(l,v,bg){return `<tr><td style="${cs(bg,'#FFFFFF',true)}">${h(l)}</td><td style="${cs(bg,'#FFFFFF',true)}">${h(v)}</td></tr>`;}
+  let tables='';
+  for(const vac of selectedVacs){
+    const vessel=S.vessels.find(v=>v.Id===vac.VesselId)||{};
+    const vesselName='MV '+(vac.Vessel?.Title||vessel.Title||'—');
+    const rankName=vac.Rank?.Title||'—';
+    const dwtStr=vessel.DWT?`${Number(vessel.DWT).toLocaleString('de-DE')} t`:vessel.GRT?`${Number(vessel.GRT).toLocaleString('de-DE')} t GRT`:'—';
+    const contract=vac.ContractDurationValue?`${vac.ContractDurationValue} ${vac.ContractDurationUnit||'Months'}${vac.ContractTolerance?` +/- ${vac.ContractTolerance} weeks`:''}` :'—';
+    const salary=vac.SalaryMin?`${Number(vac.SalaryMin).toLocaleString('de-DE')} ${vac.SalaryCurrency||'EUR'}`:'—';
+    const teamLabel=isEngineRank(rankName)?'Engine Team:':'Bridge Team:';
+    let rows=hR(vesselName,rankName);
+    rows+=dR('Type:',vessel.VesselType||'—');
+    rows+=dR('DWT:',dwtStr);
+    rows+=dR('Flag:',vessel.Flag||'—');
+    rows+=dR('Built:',vessel.BuiltYear||'—');
+    if(vessel.EngineSpecs) rows+=dR('Engine:',vessel.EngineSpecs);
+    if(vac.TradingArea) rows+=dR('Trading area:',vac.TradingArea);
+    rows+=lR('Joining:',joiningStr(vac)||'—','#CC0000');
+    if(vac.PlaceOfJoining) rows+=dR('Place of joining:',vac.PlaceOfJoining);
+    rows+=dR('Contract:',contract);
+    rows+=dR('Salary:',salary);
+    if(vac.CrewOnboard) rows+=dR(teamLabel,vac.CrewOnboard);
+    if(vac.NationalityRequirements) rows+=lR('Nationality requires:',vac.NationalityRequirements,'#B54800');
+    if(vac.Remarks){const lines=vac.Remarks.split('\n').filter(Boolean);lines.forEach((line,i)=>{rows+=lR(i===0?'Remark:':'',line,'#7D6008');});}
+    tables+=`<table width="100%" style="border-collapse:collapse;margin-bottom:20px">${rows}</table>`;
+  }
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222222;margin:0;padding:24px;max-width:700px">
 <p style="font-size:15pt;font-weight:bold;color:#1B3A6B;margin-top:0;margin-bottom:16px">Martracon Group &mdash; Open Position List &mdash; Week ${week}/${year}</p>
 <p style="margin:0 0 8px 0">Good day, dear colleagues!</p>
@@ -2117,48 +2139,63 @@ async function sendToAgencies() {
 ${tables}
 <p style="margin-top:24px;color:#888888;font-size:9pt">Sent via Martracon Crew Management Tool</p>
 </body></html>`;
+}
 
-    // If the cached token was from the old Mail.Send scope, it won't work for drafts — clear it
+async function sendToAgencies() {
+  const week=document.getElementById('pl-week').value||isoWeek(new Date());
+  const year=document.getElementById('pl-year').value||new Date().getFullYear();
+  const selectedIds=[...document.querySelectorAll('#pl-vacancy-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
+  if(!selectedIds.length){toast('Select at least one vacancy','warning');return;}
+  const selectedAgIdxs=[...document.querySelectorAll('#pl-agency-list input[type=checkbox]:checked')].map(cb=>parseInt(cb.value));
+  if(!selectedAgIdxs.length){toast('Select at least one agency','warning');return;}
+  const selectedVacs=(window._plVacs||[]).filter(v=>selectedIds.includes(v.Id));
+  const selectedAgs=AGENCY_CONTACTS.filter((_,i)=>selectedAgIdxs.includes(i));
+  const subject=`Martracon Group - Open Position List Week ${week}/${year} Update`;
+  const htmlBody=buildEmailHtml(selectedVacs,week,year);
+  // Store for confirmSendEmail
+  window._pendingEmail={subject,htmlBody,selectedAgs,week,year};
+  // Show preview modal
+  document.getElementById('ep-subject').textContent=subject;
+  document.getElementById('ep-to').textContent=`${SENDER_ADDR} (Martracon Recruitment)`;
+  document.getElementById('ep-bcc').innerHTML=selectedAgs.map(a=>`<span class="badge bg-light text-dark border me-1 mb-1">${h(a.name)}</span>`).join('');
+  const frame=document.getElementById('ep-frame');
+  frame.srcdoc=htmlBody;
+  document.getElementById('btn-ep-send').disabled=false;
+  document.getElementById('btn-ep-send').innerHTML='<i class="bi bi-send me-1"></i>Send Now';
+  bootstrap.Modal.getInstance(document.getElementById('modalPositionList'))?.hide();
+  new bootstrap.Modal(document.getElementById('modalEmailPreview')).show();
+}
+
+async function confirmSendEmail() {
+  const{subject,htmlBody,selectedAgs}=window._pendingEmail||{};
+  if(!subject||!selectedAgs?.length){toast('No email pending','warning');return;}
+  const btn=document.getElementById('btn-ep-send');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+  try {
+    const gToken=await getGraphToken();
     const message={
-      subject:`Martracon Group - Open Position List Week ${week}/${year} Update`,
-      body:{contentType:'HTML',content:htmlBody},
+      subject, body:{contentType:'HTML',content:htmlBody},
       replyTo:[{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}}],
       toRecipients:[{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}}],
       bccRecipients:selectedAgs.map(a=>({emailAddress:{address:a.email,name:a.name}}))
     };
-
-    // Create a DRAFT (not send) — user reviews and sends manually from Outlook
-    let resp=await fetch('https://graph.microsoft.com/v1.0/me/messages',{
+    const resp=await fetch('https://graph.microsoft.com/v1.0/me/sendMail',{
       method:'POST',
       headers:{'Authorization':`Bearer ${gToken}`,'Content-Type':'application/json'},
-      body:JSON.stringify(message)
+      body:JSON.stringify({message,saveToSentItems:true})
     });
-    // If the cached token has wrong scope (old Mail.Send token), clear and retry once
-    if(resp.status===401||resp.status===403){
-      sessionStorage.removeItem('g_at'); sessionStorage.removeItem('g_exp');
-      const freshToken=await getGraphToken();
-      resp=await fetch('https://graph.microsoft.com/v1.0/me/messages',{
-        method:'POST',
-        headers:{'Authorization':`Bearer ${freshToken}`,'Content-Type':'application/json'},
-        body:JSON.stringify(message)
-      });
-    }
-    if(resp.ok){
-      const draft=await resp.json();
-      bootstrap.Modal.getInstance(document.getElementById('modalPositionList'))?.hide();
-      toast(`Draft created for ${selectedAgs.length} agenc${selectedAgs.length===1?'y':'ies'} — opening Outlook…`);
-      // Open the draft directly in Outlook web
-      const webLink=draft.webLink||'https://outlook.office.com/mail/drafts';
-      setTimeout(()=>window.open(webLink,'_blank'),600);
+    if(resp.status===202||resp.status===200||resp.ok){
+      bootstrap.Modal.getInstance(document.getElementById('modalEmailPreview'))?.hide();
+      toast(`Email sent to ${selectedAgs.length} agenc${selectedAgs.length===1?'y':'ies'} ✓`);
+      window._pendingEmail=null;
     } else {
       const err=await resp.json().catch(()=>({}));
       throw new Error(err?.error?.message||`HTTP ${resp.status}`);
     }
   } catch(e){
     toast(`Send failed: ${e.message}`,'danger');
-    console.error('[sendToAgencies]',e);
-  } finally {
-    btn.disabled=false; btn.innerHTML='<i class="bi bi-send me-1"></i>Send Email to Agencies';
+    console.error('[confirmSendEmail]',e);
+    btn.disabled=false; btn.innerHTML='<i class="bi bi-send me-1"></i>Send Now';
   }
 }
 
