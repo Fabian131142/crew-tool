@@ -170,17 +170,28 @@
       </div>
       <div class="modal-body p-0">
         <div class="p-3 border-bottom bg-light" style="font-size:.85rem">
-          <div class="row g-2">
+          <div class="row g-2 align-items-center">
             <div class="col-auto fw-bold text-muted" style="width:70px">Subject:</div>
-            <div class="col" id="ep-subject"></div>
+            <div class="col"><input type="text" class="form-control form-control-sm" id="ep-subject"></div>
           </div>
-          <div class="row g-2 mt-1">
+          <div class="row g-2 mt-1 align-items-center">
             <div class="col-auto fw-bold text-muted" style="width:70px">To:</div>
             <div class="col" id="ep-to"></div>
           </div>
-          <div class="row g-2 mt-1">
-            <div class="col-auto fw-bold text-muted" style="width:70px">BCC:</div>
-            <div class="col" id="ep-bcc" style="max-height:60px;overflow-y:auto"></div>
+          <div class="row g-2 mt-1 align-items-start">
+            <div class="col-auto fw-bold text-muted" style="width:70px;padding-top:6px">BCC:</div>
+            <div class="col">
+              <div id="ep-bcc" style="max-height:80px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>
+              <div class="mt-1" id="ep-bcc-add-wrap">
+                <div class="dropdown d-inline-block">
+                  <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem" type="button" id="ep-add-bcc-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"><i class="bi bi-plus"></i> Add agency</button>
+                  <div class="dropdown-menu p-2 shadow" id="ep-bcc-dropdown" style="min-width:260px;max-height:220px;overflow-y:auto">
+                    <input type="text" class="form-control form-control-sm mb-2" id="ep-bcc-search" placeholder="Search agencies…" oninput="filterBccDropdown()">
+                    <div id="ep-bcc-agency-list"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <iframe id="ep-frame" style="width:100%;height:500px;border:none" sandbox="allow-same-origin"></iframe>
@@ -194,6 +205,52 @@
     </div>
   </div>
 </div>
+<!-- ── Vessel Manager Modal ────────────────────────────────────────── -->
+<div class="modal fade" id="modalVesselManager" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+        <h5 class="modal-title"><i class="bi bi-ship me-2"></i>Vessel Management</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="p-3 border-bottom d-flex flex-wrap gap-2 align-items-center">
+          <input type="text" class="form-control form-control-sm" id="vessel-search" placeholder="Search vessels…" oninput="renderVesselTable()" style="max-width:240px">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="vessel-show-inactive" onchange="renderVesselTable()">
+            <label class="form-check-label" for="vessel-show-inactive" style="font-size:.85rem">Show inactive</label>
+          </div>
+          <button class="btn btn-primary btn-sm ms-auto" onclick="editVessel(null)"><i class="bi bi-plus-lg me-1"></i>New Vessel</button>
+        </div>
+        <div id="vessel-list-body" style="overflow-x:auto">
+          <div class="text-center p-4"><div class="spinner-border spinner-border-sm text-secondary"></div></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="${SP_SITE}/Lists/VesselMaster" target="_blank" class="btn btn-sm btn-outline-secondary me-auto"><i class="bi bi-box-arrow-up-right me-1"></i>Open in SharePoint</a>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Vessel Form Modal ────────────────────────────────────────────── -->
+<div class="modal fade" id="modalVesselForm" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-navy);color:#fff">
+        <h5 class="modal-title" id="vessel-form-title"><i class="bi bi-ship me-2"></i>Vessel</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="vessel-form-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-vessel-save" onclick="saveVessel()"><i class="bi bi-floppy me-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Position List Modal ─────────────────────────────────────────── -->
 <div class="modal fade" id="modalPositionList" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -416,7 +473,9 @@ const TENANT_ID = '3285e781-a828-40a7-8f13-00b489371bb9';
 const SP_SITE   = 'https://martraconeu.sharepoint.com/sites/Management';
 const SP_SCOPE    = 'https://martraconeu.sharepoint.com/.default openid profile';
 const GRAPH_SCOPE = 'https://graph.microsoft.com/Mail.Send';
-const SENDER_ADDR = 'recruitment@martracon.eu';
+const SENDER_ADDR     = 'recruitment@martracon.eu';
+const SENDER_POSITION = 'Crewing Technical Superintendent'; // ← update per user if needed
+const SENDER_MOBILE   = '+49 151 56181826';                 // ← update per user if needed
 const API         = `${SP_SITE}/_api/web`;
 const REDIRECT  = window.location.origin + window.location.pathname;
 
@@ -632,7 +691,7 @@ function errBox(e) { return `<div class="alert alert-danger"><i class="bi bi-exc
 // ═══════════════════════════════════════════════════════════════════
 async function loadRefData() {
   const [vessels,ranks,salaryRates,clients,agencies] = await Promise.all([
-    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500'),
+    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500').catch(()=>spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')),
     spGet('RankList','?$select=Id,Title,RankCategory,SortOrder,IsActive&$filter=IsActive eq 1&$orderby=SortOrder&$top=200'),
     spGet('SalaryRates','?$select=Id,Title,EffectiveYear,SalaryMin,SalaryMax,Currency,ClientId,RankId,SeniorityLevel,CBACode&$top=2000'),
     spGet('ClientMaster','?$select=Id,Title,IsActive&$orderby=Title&$top=200'),
@@ -819,9 +878,9 @@ function buildDetailHTML(vac,history) {
         </div>
         <div class="row g-3 mb-3">
           <div class="col-md-4"><label class="form-label fw-bold">Received Date <span class="text-danger">*</span></label><input type="date" class="form-control" id="f-received" required value="${isoDate(vac?.ReceivedDate)}"></div>
-          <div class="col-md-2"><label class="form-label fw-bold">Week</label><input type="number" class="form-control" id="f-week" min="1" max="53" value="${vac?.JoiningWeek||''}"></div>
-          <div class="col-md-2"><label class="form-label fw-bold">Year</label><input type="number" class="form-control" id="f-year" min="2024" max="2035" value="${vac?.JoiningYear||''}"></div>
-          <div class="col-md-4"><label class="form-label fw-bold">Specific Join Date</label><input type="date" class="form-control" id="f-joindate" value="${isoDate(vac?.JoiningDateOverride)}"></div>
+          <div class="col-md-2"><label class="form-label fw-bold">Week</label><input type="number" class="form-control" id="f-week" min="1" max="53" value="${vac?.JoiningWeek||''}" oninput="syncJoinFields('week_year')"></div>
+          <div class="col-md-2"><label class="form-label fw-bold">Year</label><input type="number" class="form-control" id="f-year" min="2024" max="2035" value="${vac?.JoiningYear||''}" oninput="syncJoinFields('week_year')"></div>
+          <div class="col-md-4"><label class="form-label fw-bold">Specific Join Date</label><input type="date" class="form-control" id="f-joindate" value="${isoDate(vac?.JoiningDateOverride)}" oninput="syncJoinFields('date')"></div>
         </div>
         <div class="row g-3 mb-3">
           <div class="col-md-3"><label class="form-label fw-bold">Contract Duration</label><input type="number" class="form-control" id="f-cdur" min="0.5" max="24" step="0.5" value="${vac?.ContractDurationValue||''}"></div>
@@ -845,7 +904,7 @@ function buildDetailHTML(vac,history) {
             <input type="text" class="form-control" id="f-crew" placeholder="e.g. CE, 3E, OLR" value="${h(vac?.CrewOnboard||'')}"></div>
         </div>
         <div class="mb-3"><label class="form-label fw-bold">Nationality Requirements</label>
-          <div class="d-flex flex-wrap gap-1 mb-1">${['EU / NON-EU / UKR / RUS','EU only','Non-EU only','NON-EU / UKR / RUS'].map(n=>`<button type="button" class="btn btn-outline-secondary nat-btn" onclick="document.getElementById('f-nat').value='${n}'">${n}</button>`).join('')}</div>
+          <div class="d-flex flex-wrap gap-1 mb-1">${['EU / NON-EU / UKR / RUS','EU only','NON-EU only','NON-EU / UKR / RUS'].map(n=>`<button type="button" class="btn btn-outline-secondary nat-btn" onclick="document.getElementById('f-nat').value='${n}'">${n}</button>`).join('')}</div>
           <textarea class="form-control" id="f-nat" rows="2">${h(vac?.NationalityRequirements||'')}</textarea></div>
         <div class="mb-1"><label class="form-label fw-bold">Remarks</label><textarea class="form-control" id="f-remarks" rows="3" placeholder="ECDIS type, age limits, English level…">${h(vac?.Remarks||'')}</textarea></div>
         </form>
@@ -898,6 +957,10 @@ function onVesselChange(sel) {
   if(!opt?.value) { ['f-client-name','f-entity','f-service'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); document.getElementById('f-client-id').value=''; document.getElementById('vessel-info-card').style.display='none'; return; }
   document.getElementById('f-client-name').value=opt.dataset.clientname||''; document.getElementById('f-client-id').value=opt.dataset.clientid||''; document.getElementById('f-entity').value=opt.dataset.entity||''; document.getElementById('f-service').value=opt.dataset.service||'';
   document.getElementById('vessel-info-card').style.display=''; refreshVesselSidebar(opt.value); onRankChange();
+  // Auto-fill Trading Area from vessel default (if vessel has TradingArea set and field is currently empty)
+  const vessel=S.vessels.find(v=>v.Id==opt.value);
+  const tradingField=document.getElementById('f-trading');
+  if(vessel?.TradingArea && tradingField && !tradingField.value) tradingField.value=vessel.TradingArea;
 }
 
 function refreshVesselSidebar(vesselId) {
@@ -909,9 +972,14 @@ function refreshVesselSidebar(vesselId) {
 
 function parseContractDuration(str) {
   if(!str) return null;
-  const m=String(str).trim().match(/^(\d+(?:\.\d+)?)\s*(month|months|week|weeks)/i);
-  if(!m) return null;
-  return {value:parseFloat(m[1]),unit:/week/i.test(m[2])?'Weeks':'Months'};
+  const s=String(str).trim();
+  // "3 months", "3.5 weeks", "3 month", "3 week" etc.
+  const m=s.match(/^(\d+(?:\.\d+)?)\s*(month|months|week|weeks)/i);
+  if(m) return {value:parseFloat(m[1]),unit:/week/i.test(m[2])?'Weeks':'Months'};
+  // Plain number (e.g. "3" or "3.5") → assume months
+  const n=s.match(/^(\d+(?:\.\d+)?)$/);
+  if(n) return {value:parseFloat(n[1]),unit:'Months'};
+  return null;
 }
 function onRankChange() {
   const clientId=document.getElementById('f-client-id')?.value, rankId=document.getElementById('f-rank')?.value;
@@ -1768,6 +1836,31 @@ async function runSalaryImport() {
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN — ONE-TIME SETUP
 // ═══════════════════════════════════════════════════════════════════
+async function setupVesselColumns() {
+  const btn=document.getElementById('btn-setup-vessel-cols');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
+  const fields=[
+    {name:'DWT',type:'Number',decimals:0},
+    {name:'GRT',type:'Number',decimals:0},
+    {name:'EngineSpecs',type:'Text'},
+    {name:'TradingArea',type:'Text'},
+  ];
+  const token=await getToken();
+  const results=[];
+  for(const f of fields){
+    const body=f.type==='Number'
+      ?{__metadata:{type:'SP.Field'},FieldTypeKind:9,Title:f.name,InternalName:f.name,DecimalPlaces:f.decimals??2}
+      :{__metadata:{type:'SP.Field'},FieldTypeKind:2,Title:f.name,InternalName:f.name,MaxLength:255};
+    const r=await fetch(`${API}/lists/getbytitle('VesselMaster')/fields`,{method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':'nodigest'},body:JSON.stringify(body)});
+    if(r.ok||r.status===400){results.push(`✓ ${f.name}`);}
+    else{results.push(`✗ ${f.name}: ${r.status}`);}
+  }
+  toast('Vessel columns setup done — see result below','info');
+  document.getElementById('btn-setup-vessel-cols').insertAdjacentHTML('afterend',
+    `<div class="mt-2 small"><pre style="font-size:.75rem;background:#f8f9fa;padding:.5rem;border-radius:4px">${results.join('\n')}</pre></div>`);
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-database-add me-1"></i>Run Setup';}
+}
+
 async function setupCandidateColumns() {
   const btn=document.getElementById('btn-setup-cols');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
@@ -1840,29 +1933,195 @@ async function setupCandidateColumns() {
 // ═══════════════════════════════════════════════════════════════════
 async function renderAdmin() {
   const el=document.getElementById('v-admin');
-  el.innerHTML=`<h4 class="sec-title">Admin — Reference Lists</h4><div class="alert alert-info mb-3"><i class="bi bi-info-circle me-2"></i>Reference lists can be managed directly in SharePoint. Full in-app editor coming in Phase 3d.</div>
-  <div class="row g-3 mb-4">${[
-    ['VesselMaster','Vessels','svg:<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" class="mb-2" style="color:var(--mc-blue)"><path d="M8 1a2 2 0 1 1 0 4 2 2 0 0 1 0-4m0 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/><path d="M6 4.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H9v1h1.5A1.5 1.5 0 0 1 12 7.5V8h.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H12v.5a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 4 10.5V10h-.5a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5H4v-.5A1.5 1.5 0 0 1 5.5 6H7V5h-.5a.5.5 0 0 1-.5-.5M5.5 7a.5.5 0 0 0-.5.5V8h6v-.5A.5.5 0 0 0 10.5 7zm-.5 4.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 .5-.5V9H5zM8 12.5c-.725 0-1.45.193-2.094.566l-.814-1.4A5 5 0 0 1 8 11a5 5 0 0 1 2.908.666l-.814 1.4A3.98 3.98 0 0 0 8 12.5"/></svg>',`${S.vessels.length} active`],
-    ['ClientMaster','Clients','bi-building',`${S.clients.filter(c=>c.IsActive).length} active`],
-    ['RankList','Ranks','bi-person-badge',`${S.ranks.length} active`],
-    ['AgencyList','Agencies','bi-people',`${S.agencies.length} active`],
-    ['SalaryRates','Salary Rates','bi-cash-stack',''],
-  ].map(([list,label,icon,count])=>{
-    const iconHtml=icon.startsWith('svg:')?icon.slice(4).replace('<svg ','<svg style="display:block;margin:0 auto;color:var(--mc-blue)" '):`<i class="bi ${icon} fs-2" style="color:var(--mc-blue)"></i>`;
-    return `<div class="col-6 col-md-4 col-lg-3 col-xl-2"><a href="${SP_SITE}/Lists/${list}" target="_blank" class="card text-decoration-none shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center gap-1">${iconHtml}<div class="fw-bold">${label}</div>${count?`<div class="text-muted" style="font-size:.78rem">${count}</div>`:''}</a></div>`;
-  }).join('')}</div>
-  <h5 class="sec-title">One-Time Setup</h5>
-  <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
-    <i class="bi bi-wrench-adjustable fs-4"></i>
-    <div>
-      <strong>Add missing Candidates columns</strong><br>
-      <span style="font-size:.85rem">If you see field errors when adding candidates, click this to add all required columns to the SharePoint Candidates list. Run once only.</span>
+  el.innerHTML=`<h4 class="sec-title">Admin — Reference Data</h4>
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="openVesselManager()">
+        <i class="bi bi-ship" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i>
+        <div class="fw-bold" style="font-size:.9rem">Vessels</div>
+        <div class="text-muted" style="font-size:.78rem;min-height:1em">${S.vessels.length} active</div>
+      </div>
     </div>
-    <button class="btn btn-warning btn-sm ms-auto text-nowrap" onclick="setupCandidateColumns()" id="btn-setup-cols"><i class="bi bi-database-add me-1"></i>Run Setup</button>
+    ${[
+      ['ClientMaster','Clients','bi-building',`${S.clients.filter(c=>c.IsActive).length} active`],
+      ['RankList','Ranks','bi-person-badge',`${S.ranks.length} active`],
+      ['AgencyList','Agencies','bi-people',`${S.agencies.length} active`],
+      ['SalaryRates','Salary Rates','bi-cash-stack',''],
+    ].map(([list,label,icon,count])=>`<div class="col-6 col-md-4 col-lg-3 col-xl-2"><a href="${SP_SITE}/Lists/${list}" target="_blank" class="card text-decoration-none shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2"><i class="bi ${icon}" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">${label}</div><div class="text-muted" style="font-size:.78rem;min-height:1em">${count||''}</div></a></div>`).join('')}
+  </div>
+  <h5 class="sec-title">One-Time Setup</h5>
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+      <div class="alert alert-warning d-flex align-items-center gap-3 mb-0 h-100">
+        <i class="bi bi-wrench-adjustable fs-4 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Add missing Vessel columns</strong><br>
+          <span style="font-size:.85rem">Adds DWT, GRT, EngineSpecs, TradingArea columns to VesselMaster. Run once so the vessel editor can save all fields.</span>
+        </div>
+        <button class="btn btn-warning btn-sm ms-2 text-nowrap flex-shrink-0" onclick="setupVesselColumns()" id="btn-setup-vessel-cols"><i class="bi bi-database-add me-1"></i>Run Setup</button>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="alert alert-warning d-flex align-items-center gap-3 mb-0 h-100">
+        <i class="bi bi-wrench-adjustable fs-4 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Add missing Candidates columns</strong><br>
+          <span style="font-size:.85rem">If you see field errors when adding candidates, click this to add all required columns to the SharePoint Candidates list. Run once only.</span>
+        </div>
+        <button class="btn btn-warning btn-sm ms-2 text-nowrap flex-shrink-0" onclick="setupCandidateColumns()" id="btn-setup-cols"><i class="bi bi-database-add me-1"></i>Run Setup</button>
+      </div>
+    </div>
   </div>
   <h5 class="sec-title">Vacancy Stats</h5><div id="admin-stats"><div class="spinner-border spinner-border-sm text-secondary"></div></div>`;
   try { const all=await loadVacancies(null); const by={}; all.forEach(v=>{by[v.Status]=(by[v.Status]||0)+1;}); document.getElementById('admin-stats').innerHTML=`<div class="row g-2">${Object.entries(by).map(([s,n])=>`<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-navy)">${n}</div><div>${statusBadge(s)}</div></div></div>`).join('')}<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-navy)">${all.length}</div><div class="text-muted" style="font-size:.8rem">Total</div></div></div></div>`; }
   catch(e){document.getElementById('admin-stats').innerHTML=`<span class="text-muted small">${e.message}</span>`;}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VESSEL MANAGER
+// ═══════════════════════════════════════════════════════════════════
+async function openVesselManager() {
+  new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
+  // Load all vessels (including inactive) for the manager view
+  try {
+    window._allVessels = await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
+      spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500'));
+  } catch(e) {
+    window._allVessels = S.vessels;
+    toast('Could not load all vessels: '+e.message,'warning');
+  }
+  renderVesselTable();
+}
+
+function renderVesselTable() {
+  const showInactive = document.getElementById('vessel-show-inactive')?.checked;
+  const q = (document.getElementById('vessel-search')?.value||'').toLowerCase().trim();
+  const body = document.getElementById('vessel-list-body');
+  if (!body) return;
+  let vessels = (window._allVessels||S.vessels);
+  if (!showInactive) vessels = vessels.filter(v=>v.IsActive!==false);
+  if (q) vessels = vessels.filter(v=>(v.Title||'').toLowerCase().includes(q)||(v.VesselType||'').toLowerCase().includes(q)||(v.Flag||'').toLowerCase().includes(q)||(v.Client?.Title||'').toLowerCase().includes(q));
+  if (!vessels.length) { body.innerHTML='<p class="text-muted p-3">No vessels found.</p>'; return; }
+  body.innerHTML=`<table class="table table-hover table-sm mb-0" style="font-size:.85rem">
+    <thead class="table-light sticky-top"><tr>
+      <th>Vessel</th><th>Type</th><th>Flag</th><th>Built</th><th>DWT</th><th>Client</th><th>Entity</th><th>Trading Area</th><th>Status</th><th></th>
+    </tr></thead><tbody>
+    ${vessels.map(v=>`<tr>
+      <td class="fw-bold">${h(v.Title)}</td>
+      <td>${h(v.VesselType||'—')}</td>
+      <td>${h(v.Flag||'—')}</td>
+      <td>${v.BuiltYear||'—'}</td>
+      <td>${v.DWT?Number(v.DWT).toLocaleString('de-DE')+' t':'—'}</td>
+      <td>${h(v.Client?.Title||'—')}</td>
+      <td>${h(v.MartraconEntity||'—')}</td>
+      <td>${h(v.TradingArea||'—')}</td>
+      <td><span class="badge ${v.IsActive!==false?'bg-success':'bg-secondary'}">${v.IsActive!==false?'Active':'Inactive'}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="editVessel(${v.Id})" title="Edit"><i class="bi bi-pencil"></i></button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function editVessel(id) {
+  const v = id ? (window._allVessels||S.vessels).find(x=>x.Id===id) : null;
+  const isNew = !v;
+  document.getElementById('vessel-form-title').innerHTML=`<i class="bi bi-ship me-2"></i>${isNew?'New Vessel':h(v.Title)}`;
+  S._editingVesselId = id||null;
+  const clientOpts=S.clients.map(c=>`<option value="${c.Id}"${v?.ClientId==c.Id?' selected':''}>${h(c.Title)}</option>`).join('');
+  const typeOpts=['General cargo','Bulk carrier','Tanker','Container','RoRo','Reefer','Multi-purpose','Chemical tanker','Gas carrier','Offshore','Other'].map(t=>`<option${v?.VesselType===t?' selected':''}>${t}</option>`).join('');
+  const entityOpts=['MCM','MCH','MCP','Other'].map(e=>`<option value="${e}"${v?.MartraconEntity===e?' selected':''}>${e}</option>`).join('');
+  const serviceOpts=['Full Management','Crewing Only','Technical Only'].map(s=>`<option value="${s}"${v?.ServiceType===s?' selected':''}>${s}</option>`).join('');
+  document.getElementById('vessel-form-body').innerHTML=`
+  <form id="vesselform" onsubmit="return false">
+  <div class="row g-3 mb-3">
+    <div class="col-md-8"><label class="form-label fw-bold">Vessel Name <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" id="vf-title" value="${h(v?.Title||'')}" placeholder="e.g. Annika Braren"></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Abbreviation</label>
+      <input type="text" class="form-control" id="vf-abbr" value="${h(v?.Abbreviation||'')}" placeholder="e.g. AB"></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><label class="form-label fw-bold">Vessel Type</label>
+      <select class="form-select" id="vf-type"><option value="">— select —</option>${typeOpts}</select></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Flag</label>
+      <input type="text" class="form-control" id="vf-flag" value="${h(v?.Flag||'')}" placeholder="e.g. Germany, Cyprus"></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Built Year</label>
+      <input type="number" class="form-control" id="vf-built" min="1960" max="2035" value="${v?.BuiltYear||''}"></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><label class="form-label fw-bold">DWT (t)</label>
+      <input type="number" class="form-control" id="vf-dwt" step="1" min="0" value="${v?.DWT||''}"></div>
+    <div class="col-md-3"><label class="form-label fw-bold">GRT</label>
+      <input type="number" class="form-control" id="vf-grt" step="1" min="0" value="${v?.GRT||''}"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">Engine Specs</label>
+      <input type="text" class="form-control" id="vf-engine" value="${h(v?.EngineSpecs||'')}" placeholder="e.g. MAN B&amp;W 6S50MC-C, 6,800 kW"></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label fw-bold">Default Trading Area</label>
+      <input type="text" class="form-control" id="vf-trading" value="${h(v?.TradingArea||'')}" placeholder="e.g. South and East Africa trade"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">Union / CBA</label>
+      <input type="text" class="form-control" id="vf-union" value="${h(v?.Union||'')}" placeholder="e.g. DSMM, ITF"></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><label class="form-label fw-bold">Martracon Entity</label>
+      <select class="form-select" id="vf-entity"><option value="">— none —</option>${entityOpts}</select></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Service Type</label>
+      <select class="form-select" id="vf-service"><option value="">— none —</option>${serviceOpts}</select></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Mgt. Nationality</label>
+      <input type="text" class="form-control" id="vf-mgtnat" value="${h(v?.ManagementNationality||'')}" placeholder="e.g. European"></div>
+  </div>
+  <div class="row g-3 mb-2">
+    <div class="col-md-8"><label class="form-label fw-bold">Client (Owner / Principal)</label>
+      <select class="form-select" id="vf-client"><option value="">— none —</option>${clientOpts}</select></div>
+    <div class="col-md-4 d-flex align-items-end pb-2">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="vf-active"${v?.IsActive!==false?' checked':''}>
+        <label class="form-check-label fw-bold" for="vf-active">Active vessel</label>
+      </div>
+    </div>
+  </div>
+  </form>`;
+  // Show vessel form (stacks on top of manager modal)
+  const managerModal=bootstrap.Modal.getInstance(document.getElementById('modalVesselManager'));
+  if(managerModal) managerModal.hide();
+  const formModal=new bootstrap.Modal(document.getElementById('modalVesselForm'));
+  formModal.show();
+  // Re-open manager when form is closed
+  document.getElementById('modalVesselForm').addEventListener('hidden.bs.modal',()=>{
+    new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
+  },{once:true});
+}
+
+async function saveVessel() {
+  const title=document.getElementById('vf-title')?.value?.trim();
+  if(!title){toast('Vessel name is required','warning');return;}
+  const clientId=document.getElementById('vf-client')?.value;
+  const data={
+    Title:title,
+    Abbreviation:document.getElementById('vf-abbr')?.value||null,
+    VesselType:document.getElementById('vf-type')?.value||null,
+    Flag:document.getElementById('vf-flag')?.value||null,
+    BuiltYear:parseInt(document.getElementById('vf-built')?.value)||null,
+    Union:document.getElementById('vf-union')?.value||null,
+    MartraconEntity:document.getElementById('vf-entity')?.value||null,
+    ServiceType:document.getElementById('vf-service')?.value||null,
+    ManagementNationality:document.getElementById('vf-mgtnat')?.value||null,
+    IsActive:document.getElementById('vf-active')?.checked??true,
+    ...(clientId?{ClientId:parseInt(clientId)}:{})
+  };
+  // Optional SP columns — only send if filled
+  const dwt=document.getElementById('vf-dwt')?.value; if(dwt) data.DWT=parseInt(dwt);
+  const grt=document.getElementById('vf-grt')?.value; if(grt) data.GRT=parseInt(grt);
+  const eng=document.getElementById('vf-engine')?.value; if(eng) data.EngineSpecs=eng;
+  const tra=document.getElementById('vf-trading')?.value; if(tra) data.TradingArea=tra;
+  const btn=document.getElementById('btn-vessel-save');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+  try {
+    const id=S._editingVesselId;
+    if(id){ await spUpdate('VesselMaster',id,data); toast('Vessel updated ✓'); }
+    else { await spCreate('VesselMaster',data); toast('Vessel created ✓'); }
+    bootstrap.Modal.getInstance(document.getElementById('modalVesselForm'))?.hide();
+    await loadRefData(); // refresh S.vessels so rest of app sees changes immediately
+  } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
+  finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save'; }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2102,9 +2361,65 @@ async function generatePositionList() {
   }
 }
 
+// ── Joining date mutual exclusivity ─────────────────────────────────
+function syncJoinFields(changedField) {
+  const fWeek=document.getElementById('f-week'), fYear=document.getElementById('f-year'), fDate=document.getElementById('f-joindate');
+  if(!fWeek||!fYear||!fDate) return;
+  if(changedField==='date' && fDate.value) {
+    fWeek.value=''; fYear.value='';
+    fWeek.style.opacity='.45'; fYear.style.opacity='.45'; fDate.style.opacity='1';
+    fWeek.readOnly=true; fYear.readOnly=true;
+  } else if(changedField==='week_year' && (fWeek.value||fYear.value)) {
+    fDate.value='';
+    fDate.style.opacity='.45'; fWeek.style.opacity='1'; fYear.style.opacity='1';
+    fDate.readOnly=true;
+  } else {
+    // All cleared → re-enable all
+    [fWeek,fYear,fDate].forEach(f=>{f.readOnly=false;f.style.opacity='1';});
+  }
+}
+
+// ── BCC chip management ─────────────────────────────────────────────
+function renderBccChips() {
+  const ags=window._pendingEmail?.selectedAgs||[];
+  const container=document.getElementById('ep-bcc');
+  if(!container) return;
+  container.innerHTML=ags.map((a,i)=>
+    `<span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1" style="font-size:.78rem">${h(a.name)}<button type="button" onclick="removeBccRecipient(${i})" style="background:none;border:none;padding:0;line-height:1;color:#666;font-size:.85rem" title="Remove">×</button></span>`
+  ).join('');
+  // Populate dropdown with agencies not already in BCC
+  const existingEmails=new Set(ags.map(a=>a.email));
+  const listEl=document.getElementById('ep-bcc-agency-list');
+  if(listEl) {
+    const available=AGENCY_CONTACTS.filter(a=>!existingEmails.has(a.email));
+    listEl.innerHTML=available.length?available.map((a,i)=>
+      `<div class="form-check py-1 border-bottom" style="font-size:.82rem"><input class="form-check-input bcc-add-cb" type="checkbox" id="bcc_ag_${i}" value="${i}" data-email="${h(a.email)}" data-name="${h(a.name)}"><label class="form-check-label" for="bcc_ag_${i}">${h(a.name)}<br><small class="text-muted">${h(a.email)}</small></label></div>`
+    ).join(''):'<p class="text-muted small p-2">All agencies already in BCC</p>';
+    // Wire up checkboxes
+    listEl.querySelectorAll('.bcc-add-cb').forEach(cb=>cb.addEventListener('change',function(){
+      const a=AGENCY_CONTACTS.find(x=>x.email===this.dataset.email);
+      if(!a) return;
+      if(this.checked) { window._pendingEmail.selectedAgs.push(a); }
+      else { window._pendingEmail.selectedAgs=window._pendingEmail.selectedAgs.filter(x=>x.email!==a.email); }
+      renderBccChips();
+    }));
+  }
+}
+function removeBccRecipient(idx) {
+  if(!window._pendingEmail) return;
+  window._pendingEmail.selectedAgs.splice(idx,1);
+  renderBccChips();
+}
+function filterBccDropdown() {
+  const q=(document.getElementById('ep-bcc-search')?.value||'').toLowerCase();
+  document.querySelectorAll('#ep-bcc-agency-list .form-check').forEach(el=>{
+    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+
 function isEngineRank(rankTitle){return /engineer|eto|electrician|electric|fitter|oiler|wiper|motorman|engine cadet/i.test(rankTitle||'');}
 
-function buildEmailHtml(selectedVacs,week,year){
+function buildEmailHtml(selectedVacs,week,year,sigName){
   function cs(bg,fg,bold){return `background:${bg||'transparent'};color:${fg||'#222222'};${bold?'font-weight:bold;':''}padding:5px 9px;border:1px solid #CCCCCC;font-family:Calibri,Arial,sans-serif;font-size:11pt;vertical-align:top`;}
   function hR(l,r){return `<tr><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(l)}</td><td style="${cs('#1B3A6B','#FFFFFF',true)}">${h(r)}</td></tr>`;}
   function dR(l,v){return `<tr><td style="${cs('#F2F3F4','#555555',false)}">${h(l)}</td><td style="${cs('','#222222',false)}">${h(v)}</td></tr>`;}
@@ -2141,7 +2456,20 @@ function buildEmailHtml(selectedVacs,week,year){
 <p style="margin:0 0 8px 0">Kindly see below our update for a weekly overview of our current open positions.</p>
 <p style="margin:0 0 24px 0"><strong>When proposing candidates, please put the vessel name + position of seafarer in the subject and send to <a href="mailto:${SENDER_ADDR}" style="color:#1B3A6B">${SENDER_ADDR}</a></strong></p>
 ${tables}
-<p style="margin-top:24px;color:#888888;font-size:9pt">Sent via Martracon Crew Management Tool</p>
+<table style="border-collapse:collapse;margin-top:24px;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#222222">
+<tr><td style="padding-bottom:2px">Kind regards,</td></tr>
+<tr><td style="font-weight:bold">${h(sigName||'Martracon Recruitment')}</td></tr>
+<tr><td style="color:#444444">${h(SENDER_POSITION)}</td></tr>
+${SENDER_MOBILE?`<tr><td style="color:#444444">${h(SENDER_MOBILE)}</td></tr>`:''}
+<tr><td style="padding:8px 0 0 0">&nbsp;</td></tr>
+<tr><td style="font-weight:bold;color:#1B3A6B;font-size:11pt">Martracon Group</td></tr>
+<tr><td>Nicolaou Zavos Centre, Eptanisou 28</td></tr>
+<tr><td>P.O Box 58106, 3731 Limassol, Cyprus</td></tr>
+<tr><td>Tel: +357 25 584368 / Email: <a href="mailto:${SENDER_ADDR}" style="color:#1B3A6B;text-decoration:none">${SENDER_ADDR}</a></td></tr>
+<tr><td style="padding-top:8px;font-size:8pt;color:#888888">VAT: CY-10073760 L; Managing Directors: Otto J. Boerger, Philipp J. Boerger</td></tr>
+<tr><td style="font-size:8pt;color:#888888">Company registration number: 73760 / Nicosia-Cyprus</td></tr>
+</table>
+<p style="margin-top:12px;color:#cccccc;font-size:7pt;border-top:1px solid #EEEEEE;padding-top:6px">Sent via Martracon Crew Management Tool</p>
 </body></html>`;
 }
 
@@ -2155,13 +2483,13 @@ async function sendToAgencies() {
   const selectedVacs=(window._plVacs||[]).filter(v=>selectedIds.includes(v.Id));
   const selectedAgs=AGENCY_CONTACTS.filter((_,i)=>selectedAgIdxs.includes(i));
   const subject=`Martracon Group - Open Position List Week ${week}/${year} Update`;
-  const htmlBody=buildEmailHtml(selectedVacs,week,year);
-  // Store for confirmSendEmail
-  window._pendingEmail={subject,htmlBody,selectedAgs,week,year};
+  const htmlBody=buildEmailHtml(selectedVacs,week,year,S.userName);
+  // Store for confirmSendEmail (selectedAgs is a mutable copy)
+  window._pendingEmail={subject,htmlBody,selectedAgs:[...selectedAgs],week,year};
   // Show preview modal
-  document.getElementById('ep-subject').textContent=subject;
+  document.getElementById('ep-subject').value=subject;
   document.getElementById('ep-to').textContent=`${SENDER_ADDR} (Martracon Recruitment)`;
-  document.getElementById('ep-bcc').innerHTML=selectedAgs.map(a=>`<span class="badge bg-light text-dark border me-1 mb-1">${h(a.name)}</span>`).join('');
+  renderBccChips();
   const frame=document.getElementById('ep-frame');
   frame.srcdoc=htmlBody;
   document.getElementById('btn-ep-send').disabled=false;
@@ -2171,7 +2499,9 @@ async function sendToAgencies() {
 }
 
 async function confirmSendEmail() {
-  const{subject,htmlBody,selectedAgs}=window._pendingEmail||{};
+  const{htmlBody,selectedAgs}=window._pendingEmail||{};
+  // Read subject from the editable input (user may have changed it)
+  const subject=document.getElementById('ep-subject')?.value?.trim()||window._pendingEmail?.subject||'';
   if(!subject||!selectedAgs?.length){toast('No email pending','warning');return;}
   const btn=document.getElementById('btn-ep-send');
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
