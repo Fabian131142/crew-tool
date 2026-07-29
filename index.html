@@ -443,8 +443,10 @@
         <li class="nav-item"><a class="nav-link" id="nav-admin"   href="javascript:void(0)" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Admin</a></li>
       </ul>
       <div class="ms-3 d-none d-lg-flex align-items-center gap-2">
-        <i class="bi bi-person-circle" style="color:rgba(255,255,255,.4);font-size:1rem"></i>
-        <span id="user-display"></span>
+        <button class="btn btn-sm d-flex align-items-center gap-1" onclick="openUserProfile()" title="My Profile — name, title, mobile for email signature"
+          style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.15);border-radius:6px;font-size:.8rem;padding:.3rem .7rem">
+          <i class="bi bi-person-circle"></i><span id="user-display" class="d-none d-xl-inline ms-1"></span>
+        </button>
       </div>
       <button class="btn btn-sm ms-2 d-none d-lg-inline-flex align-items-center gap-1" onclick="doLogout()" title="Sign out"
         style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.15);border-radius:6px;font-size:.8rem;padding:.3rem .7rem">
@@ -621,6 +623,33 @@
     </div>
   </div>
 </div>
+<!-- ── User Profile Modal ─────────────────────────────────────────── -->
+<div class="modal fade" id="modalUserProfile" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:440px">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
+        <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>My Profile</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:.85rem">Your name, title and mobile are used in the email signature when sending the Open Position List.</p>
+        <div class="mb-3"><label class="form-label fw-bold">Full Name</label>
+          <input type="text" class="form-control" id="up-name" placeholder="e.g. Otto Boerger"></div>
+        <div class="mb-3"><label class="form-label fw-bold">Position / Title</label>
+          <input type="text" class="form-control" id="up-title" placeholder="e.g. Crewing Superintendent"></div>
+        <div class="mb-3"><label class="form-label fw-bold">Mobile / Direct</label>
+          <input type="text" class="form-control" id="up-mobile" placeholder="e.g. +357 99 123456"></div>
+        <div class="mb-1"><label class="form-label fw-bold text-muted">Microsoft Login</label>
+          <input type="text" class="form-control" id="up-mslogin" disabled style="background:#f0f4f8"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="saveUserProfile()"><i class="bi bi-floppy me-1"></i>Save Profile</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Generic Reference Item Form Modal ─────────────────────────── -->
 <div class="modal fade" id="modalRefForm" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -2285,6 +2314,36 @@ async function runSalaryImport() {
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN — ONE-TIME SETUP
 // ═══════════════════════════════════════════════════════════════════
+async function setupCrmColumns() {
+  const btn=document.getElementById('btn-setup-crm');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
+  const token=await getToken();
+  const results=[];
+  const addCol=async(list,name,type,extra={})=>{
+    const body={__metadata:{type:'SP.Field'},Title:name,StaticName:name,FieldTypeKind:type,...extra};
+    const r=await fetch(`${SP_SITE}/_api/web/lists/getbytitle('${list}')/fields`,{
+      method:'POST',headers:{'Authorization':'Bearer '+token,'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':'nodigest'},
+      body:JSON.stringify(body)});
+    return r;
+  };
+  const tasks=[
+    // ClientMaster CRM fields
+    {list:'ClientMaster',name:'Website',  type:2},{list:'ClientMaster',name:'Address', type:2},
+    {list:'ClientMaster',name:'City',     type:2},{list:'ClientMaster',name:'PostCode',type:2},
+    {list:'ClientMaster',name:'Country',  type:2},
+    {list:'ClientMaster',name:'Notes',    type:3},{list:'ClientMaster',name:'ContactsJson',type:3},
+    // AgencyList PIC field
+    {list:'AgencyList',  name:'ContactsJson',type:3}
+  ];
+  for(const t of tasks){
+    const r=await addCol(t.list,t.name,t.type).catch(e=>({ok:false,status:e.message}));
+    results.push(`${r.ok||r.status===200?'✓':'✗'} ${t.list}.${t.name}`);
+  }
+  toast('CRM columns setup done','info');
+  const btn2=document.getElementById('btn-setup-crm');
+  if(btn2){btn2.insertAdjacentHTML('afterend',`<div class="mt-2 small"><pre style="font-size:.72rem;background:#f8f9fa;padding:.4rem;border-radius:4px">${results.join('\n')}</pre></div>`);btn2.disabled=false;btn2.innerHTML='<i class="bi bi-database-add me-1"></i>Run Setup';}
+}
+
 async function setupVesselColumns() {
   const btn=document.getElementById('btn-setup-vessel-cols');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
@@ -2525,6 +2584,16 @@ async function renderAdmin() {
           <span style="font-size:.85rem">If you see field errors when adding candidates, click this to add all required columns to the SharePoint Candidates list. Run once only.</span>
         </div>
         <button class="btn btn-warning btn-sm ms-2 text-nowrap flex-shrink-0" onclick="setupCandidateColumns()" id="btn-setup-cols"><i class="bi bi-database-add me-1"></i>Run Setup</button>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="alert alert-info d-flex align-items-center gap-3 mb-0 h-100">
+        <i class="bi bi-building-gear fs-4 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Add Client CRM &amp; Agency PIC columns</strong><br>
+          <span style="font-size:.85rem">Adds Address, Website, Notes, ContactsJson to ClientMaster and ContactsJson to AgencyList. Run once.</span>
+        </div>
+        <button class="btn btn-info btn-sm ms-2 text-nowrap flex-shrink-0 text-white" onclick="setupCrmColumns()" id="btn-setup-crm"><i class="bi bi-database-add me-1"></i>Run Setup</button>
       </div>
     </div>
   </div>
@@ -3078,15 +3147,50 @@ async function generatePositionList() {
 const REF_CONFIGS = {
   client: {
     list:'ClientMaster', label:'Client', icon:'bi-building', spLink:'ClientMaster',
-    // Use $select=* to avoid 400 on optional columns that may not exist
     query:'?$select=*&$orderby=Title&$top=500',
-    cols:['Name','Status'],
-    row:(r)=>[h(r.Title),r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'],
-    form:(r)=>`
+    cols:['Name','Website','Status'],
+    row:(r)=>[
+      h(r.Title),
+      r.Website?`<a href="${h(r.Website)}" target="_blank" onclick="event.stopPropagation()" class="text-decoration-none" style="font-size:.82rem"><i class="bi bi-globe me-1"></i>${h(r.Website.replace(/^https?:\/\//,''))}</a>`:'—',
+      r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'
+    ],
+    form:(r)=>{
+      setTimeout(()=>initFormContacts(r?.ContactsJson,'cl'),50);
+      return `
       <div class="mb-3"><label class="form-label fw-bold">Client / Company Name <span class="text-danger">*</span></label>
         <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Rörd Braren Bereederungs GmbH"></div>
-      <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`,
-    getData:()=>{ const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null; return {Title:t,IsActive:document.getElementById('rf-active')?.checked??true}; }
+      <div class="row g-3 mb-3">
+        <div class="col-md-8"><label class="form-label fw-bold">Website</label>
+          <input type="text" class="form-control" id="rf-website" value="${h(r?.Website||'')}" placeholder="https://www.example.com"></div>
+        <div class="col-md-4 d-flex align-items-end">
+          <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-12"><label class="form-label fw-bold">Address</label>
+          <input type="text" class="form-control" id="rf-address" value="${h(r?.Address||'')}" placeholder="Street, House No."></div>
+        <div class="col-md-5"><input type="text" class="form-control" id="rf-city" value="${h(r?.City||'')}" placeholder="City"></div>
+        <div class="col-md-4"><input type="text" class="form-control" id="rf-postcode" value="${h(r?.PostCode||'')}" placeholder="Post Code"></div>
+        <div class="col-md-3"><input type="text" class="form-control" id="rf-country" value="${h(r?.Country||'')}" placeholder="Country"></div>
+      </div>
+      <div class="mb-3"><label class="form-label fw-bold">Notes</label>
+        <textarea class="form-control" id="rf-notes" rows="2" style="font-size:.88rem">${h(r?.Notes||'')}</textarea></div>
+      <hr class="my-3">
+      <div class="fw-bold mb-2"><i class="bi bi-people me-1"></i>Contacts</div>
+      <div id="fc-list-cl" class="mb-3"></div>
+      ${contactAddForm('cl')}`;
+    },
+    getData:()=>{
+      const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null;
+      return {Title:t,IsActive:document.getElementById('rf-active')?.checked??true,
+        Website:document.getElementById('rf-website')?.value?.trim()||null,
+        Address:document.getElementById('rf-address')?.value?.trim()||null,
+        City:document.getElementById('rf-city')?.value?.trim()||null,
+        PostCode:document.getElementById('rf-postcode')?.value?.trim()||null,
+        Country:document.getElementById('rf-country')?.value?.trim()||null,
+        Notes:document.getElementById('rf-notes')?.value?.trim()||null,
+        ContactsJson:JSON.stringify(window._formContacts_cl||[])};
+    }
   },
   rank: {
     list:'RankList', label:'Rank', icon:'bi-person-badge', spLink:'RankList',
@@ -3123,19 +3227,28 @@ const REF_CONFIGS = {
   agency: {
     list:'AgencyList', label:'Agency', icon:'bi-people', spLink:'AgencyList',
     query:'?$select=*&$orderby=Title&$top=500',
-    cols:['Agency Name','Email','Phone','Fav.','Status'],
+    cols:['Agency Name','Email','Phone','PICs','Fav.','Status'],
     row:(r)=>{
       const isFav=agencyFav(r.Title);
+      let pics=[];try{pics=JSON.parse(r.ContactsJson||'[]');}catch(e){}
+      const picBadges=pics.slice(0,2).map(c=>{
+        const apps=[c.whatsapp?'<span style="color:#25D366" title="WhatsApp"><i class="bi bi-whatsapp"></i></span>':'',
+                    c.viber?'<span style="color:#7360F2" title="Viber">V</span>':'',
+                    c.telegram?'<span style="color:#2AABEE" title="Telegram"><i class="bi bi-telegram"></i></span>':''].filter(Boolean).join(' ');
+        return `<span class="badge bg-light text-dark border" style="font-size:.72rem;font-weight:500">${h(c.name)}${apps?' '+apps:''}</span>`;
+      }).join(' ')+(pics.length>2?` <span class="text-muted" style="font-size:.75rem">+${pics.length-2}</span>`:'');
       return [
         `${isFav?'<span class="text-warning me-1" title="Favorite">★</span>':''}${h(r.Title)}`,
         r.Email?`<a href="mailto:${h(r.Email)}" onclick="event.stopPropagation()" class="text-decoration-none">${h(r.Email)}</a>`:'—',
         h(r.Phone||'—'),
+        picBadges||'<span class="text-muted" style="font-size:.78rem">—</span>',
         `<button class="btn btn-sm py-0 px-1 ${isFav?'btn-warning':'btn-outline-secondary'}" style="font-size:.72rem" onclick="event.stopPropagation();toggleAgencyFav(${r.Id},'${h(r.Title)}');renderRefTable()" title="${isFav?'Remove from favorites':'Add to favorites'}">${isFav?'★ Fav':'☆ Fav'}</button>`,
         r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'
       ];
     },
     form:(r)=>{
       const isFav=agencyFav(r?.Title||'');
+      setTimeout(()=>initFormContacts(r?.ContactsJson,'ag'),50);
       return `
       <div class="mb-3"><label class="form-label fw-bold">Manning Agency Name <span class="text-danger">*</span></label>
         <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Adriatic Crewing"></div>
@@ -3149,9 +3262,13 @@ const REF_CONFIGS = {
         <input type="text" class="form-control" id="rf-emails-extra" value="${h(r?.EmailList||'')}" placeholder="cc@agency.com, info@agency.com"></div>
       <div class="form-check form-switch mb-2">
         <input class="form-check-input" type="checkbox" id="rf-fav"${isFav?' checked':''}>
-        <label class="form-check-label fw-bold" for="rf-fav">⭐ Favorite Agency <span class="text-muted fw-normal" style="font-size:.8rem">(shown at top of position list)</span></label>
+        <label class="form-check-label fw-bold" for="rf-fav">⭐ Favorite Agency</label>
       </div>
-      <div class="form-check"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>`;
+      <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>
+      <hr class="my-3">
+      <div class="fw-bold mb-2"><i class="bi bi-person-lines-fill me-1"></i>Persons in Charge (PICs)</div>
+      <div id="fc-list-ag" class="mb-3"></div>
+      ${contactAddForm('ag')}`;
     },
     getData:()=>{
       const t=document.getElementById('rf-title')?.value?.trim();
@@ -3159,11 +3276,110 @@ const REF_CONFIGS = {
       const isFav=document.getElementById('rf-fav')?.checked??false;
       if(isFav) localStorage.setItem('mc_fav_ag_'+t,'1');
       else localStorage.removeItem('mc_fav_ag_'+t);
-      return {Title:t,Email:document.getElementById('rf-email')?.value||null,Phone:document.getElementById('rf-phone')?.value||null,EmailList:document.getElementById('rf-emails-extra')?.value||null,AgencyType:'Manning Agency',IsActive:document.getElementById('rf-active')?.checked??true};
+      return {Title:t,Email:document.getElementById('rf-email')?.value||null,Phone:document.getElementById('rf-phone')?.value||null,
+        EmailList:document.getElementById('rf-emails-extra')?.value||null,AgencyType:'Manning Agency',
+        IsActive:document.getElementById('rf-active')?.checked??true,
+        ContactsJson:JSON.stringify(window._formContacts_ag||[])};
     },
     canDelete: true,
   }
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// USER PROFILE  (localStorage — name, title, mobile for email sig)
+// ═══════════════════════════════════════════════════════════════════
+function getProfile(){ try{ return JSON.parse(localStorage.getItem('mc_user_profile')||'{}'); }catch(e){ return {}; } }
+function openUserProfile(){
+  const p=getProfile();
+  document.getElementById('up-name').value=p.name||'';
+  document.getElementById('up-title').value=p.title||'';
+  document.getElementById('up-mobile').value=p.mobile||'';
+  document.getElementById('up-mslogin').value=S.userName||'';
+  new bootstrap.Modal(document.getElementById('modalUserProfile')).show();
+}
+function saveUserProfile(){
+  const p={name:document.getElementById('up-name')?.value?.trim()||'',
+           title:document.getElementById('up-title')?.value?.trim()||'',
+           mobile:document.getElementById('up-mobile')?.value?.trim()||''};
+  localStorage.setItem('mc_user_profile',JSON.stringify(p));
+  toast('Profile saved ✓');
+  bootstrap.Modal.getInstance(document.getElementById('modalUserProfile'))?.hide();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTACT / PIC MANAGEMENT  (shared between Client CRM & Agency PICs)
+// prefix 'cl' = Client, 'ag' = Agency
+// ═══════════════════════════════════════════════════════════════════
+function contactAddForm(prefix){
+  return `<div class="border rounded p-2" style="background:#f8fafd">
+    <div class="fw-semibold mb-2" style="font-size:.82rem;color:var(--mc-blue)"><i class="bi bi-person-plus me-1"></i>Add Contact / PIC</div>
+    <div class="row g-2 mb-2">
+      <div class="col-md-5"><input type="text" class="form-control form-control-sm" id="fc-name-${prefix}" placeholder="Name *"></div>
+      <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="fc-role-${prefix}" placeholder="Role / Title"></div>
+      <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="fc-phone-${prefix}" placeholder="Phone"></div>
+    </div>
+    <div class="row g-2 mb-2">
+      <div class="col-md-7"><input type="email" class="form-control form-control-sm" id="fc-email-${prefix}" placeholder="Email"></div>
+      <div class="col-md-5 d-flex align-items-center gap-3 ps-1">
+        <label class="form-check-label d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
+          <input type="checkbox" class="form-check-input" id="fc-wa-${prefix}"><span style="color:#25D366"><i class="bi bi-whatsapp"></i> WhatsApp</span></label>
+        <label class="form-check-label d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
+          <input type="checkbox" class="form-check-input" id="fc-vb-${prefix}"><span style="color:#7360F2">◆ Viber</span></label>
+        <label class="form-check-label d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
+          <input type="checkbox" class="form-check-input" id="fc-tg-${prefix}"><span style="color:#2AABEE"><i class="bi bi-telegram"></i> Telegram</span></label>
+      </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="addFormContact('${prefix}')"><i class="bi bi-plus me-1"></i>Add</button>
+  </div>`;
+}
+
+function initFormContacts(jsonStr, prefix){
+  try{ window['_formContacts_'+prefix]=JSON.parse(jsonStr||'[]'); }catch(e){ window['_formContacts_'+prefix]=[]; }
+  renderFormContacts(prefix);
+}
+
+function renderFormContacts(prefix){
+  const el=document.getElementById('fc-list-'+prefix);
+  if(!el) return;
+  const contacts=window['_formContacts_'+prefix]||[];
+  if(!contacts.length){ el.innerHTML='<div class="text-muted py-1" style="font-size:.83rem">No contacts yet — add one below.</div>'; return; }
+  el.innerHTML=contacts.map((c,i)=>{
+    const apps=[
+      c.whatsapp?`<span class="badge ms-1" style="background:#25D366;font-size:.65rem"><i class="bi bi-whatsapp"></i> WA</span>`:'',
+      c.viber?`<span class="badge ms-1" style="background:#7360F2;font-size:.65rem">◆ Viber</span>`:'',
+      c.telegram?`<span class="badge ms-1" style="background:#2AABEE;font-size:.65rem"><i class="bi bi-telegram"></i> TG</span>`:''
+    ].filter(Boolean).join('');
+    return `<div class="d-flex align-items-start gap-2 mb-2 p-2 border rounded bg-white" style="font-size:.84rem">
+      <div class="flex-grow-1">
+        <strong>${h(c.name||'—')}</strong>${c.role?` <span class="text-muted">(${h(c.role)})</span>`:''}${apps}
+        ${c.email?`<div><i class="bi bi-envelope me-1 text-muted"></i><a href="mailto:${h(c.email)}" class="text-decoration-none">${h(c.email)}</a></div>`:''}
+        ${c.phone?`<div><i class="bi bi-telephone me-1 text-muted"></i>${h(c.phone)}</div>`:''}
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 flex-shrink-0" onclick="removeFormContact(${i},'${prefix}')" title="Remove">×</button>
+    </div>`;
+  }).join('');
+}
+
+function addFormContact(prefix){
+  const name=(document.getElementById('fc-name-'+prefix)?.value||'').trim();
+  if(!name){ toast('Contact name is required','warning'); return; }
+  const c={name, role:(document.getElementById('fc-role-'+prefix)?.value||'').trim(),
+    email:(document.getElementById('fc-email-'+prefix)?.value||'').trim(),
+    phone:(document.getElementById('fc-phone-'+prefix)?.value||'').trim(),
+    whatsapp:document.getElementById('fc-wa-'+prefix)?.checked||false,
+    viber:document.getElementById('fc-vb-'+prefix)?.checked||false,
+    telegram:document.getElementById('fc-tg-'+prefix)?.checked||false};
+  if(!window['_formContacts_'+prefix]) window['_formContacts_'+prefix]=[];
+  window['_formContacts_'+prefix].push(c);
+  renderFormContacts(prefix);
+  ['name','role','email','phone'].forEach(f=>{ const el=document.getElementById('fc-'+f+'-'+prefix); if(el) el.value=''; });
+  ['wa','vb','tg'].forEach(f=>{ const el=document.getElementById('fc-'+f+'-'+prefix); if(el) el.checked=false; });
+}
+
+function removeFormContact(idx, prefix){
+  if(window['_formContacts_'+prefix]) window['_formContacts_'+prefix].splice(idx,1);
+  renderFormContacts(prefix);
+}
 
 // ── Agency favorite helpers (stored in localStorage) ────────────────
 function agencyFav(title){ return !!localStorage.getItem('mc_fav_ag_'+(title||'')); }
@@ -3368,9 +3584,9 @@ ${(customIntro||'Good day, dear colleagues!\nKindly see below our update for a w
 ${tables}
 <table style="border-collapse:collapse;margin-top:24px;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#222222">
 <tr><td style="padding-bottom:2px">Kind regards,</td></tr>
-<tr><td style="font-weight:bold">${h(sigName||'Martracon Recruitment')}</td></tr>
-<tr><td style="color:#444444">${h(SENDER_POSITION)}</td></tr>
-${SENDER_MOBILE?`<tr><td style="color:#444444">${h(SENDER_MOBILE)}</td></tr>`:''}
+<tr><td style="font-weight:bold">${h((()=>{const p=getProfile();return p.name||sigName||'Martracon Recruitment';})())}</td></tr>
+<tr><td style="color:#444444">${h((()=>{const p=getProfile();return p.title||SENDER_POSITION||'';})())}</td></tr>
+${(()=>{const p=getProfile();const mob=p.mobile||SENDER_MOBILE||'';return mob?`<tr><td style="color:#444444">${h(mob)}</td></tr>`:'';})()}
 <tr><td style="padding:8px 0 0 0">&nbsp;</td></tr>
 <tr><td style="font-weight:bold;color:#405A70;font-size:11pt">Martracon Group</td></tr>
 <tr><td>Nicolaou Zavos Centre, Eptanisou 28</td></tr>
