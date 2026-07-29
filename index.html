@@ -652,7 +652,7 @@
 
 <!-- ── Generic Reference Item Form Modal ─────────────────────────── -->
 <div class="modal fade" id="modalRefForm" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header" style="background:var(--mc-blue);color:#fff">
         <h5 class="modal-title" id="ref-form-title"><i class="bi bi-pencil me-2"></i>Edit</h5>
@@ -2607,6 +2607,7 @@ async function renderAdmin() {
 // ═══════════════════════════════════════════════════════════════════
 const MARITIME_FLAGS=['Antigua & Barbuda','Bahamas','Belize','Bermuda','Cambodia','Cayman Islands','China','Cyprus','Denmark','Faroe Islands','Germany','Gibraltar','Greece','Hong Kong','Isle of Man','Italy','Japan','Liberia','Luxembourg','Madeira','Malta','Marshall Islands','Netherlands','Norway (NIS)','Norway (NOR)','Panama','Philippines','Portugal','Saint Kitts and Nevis','Singapore','Tuvalu','United Kingdom','United States','Vanuatu'];
 const TRADING_AREAS=['Worldwide','North Europe','Baltic','Mediterranean','Black Sea','West Africa','South Africa','East Africa','Persian Gulf / Middle East','Red Sea','Indian Subcontinent','South East Asia','Far East','Australia / Pacific','North America','Caribbean / Central America','South America / South Atlantic','Arctic'];
+const COUNTRIES=['Afghanistan','Albania','Algeria','Angola','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Belarus','Belgium','Belize','Benin','Bolivia','Bosnia & Herzegovina','Brazil','Bulgaria','Cambodia','Cameroon','Canada','Chile','China','Colombia','Congo','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Dominican Republic','Ecuador','Egypt','El Salvador','Estonia','Ethiopia','Finland','France','Georgia','Germany','Ghana','Greece','Guatemala','Haiti','Honduras','Hungary','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kosovo','Kuwait','Latvia','Lebanon','Libya','Lithuania','Luxembourg','Malaysia','Malta','Mexico','Moldova','Montenegro','Morocco','Mozambique','Myanmar','Netherlands','New Zealand','Nicaragua','Nigeria','North Macedonia','Norway','Oman','Pakistan','Panama','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Saudi Arabia','Senegal','Serbia','Sierra Leone','Singapore','Slovakia','Slovenia','Somalia','South Africa','South Korea','Spain','Sri Lanka','Sudan','Sweden','Switzerland','Syria','Taiwan','Tanzania','Thailand','Tunisia','Turkey','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
 
 function exportVesselsCsv() {
   const vessels=window._allVessels||S.vessels||[];
@@ -3148,46 +3149,63 @@ const REF_CONFIGS = {
   client: {
     list:'ClientMaster', label:'Client', icon:'bi-building', spLink:'ClientMaster',
     query:'?$select=*&$orderby=Title&$top=500',
-    cols:['Name','Website','Status'],
+    cols:['Name','Country','Website','Status'],
     row:(r)=>[
       h(r.Title),
-      r.Website?`<a href="${h(r.Website)}" target="_blank" onclick="event.stopPropagation()" class="text-decoration-none" style="font-size:.82rem"><i class="bi bi-globe me-1"></i>${h(r.Website.replace(/^https?:\/\//,''))}</a>`:'—',
+      h(r.Country||'—'),
+      r.Website?`<a href="${h(r.Website.startsWith('http')?r.Website:'https://'+r.Website)}" target="_blank" onclick="event.stopPropagation()" class="text-decoration-none" style="font-size:.82rem"><i class="bi bi-globe me-1"></i>${h(r.Website.replace(/^https?:\/\//,''))}</a>`:'—',
       r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'
     ],
     form:(r)=>{
-      setTimeout(()=>initFormContacts(r?.ContactsJson,'cl'),50);
+      const countryOpts=COUNTRIES.map(c=>`<option${r?.Country===c?' selected':''}>${h(c)}</option>`).join('');
+      setTimeout(()=>initFormContacts(r?.ContactsJson,'cl'),80);
       return `
-      <div class="mb-3"><label class="form-label fw-bold">Client / Company Name <span class="text-danger">*</span></label>
-        <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Rörd Braren Bereederungs GmbH"></div>
       <div class="row g-3 mb-3">
-        <div class="col-md-8"><label class="form-label fw-bold">Website</label>
-          <input type="text" class="form-control" id="rf-website" value="${h(r?.Website||'')}" placeholder="https://www.example.com"></div>
-        <div class="col-md-4 d-flex align-items-end">
-          <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>
+        <div class="col-md-9"><label class="form-label fw-bold">Company Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="rf-title" value="${h(r?.Title||'')}" placeholder="e.g. Rörd Braren Bereederungs GmbH"></div>
+        <div class="col-md-3 d-flex align-items-end pb-1">
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">Website <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-globe"></i></span>
+          <input type="text" class="form-control" id="rf-website" value="${h(r?.Website||'')}" placeholder="https://www.example.com">
         </div>
       </div>
       <div class="row g-3 mb-3">
-        <div class="col-12"><label class="form-label fw-bold">Address</label>
-          <input type="text" class="form-control" id="rf-address" value="${h(r?.Address||'')}" placeholder="Street, House No."></div>
-        <div class="col-md-5"><input type="text" class="form-control" id="rf-city" value="${h(r?.City||'')}" placeholder="City"></div>
-        <div class="col-md-4"><input type="text" class="form-control" id="rf-postcode" value="${h(r?.PostCode||'')}" placeholder="Post Code"></div>
-        <div class="col-md-3"><input type="text" class="form-control" id="rf-country" value="${h(r?.Country||'')}" placeholder="Country"></div>
+        <div class="col-12"><label class="form-label fw-bold">Street Address <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="rf-address" value="${h(r?.Address||'')}" placeholder="Street and house number"></div>
+        <div class="col-md-5"><label class="form-label fw-bold">City <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="rf-city" value="${h(r?.City||'')}" placeholder="City"></div>
+        <div class="col-md-3"><label class="form-label fw-bold">ZIP / Post Code <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="rf-postcode" value="${h(r?.PostCode||'')}" placeholder="e.g. 20457"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Country <span class="text-danger">*</span></label>
+          <select class="form-select" id="rf-country"><option value="">— select —</option>${countryOpts}</select></div>
       </div>
       <div class="mb-3"><label class="form-label fw-bold">Notes</label>
         <textarea class="form-control" id="rf-notes" rows="2" style="font-size:.88rem">${h(r?.Notes||'')}</textarea></div>
       <hr class="my-3">
-      <div class="fw-bold mb-2"><i class="bi bi-people me-1"></i>Contacts</div>
+      <div class="fw-bold mb-2" style="font-size:.95rem"><i class="bi bi-people me-1"></i>Contacts</div>
       <div id="fc-list-cl" class="mb-3"></div>
       ${contactAddForm('cl')}`;
     },
     getData:()=>{
-      const t=document.getElementById('rf-title')?.value?.trim(); if(!t)return null;
+      const t=document.getElementById('rf-title')?.value?.trim();
+      if(!t){toast('Company name is required','warning');return null;}
+      const website=document.getElementById('rf-website')?.value?.trim();
+      if(!website){toast('Website is required','warning');return null;}
+      const address=document.getElementById('rf-address')?.value?.trim();
+      if(!address){toast('Street address is required','warning');return null;}
+      const city=document.getElementById('rf-city')?.value?.trim();
+      if(!city){toast('City is required','warning');return null;}
+      const postcode=document.getElementById('rf-postcode')?.value?.trim();
+      if(!postcode){toast('ZIP / Post Code is required','warning');return null;}
+      const country=document.getElementById('rf-country')?.value;
+      if(!country){toast('Country is required','warning');return null;}
       return {Title:t,IsActive:document.getElementById('rf-active')?.checked??true,
-        Website:document.getElementById('rf-website')?.value?.trim()||null,
-        Address:document.getElementById('rf-address')?.value?.trim()||null,
-        City:document.getElementById('rf-city')?.value?.trim()||null,
-        PostCode:document.getElementById('rf-postcode')?.value?.trim()||null,
-        Country:document.getElementById('rf-country')?.value?.trim()||null,
+        Website:website,Address:address,City:city,PostCode:postcode,Country:country,
         Notes:document.getElementById('rf-notes')?.value?.trim()||null,
         ContactsJson:JSON.stringify(window._formContacts_cl||[])};
     }
@@ -3232,10 +3250,11 @@ const REF_CONFIGS = {
       const isFav=agencyFav(r.Title);
       let pics=[];try{pics=JSON.parse(r.ContactsJson||'[]');}catch(e){}
       const picBadges=pics.slice(0,2).map(c=>{
-        const apps=[c.whatsapp?'<span style="color:#25D366" title="WhatsApp"><i class="bi bi-whatsapp"></i></span>':'',
-                    c.viber?'<span style="color:#7360F2" title="Viber">V</span>':'',
-                    c.telegram?'<span style="color:#2AABEE" title="Telegram"><i class="bi bi-telegram"></i></span>':''].filter(Boolean).join(' ');
-        return `<span class="badge bg-light text-dark border" style="font-size:.72rem;font-weight:500">${h(c.name)}${apps?' '+apps:''}</span>`;
+        const fullName=[c.firstName,c.lastName].filter(Boolean).join(' ')||c.name||'?';
+        const apps=[c.whatsapp?'<i class="bi bi-whatsapp" style="color:#25D366" title="WhatsApp"></i>':'',
+                    c.viber?'<span style="color:#7360F2;font-size:.7rem" title="Viber">◆</span>':'',
+                    c.telegram?'<i class="bi bi-telegram" style="color:#2AABEE" title="Telegram"></i>':''].filter(Boolean).join('');
+        return `<span class="badge bg-light text-dark border" style="font-size:.72rem;font-weight:500">${h(fullName)}${apps?' '+apps:''}</span>`;
       }).join(' ')+(pics.length>2?` <span class="text-muted" style="font-size:.75rem">+${pics.length-2}</span>`:'');
       return [
         `${isFav?'<span class="text-warning me-1" title="Favorite">★</span>':''}${h(r.Title)}`,
@@ -3307,34 +3326,53 @@ function saveUserProfile(){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CONTACT / PIC MANAGEMENT  (shared between Client CRM & Agency PICs)
-// prefix 'cl' = Client, 'ag' = Agency
+// CONTACT / PIC MANAGEMENT  (shared: Client CRM & Agency PICs)
+// prefix 'cl' = Client contacts, 'ag' = Agency PICs
+// Contacts stored in window._formContacts_<prefix> (array)
 // ═══════════════════════════════════════════════════════════════════
 function contactAddForm(prefix){
-  return `<div class="border rounded p-2" style="background:#f8fafd">
-    <div class="fw-semibold mb-2" style="font-size:.82rem;color:var(--mc-blue)"><i class="bi bi-person-plus me-1"></i>Add Contact / PIC</div>
+  return `<div class="border rounded p-3" style="background:#f8fafd">
+    <div class="fw-semibold mb-2" style="font-size:.83rem;color:var(--mc-blue)"><i class="bi bi-person-plus me-1"></i>Add Contact / PIC</div>
     <div class="row g-2 mb-2">
-      <div class="col-md-5"><input type="text" class="form-control form-control-sm" id="fc-name-${prefix}" placeholder="Name *"></div>
+      <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="fc-fn-${prefix}" placeholder="First Name *"></div>
+      <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="fc-ln-${prefix}" placeholder="Last Name *"></div>
       <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="fc-role-${prefix}" placeholder="Role / Title"></div>
-      <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="fc-phone-${prefix}" placeholder="Phone"></div>
     </div>
     <div class="row g-2 mb-2">
-      <div class="col-md-7"><input type="email" class="form-control form-control-sm" id="fc-email-${prefix}" placeholder="Email"></div>
-      <div class="col-md-5 d-flex align-items-center gap-3 ps-1">
-        <label class="form-check-label d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
-          <input type="checkbox" class="form-check-input" id="fc-wa-${prefix}"><span style="color:#25D366"><i class="bi bi-whatsapp"></i> WhatsApp</span></label>
-        <label class="form-check-label d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
-          <input type="checkbox" class="form-check-input" id="fc-vb-${prefix}"><span style="color:#7360F2">◆ Viber</span></label>
-        <label class="form-check-label d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
-          <input type="checkbox" class="form-check-input" id="fc-tg-${prefix}"><span style="color:#2AABEE"><i class="bi bi-telegram"></i> Telegram</span></label>
+      <div class="col-md-6">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text" title="Landline"><i class="bi bi-telephone-fill"></i></span>
+          <input type="text" class="form-control" id="fc-land-${prefix}" placeholder="Landline number">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text" title="Mobile"><i class="bi bi-phone-fill"></i></span>
+          <input type="text" class="form-control" id="fc-mob-${prefix}" placeholder="Mobile number">
+        </div>
       </div>
     </div>
-    <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="addFormContact('${prefix}')"><i class="bi bi-plus me-1"></i>Add</button>
+    <div class="row g-2 mb-2">
+      <div class="col-md-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
+          <input type="email" class="form-control" id="fc-email-${prefix}" placeholder="Email address">
+        </div>
+      </div>
+      <div class="col-md-7 d-flex align-items-center gap-3 ps-2" style="font-size:.82rem">
+        <span class="text-muted" style="font-size:.78rem;white-space:nowrap">Via mobile:</span>
+        <label class="d-flex align-items-center gap-1" style="cursor:pointer"><input type="checkbox" class="form-check-input mt-0" id="fc-wa-${prefix}"><span style="color:#25D366"><i class="bi bi-whatsapp"></i> WA</span></label>
+        <label class="d-flex align-items-center gap-1" style="cursor:pointer"><input type="checkbox" class="form-check-input mt-0" id="fc-vb-${prefix}"><span style="color:#7360F2">◆ Viber</span></label>
+        <label class="d-flex align-items-center gap-1" style="cursor:pointer"><input type="checkbox" class="form-check-input mt-0" id="fc-tg-${prefix}"><span style="color:#2AABEE"><i class="bi bi-telegram"></i> TG</span></label>
+      </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-3" onclick="addFormContact('${prefix}')"><i class="bi bi-plus-lg me-1"></i>Add Contact</button>
   </div>`;
 }
 
 function initFormContacts(jsonStr, prefix){
   try{ window['_formContacts_'+prefix]=JSON.parse(jsonStr||'[]'); }catch(e){ window['_formContacts_'+prefix]=[]; }
+  // Render immediately — the setTimeout in form() gives DOM time to settle
   renderFormContacts(prefix);
 }
 
@@ -3342,8 +3380,10 @@ function renderFormContacts(prefix){
   const el=document.getElementById('fc-list-'+prefix);
   if(!el) return;
   const contacts=window['_formContacts_'+prefix]||[];
-  if(!contacts.length){ el.innerHTML='<div class="text-muted py-1" style="font-size:.83rem">No contacts yet — add one below.</div>'; return; }
+  if(!contacts.length){ el.innerHTML='<div class="text-muted py-1 ps-1" style="font-size:.83rem"><i class="bi bi-info-circle me-1"></i>No contacts added yet.</div>'; return; }
   el.innerHTML=contacts.map((c,i)=>{
+    // Support both old {name} and new {firstName,lastName}
+    const fullName=[c.firstName,c.lastName].filter(Boolean).join(' ')||c.name||'—';
     const apps=[
       c.whatsapp?`<span class="badge ms-1" style="background:#25D366;font-size:.65rem"><i class="bi bi-whatsapp"></i> WA</span>`:'',
       c.viber?`<span class="badge ms-1" style="background:#7360F2;font-size:.65rem">◆ Viber</span>`:'',
@@ -3351,9 +3391,10 @@ function renderFormContacts(prefix){
     ].filter(Boolean).join('');
     return `<div class="d-flex align-items-start gap-2 mb-2 p-2 border rounded bg-white" style="font-size:.84rem">
       <div class="flex-grow-1">
-        <strong>${h(c.name||'—')}</strong>${c.role?` <span class="text-muted">(${h(c.role)})</span>`:''}${apps}
-        ${c.email?`<div><i class="bi bi-envelope me-1 text-muted"></i><a href="mailto:${h(c.email)}" class="text-decoration-none">${h(c.email)}</a></div>`:''}
-        ${c.phone?`<div><i class="bi bi-telephone me-1 text-muted"></i>${h(c.phone)}</div>`:''}
+        <strong>${h(fullName)}</strong>${c.role?` <span class="text-muted fw-normal">(${h(c.role)})</span>`:''}${apps}
+        ${c.landline?`<div class="mt-1"><i class="bi bi-telephone-fill text-muted me-1"></i>${h(c.landline)}</div>`:''}
+        ${c.mobile?`<div><i class="bi bi-phone-fill text-muted me-1"></i>${h(c.mobile)}</div>`:''}
+        ${c.email?`<div><i class="bi bi-envelope-fill text-muted me-1"></i><a href="mailto:${h(c.email)}" class="text-decoration-none">${h(c.email)}</a></div>`:''}
       </div>
       <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 flex-shrink-0" onclick="removeFormContact(${i},'${prefix}')" title="Remove">×</button>
     </div>`;
@@ -3361,18 +3402,22 @@ function renderFormContacts(prefix){
 }
 
 function addFormContact(prefix){
-  const name=(document.getElementById('fc-name-'+prefix)?.value||'').trim();
-  if(!name){ toast('Contact name is required','warning'); return; }
-  const c={name, role:(document.getElementById('fc-role-'+prefix)?.value||'').trim(),
+  const fn=(document.getElementById('fc-fn-'+prefix)?.value||'').trim();
+  const ln=(document.getElementById('fc-ln-'+prefix)?.value||'').trim();
+  if(!fn||!ln){ toast('First Name and Last Name are required','warning'); return; }
+  if(!window['_formContacts_'+prefix]) window['_formContacts_'+prefix]=[];
+  window['_formContacts_'+prefix].push({
+    firstName:fn, lastName:ln,
+    role:(document.getElementById('fc-role-'+prefix)?.value||'').trim(),
+    landline:(document.getElementById('fc-land-'+prefix)?.value||'').trim(),
+    mobile:(document.getElementById('fc-mob-'+prefix)?.value||'').trim(),
     email:(document.getElementById('fc-email-'+prefix)?.value||'').trim(),
-    phone:(document.getElementById('fc-phone-'+prefix)?.value||'').trim(),
     whatsapp:document.getElementById('fc-wa-'+prefix)?.checked||false,
     viber:document.getElementById('fc-vb-'+prefix)?.checked||false,
-    telegram:document.getElementById('fc-tg-'+prefix)?.checked||false};
-  if(!window['_formContacts_'+prefix]) window['_formContacts_'+prefix]=[];
-  window['_formContacts_'+prefix].push(c);
+    telegram:document.getElementById('fc-tg-'+prefix)?.checked||false
+  });
   renderFormContacts(prefix);
-  ['name','role','email','phone'].forEach(f=>{ const el=document.getElementById('fc-'+f+'-'+prefix); if(el) el.value=''; });
+  ['fn','ln','role','land','mob','email'].forEach(f=>{ const el=document.getElementById('fc-'+f+'-'+prefix); if(el) el.value=''; });
   ['wa','vb','tg'].forEach(f=>{ const el=document.getElementById('fc-'+f+'-'+prefix); if(el) el.checked=false; });
 }
 
@@ -3438,16 +3483,31 @@ function editRefItem(id) {
   },{once:true});
 }
 
+// Extended columns that may not exist until CRM setup is run
+const CRM_EXTENDED_COLS=['ContactsJson','Website','Address','City','PostCode','Country','Notes'];
+
 async function saveRefItem() {
   const cfg=REF_CONFIGS[window._refManagerType]; if(!cfg) return;
   const data=cfg.getData();
-  if(!data){ toast('Name is required','warning'); return; }
+  if(!data) return; // getData() already shows toast on validation fail
   const btn=document.getElementById('btn-ref-save');
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
   try {
     const id=S._editingRefId;
-    if(id){ await spUpdate(cfg.list,id,data); toast(`${cfg.label} updated ✓`); }
-    else { await spCreate(cfg.list,data); toast(`${cfg.label} created ✓`); }
+    try {
+      if(id){ await spUpdate(cfg.list,id,data); }
+      else { await spCreate(cfg.list,data); }
+    } catch(e400) {
+      // If SP rejects because CRM columns don't exist yet, retry with core fields only
+      if(e400.message?.includes('does not exist on type')||e400.message?.includes('400')) {
+        const coreData={...data};
+        CRM_EXTENDED_COLS.forEach(k=>delete coreData[k]);
+        if(S._editingRefId){ await spUpdate(cfg.list,S._editingRefId,coreData); }
+        else { await spCreate(cfg.list,coreData); }
+        toast(`${cfg.label} saved — run Admin → Add Client CRM & Agency PIC columns to enable address/contact fields`,'warning');
+      } else { throw e400; }
+    }
+    toast(`${cfg.label} ${S._editingRefId?'updated':'created'} ✓`);
     // Reload items immediately so manager table shows the new/updated record
     window._refManagerItems=await spGet(cfg.list,cfg.query).catch(()=>window._refManagerItems||[]);
     renderRefTable(); // update table NOW, before the modal transition
