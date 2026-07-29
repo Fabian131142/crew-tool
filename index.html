@@ -564,11 +564,19 @@
               </div>
             </div>
           </div>
+          <div class="row g-2 mt-1 align-items-center">
+            <div class="col-auto fw-bold text-muted" style="width:70px">CC:</div>
+            <div class="col">
+              <input type="text" class="form-control form-control-sm" id="ep-cc"
+                placeholder="e.g. colleague@example.com, other@example.com — separate multiple with commas"
+                style="font-size:.82rem">
+            </div>
+          </div>
         </div>
-        <!-- Custom intro message (editable) -->
+        <!-- Email body (directly editable) -->
         <div class="p-3 border-bottom" style="background:#fffdf0">
-          <label class="form-label fw-bold mb-1" style="font-size:.83rem"><i class="bi bi-pencil-square me-1"></i>Custom Message / Introduction <span class="text-muted fw-normal">(optional — shown above the position table)</span></label>
-          <textarea id="ep-custom-body" class="form-control" rows="3" placeholder="e.g. Dear Ladies and Gentlemen,&#10;Please find below our latest open positions for your review and consideration." style="font-size:.88rem;resize:vertical"></textarea>
+          <label class="form-label fw-bold mb-1" style="font-size:.83rem"><i class="bi bi-pencil-square me-1"></i>Email Body <span class="text-muted fw-normal">(edit directly — changes are reflected in the preview)</span></label>
+          <textarea id="ep-custom-body" class="form-control" rows="4" style="font-size:.88rem;resize:vertical"></textarea>
           <button class="btn btn-sm btn-outline-secondary mt-2 py-0" onclick="refreshEmailPreview()"><i class="bi bi-arrow-clockwise me-1"></i>Update Preview</button>
         </div>
         <iframe id="ep-frame" style="width:100%;height:430px;border:none" sandbox="allow-same-origin"></iframe>
@@ -3281,9 +3289,7 @@ function buildEmailHtml(selectedVacs,week,year,sigName,customIntro=''){
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222222;margin:0;padding:24px;max-width:700px">
 <p style="font-size:15pt;font-weight:bold;color:#405A70;margin-top:0;margin-bottom:16px">Martracon Group &mdash; Open Position List &mdash; Week ${week}/${year}</p>
-${customIntro
-  ? customIntro.split('\n').map(l=>`<p style="margin:0 0 8px 0">${h(l)}</p>`).join('')
-  : `<p style="margin:0 0 8px 0">Good day, dear colleagues!</p><p style="margin:0 0 8px 0">Kindly see below our update for a weekly overview of our current open positions.</p>`}
+${(customIntro||'Good day, dear colleagues!\nKindly see below our update for a weekly overview of our current open positions.').split('\n').map(l=>`<p style="margin:0 0 8px 0">${h(l)}</p>`).join('')}
 <p style="margin:0 0 24px 0"><strong>When proposing candidates, please put the vessel name + position of seafarer in the subject and send to <a href="mailto:${SENDER_ADDR}" style="color:#405A70">${SENDER_ADDR}</a></strong></p>
 ${tables}
 <table style="border-collapse:collapse;margin-top:24px;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#222222">
@@ -3346,9 +3352,12 @@ async function sendToAgencies() {
   // Show preview modal
   document.getElementById('ep-subject').value=subject;
   document.getElementById('ep-to').textContent=`${SENDER_ADDR} (Martracon Recruitment)`;
-  // Reset custom intro
+  // Pre-fill body textarea with default intro (user can edit directly)
   const customEl=document.getElementById('ep-custom-body');
-  if(customEl) customEl.value='';
+  if(customEl) customEl.value='Good day, dear colleagues!\nKindly see below our update for a weekly overview of our current open positions.';
+  // Clear CC field
+  const ccEl=document.getElementById('ep-cc');
+  if(ccEl) ccEl.value='';
   renderBccChips();
   const frame=document.getElementById('ep-frame');
   frame.srcdoc=htmlBody;
@@ -3360,12 +3369,17 @@ async function sendToAgencies() {
 
 async function confirmSendEmail() {
   const{selectedAgs,selectedVacs,week,year}=window._pendingEmail||{};
-  // Rebuild body with latest custom intro before sending
+  // Rebuild body with latest edited intro before sending
   const customIntro=(document.getElementById('ep-custom-body')?.value||'').trim();
   const htmlBody=buildEmailHtml(selectedVacs||[],week,year,S.userName,customIntro);
   // Read subject from the editable input (user may have changed it)
   const subject=document.getElementById('ep-subject')?.value?.trim()||window._pendingEmail?.subject||'';
   if(!subject||!selectedAgs?.length){toast('No email pending','warning');return;}
+  // Parse CC addresses (comma-separated free text)
+  const ccRaw=(document.getElementById('ep-cc')?.value||'').trim();
+  const ccRecipients=ccRaw
+    ? ccRaw.split(',').map(s=>s.trim()).filter(s=>s.includes('@')).map(addr=>({emailAddress:{address:addr}}))
+    : [];
   const btn=document.getElementById('btn-ep-send');
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
   try {
@@ -3374,7 +3388,8 @@ async function confirmSendEmail() {
       subject, body:{contentType:'HTML',content:htmlBody},
       replyTo:[{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}}],
       toRecipients:[{emailAddress:{address:SENDER_ADDR,name:'Martracon Recruitment'}}],
-      bccRecipients:selectedAgs.map(a=>({emailAddress:{address:a.email,name:a.name}}))
+      bccRecipients:selectedAgs.map(a=>({emailAddress:{address:a.email,name:a.name}})),
+      ...(ccRecipients.length ? {ccRecipients} : {})
     };
     const resp=await fetch('https://graph.microsoft.com/v1.0/me/sendMail',{
       method:'POST',
