@@ -553,13 +553,17 @@
             <div class="col-auto fw-bold text-muted" style="width:70px;padding-top:6px">BCC:</div>
             <div class="col">
               <div id="ep-bcc" style="max-height:80px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>
-              <div class="mt-1" id="ep-bcc-add-wrap">
+              <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
                 <div class="dropdown d-inline-block">
                   <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem" type="button" id="ep-add-bcc-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"><i class="bi bi-plus"></i> Add agency</button>
                   <div class="dropdown-menu p-2 shadow" id="ep-bcc-dropdown" style="min-width:260px;max-height:220px;overflow-y:auto">
                     <input type="text" class="form-control form-control-sm mb-2" id="ep-bcc-search" placeholder="Search agencies…" oninput="filterBccDropdown()">
                     <div id="ep-bcc-agency-list"></div>
                   </div>
+                </div>
+                <div class="d-flex align-items-center gap-1" style="flex:1;min-width:200px">
+                  <input type="text" id="ep-bcc-extra" class="form-control form-control-sm" placeholder="Add email address…" style="font-size:.82rem" onkeydown="if(event.key==='Enter'){addExtraBcc();event.preventDefault();}">
+                  <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem;white-space:nowrap" onclick="addExtraBcc()"><i class="bi bi-plus"></i> Add</button>
                 </div>
               </div>
             </div>
@@ -650,7 +654,8 @@
             <div class="form-check mb-0"><input class="form-check-input" type="radio" name="vessel-filter" id="vfr-inactive" value="inactive" onchange="renderVesselTable()"><label class="form-check-label" for="vfr-inactive">Inactive</label></div>
             <div class="form-check mb-0"><input class="form-check-input" type="radio" name="vessel-filter" id="vfr-all" value="all" onchange="renderVesselTable()"><label class="form-check-label" for="vfr-all">All</label></div>
           </div>
-          <button class="btn btn-primary btn-sm ms-auto" onclick="editVessel(null)"><i class="bi bi-plus-lg me-1"></i>New Vessel</button>
+          <button class="btn btn-outline-secondary btn-sm ms-auto" onclick="exportVesselsCsv()" title="Export all vessels to CSV for editing"><i class="bi bi-download me-1"></i>Export CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="editVessel(null)"><i class="bi bi-plus-lg me-1"></i>New Vessel</button>
         </div>
         <div id="vessel-list-body" style="overflow-x:auto">
           <div class="text-center p-4"><div class="spinner-border spinner-border-sm text-secondary"></div></div>
@@ -2534,6 +2539,41 @@ async function renderAdmin() {
 const MARITIME_FLAGS=['Antigua & Barbuda','Bahamas','Belize','Bermuda','Cambodia','Cayman Islands','China','Cyprus','Denmark','Faroe Islands','Germany','Gibraltar','Greece','Hong Kong','Isle of Man','Italy','Japan','Liberia','Luxembourg','Madeira','Malta','Marshall Islands','Netherlands','Norway (NIS)','Norway (NOR)','Panama','Philippines','Portugal','Saint Kitts and Nevis','Singapore','Tuvalu','United Kingdom','United States','Vanuatu'];
 const TRADING_AREAS=['Worldwide','North Europe','Baltic','Mediterranean','Black Sea','West Africa','South Africa','East Africa','Persian Gulf / Middle East','Red Sea','Indian Subcontinent','South East Asia','Far East','Australia / Pacific','North America','Caribbean / Central America','South America / South Atlantic','Arctic'];
 
+function exportVesselsCsv() {
+  const vessels=window._allVessels||S.vessels||[];
+  if(!vessels.length){ toast('No vessel data loaded yet','warning'); return; }
+  const COLS=[
+    {h:'Id',            f:v=>v.Id},
+    {h:'VesselName',    f:v=>v.Title||''},
+    {h:'Abbreviation',  f:v=>v.Abbreviation||''},
+    {h:'VesselType',    f:v=>v.VesselType||''},
+    {h:'Flag',          f:v=>v.Flag||''},
+    {h:'BuiltYear',     f:v=>v.BuiltYear||''},
+    {h:'IMONumber',     f:v=>v.IMONumber||''},
+    {h:'DWT',           f:v=>v.DWT||''},
+    {h:'GRT',           f:v=>v.GRT||''},
+    {h:'EngineMaker',   f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[0]||'').trim(); }},
+    {h:'EngineOutputKW',f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[1]||'').replace(/[^\d]/g,''); }},
+    {h:'EngineStroke',  f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[2]||'').trim(); }},
+    {h:'TradingArea',   f:v=>v.TradingArea||''},
+    {h:'MartraconEntity',f:v=>v.MartraconEntity||''},
+    {h:'ServiceType',   f:v=>v.ServiceType||''},
+    {h:'Client',        f:v=>v.Client?.Title||''},
+    {h:'Union',         f:v=>v.Union||''},
+    {h:'ManagementNationality',f:v=>v.ManagementNationality||''},
+    {h:'IsActive',      f:v=>v.IsActive===false?'FALSE':'TRUE'},
+  ];
+  const esc=v=>{ const s=String(v); return (s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s.replace(/"/g,'""')}"`:s; };
+  const rows=[COLS.map(c=>c.h).join(','),...vessels.map(v=>COLS.map(c=>esc(c.f(v))).join(','))];
+  const csv=rows.join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`Vessels_Export_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast(`Exported ${vessels.length} vessels`);
+}
+
 async function openVesselManager() {
   window._vesselSortKey='Title'; window._vesselSortDir='asc';
   new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
@@ -2627,7 +2667,9 @@ function editVessel(id) {
   const serviceOpts=['Full Crew Management','Partial Crew Management','Sporadic Placement'].map(s=>`<option value="${s}"${v?.ServiceType===s?' selected':''}>${s}</option>`).join('');
   // Parse existing engine specs "maker | output | stroke" or just free text
   let engMaker='', engOutput='', engStroke='2-stroke';
-  if(v?.EngineSpecs){ const parts=v.EngineSpecs.split('|').map(s=>s.trim()); engMaker=parts[0]||''; engOutput=(parts[1]||'').replace(/[^\d]/g,''); engStroke=parts[2]||'2-stroke'; }
+  if(v?.EngineSpecs){ const parts=v.EngineSpecs.split('|').map(s=>s.trim()); engMaker=parts[0]||''; engOutput=(parts[1]||'').replace(/[^\d]/g,''); engStroke=parts[2]||''; }
+  // Normalize stroke — always resolve to exactly '2-stroke' or '4-stroke'
+  if(/4/.test(engStroke)) engStroke='4-stroke'; else engStroke='2-stroke';
   // Trading areas multi-select
   const selAreas=new Set((v?.TradingArea||'').split(',').map(s=>s.trim()).filter(Boolean));
   const tradingCheckboxes=TRADING_AREAS.map((a,i)=>`<div class="form-check form-check-inline" style="min-width:200px"><input class="form-check-input" type="checkbox" id="vfta_${i}" value="${a}"${selAreas.has(a)?' checked':''}><label class="form-check-label" for="vfta_${i}" style="font-size:.82rem">${a}</label></div>`).join('');
@@ -2761,10 +2803,24 @@ async function saveVessel() {
   if(tradingStr) data.TradingArea=tradingStr;
   const btn=document.getElementById('btn-vessel-save');
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+  // Extended SP columns that may not exist yet (require Setup Vessel Columns to be run first)
+  const EXTENDED_COLS=['EngineSpecs','TradingArea','DWT','GRT','IMONumber'];
   try {
     const id=S._editingVesselId;
-    if(id){ await spUpdate('VesselMaster',id,data); toast('Vessel updated ✓'); }
-    else { await spCreate('VesselMaster',data); toast('Vessel created ✓'); }
+    try {
+      if(id){ await spUpdate('VesselMaster',id,data); }
+      else { await spCreate('VesselMaster',data); }
+    } catch(e400) {
+      // If SP rejects because an extended column doesn't exist yet, retry without them
+      if(e400.message?.includes('does not exist on type')||e400.message?.includes('400')) {
+        const coreData={...data};
+        EXTENDED_COLS.forEach(k=>delete coreData[k]);
+        if(S._editingVesselId){ await spUpdate('VesselMaster',S._editingVesselId,coreData); }
+        else { await spCreate('VesselMaster',coreData); }
+        toast('Vessel saved — run Admin → Setup Vessel Columns to enable engine & trading area fields','warning');
+      } else { throw e400; }
+    }
+    toast(S._editingVesselId?'Vessel updated ✓':'Vessel created ✓');
     bootstrap.Modal.getInstance(document.getElementById('modalVesselForm'))?.hide();
     await loadRefData();
   } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
@@ -3247,6 +3303,24 @@ function removeBccRecipient(idx) {
   window._pendingEmail.selectedAgs.splice(idx,1);
   renderBccChips();
 }
+function addExtraBcc() {
+  const inp=document.getElementById('ep-bcc-extra');
+  if(!inp) return;
+  const val=inp.value.trim();
+  if(!val) return;
+  // Support comma-separated list
+  const addrs=val.split(',').map(s=>s.trim()).filter(s=>s.includes('@'));
+  if(!addrs.length){ toast('Please enter a valid email address','warning'); return; }
+  const existing=new Set((window._pendingEmail?.selectedAgs||[]).map(a=>a.email.toLowerCase()));
+  addrs.forEach(addr=>{
+    if(!existing.has(addr.toLowerCase())){
+      window._pendingEmail.selectedAgs.push({name:addr, email:addr});
+      existing.add(addr.toLowerCase());
+    }
+  });
+  inp.value='';
+  renderBccChips();
+}
 function filterBccDropdown() {
   const q=(document.getElementById('ep-bcc-search')?.value||'').toLowerCase();
   document.querySelectorAll('#ep-bcc-agency-list .form-check').forEach(el=>{
@@ -3355,9 +3429,11 @@ async function sendToAgencies() {
   // Pre-fill body textarea with default intro (user can edit directly)
   const customEl=document.getElementById('ep-custom-body');
   if(customEl) customEl.value='Good day, dear colleagues!\nKindly see below our update for a weekly overview of our current open positions.';
-  // Clear CC field
+  // Clear CC and extra BCC fields
   const ccEl=document.getElementById('ep-cc');
   if(ccEl) ccEl.value='';
+  const bccExtraEl=document.getElementById('ep-bcc-extra');
+  if(bccExtraEl) bccExtraEl.value='';
   renderBccChips();
   const frame=document.getElementById('ep-frame');
   frame.srcdoc=htmlBody;
