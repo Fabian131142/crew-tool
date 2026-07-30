@@ -513,6 +513,33 @@
   </div>
 </div>
 
+<!-- Rejection reason dialog -->
+<div class="modal fade" id="modalRejectReason" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px">
+    <div class="modal-content">
+      <div class="modal-header py-2" style="background:#c0392b;color:#fff">
+        <h6 class="modal-title"><i class="bi bi-x-circle me-2"></i>Reject Candidate</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" style="font-size:.9rem">Please state the reason for rejection and confirm who is making this decision.</p>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Rejection Reason <span class="text-danger">*</span></label>
+          <textarea class="form-control" id="reject-reason" rows="3" placeholder="e.g. Insufficient experience, failed interview, position filled by other candidate…"></textarea>
+        </div>
+        <div class="mb-1">
+          <label class="form-label fw-bold">Rejected by</label>
+          <input type="text" class="form-control" id="reject-by" readonly style="background:#f8f9fa">
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-sm btn-danger" id="btn-reject-confirm"><i class="bi bi-x-circle me-1"></i>Confirm Rejection</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Placed → Close Vacancy? prompt -->
 <div class="modal fade" id="modalPlacedClose" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -889,10 +916,10 @@
           <div class="d-flex gap-2 align-items-center mb-1">
             <i class="bi bi-person-vcard" style="color:var(--mc-blue);font-size:1rem;flex-shrink:0"></i>
             <span class="fw-bold" style="font-size:.83rem;color:var(--mc-blue);flex-shrink:0">Pick from Pool</span>
-            <input type="text" class="form-control form-control-sm" id="cm-pool-search" placeholder="Search seafarer pool by name…" oninput="searchPoolLive(this.value)" autocomplete="off">
+            <input type="text" class="form-control form-control-sm" id="cm-pool-search" placeholder="Type to search seafarer pool…" oninput="searchPoolLive(this.value)" onfocus="searchPoolLive(this.value)" autocomplete="off">
             <button class="btn btn-sm btn-outline-secondary py-0" onclick="clearPoolSelection()" title="Clear selection"><i class="bi bi-x"></i></button>
           </div>
-          <div id="cm-pool-results"></div>
+          <div id="cm-pool-results" style="position:relative;z-index:10"></div>
           <div id="cm-pool-selected" class="d-none mt-1 px-1" style="font-size:.82rem;color:var(--mc-blue)">
             <i class="bi bi-check-circle-fill me-1"></i><span id="cm-pool-selected-name"></span>
             <span class="text-muted ms-1">(from pool — vacancy will be added to their history on save)</span>
@@ -1122,7 +1149,7 @@ function doLogout() {
 const S = {
   vessels:[], clients:[], ranks:[], agencies:[], salaryRates:[],
   currentView:null, prevViewName:'open', userName:'', pendingStatus:null, pendingClose:null, pendingCand:null,
-  candidateFields:null, cvFolderUrl:null, pendingCvFile:null,
+  candidateFields:null, cvFolderUrl:null, pendingCvFile:null, pendingSfCvFile:null,
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1801,6 +1828,27 @@ function buildCandidateActions(c,vacId,status) {
 }
 
 async function setCandidateStatus(candId,status,vacId) {
+  // Rejection requires reason + confirmation first
+  if(status==='Rejected') {
+    const reasonEl=document.getElementById('reject-reason');
+    const byEl=document.getElementById('reject-by');
+    if(reasonEl) reasonEl.value='';
+    if(byEl) byEl.value=S.userName||'—';
+    return new Promise(resolve=>{
+      const btn=document.getElementById('btn-reject-confirm');
+      if(btn) btn.onclick=async()=>{
+        const reason=(document.getElementById('reject-reason')?.value||'').trim();
+        if(!reason){toast('Please state a rejection reason','warning');return;}
+        bootstrap.Modal.getInstance(document.getElementById('modalRejectReason'))?.hide();
+        await doSetCandidateStatus(candId,status,vacId,reason);
+        resolve();
+      };
+      new bootstrap.Modal(document.getElementById('modalRejectReason')).show();
+    });
+  }
+  return doSetCandidateStatus(candId,status,vacId,null);
+}
+async function doSetCandidateStatus(candId,status,vacId,rejectionReason) {
   try {
     const f=await ensureCandidateFields();
     // 1. Update candidate status
@@ -1809,13 +1857,26 @@ async function setCandidateStatus(candId,status,vacId) {
     if(!Object.keys(update).length){ const fn=f.CandidateStatus||'CandidateStatus'; update[fn]=status; }
     await spUpdate('Candidates',candId,update);
     // 2. Fetch candidate name + current vacancy status + pool link
+    // Use ensureCandidateFields() so we get the correct SP internal field name for CandPoolId
     let candName='Candidate', vacStatus='Open', candPoolId=null;
-    try { const cObj=await spGetOne('Candidates',candId); candName=cObj.Title||'Candidate'; candPoolId=cObj['CandPoolId']||null; } catch(_){}
+    try {
+      const cObj=await spGetOne('Candidates',candId);
+      candName=cObj.Title||'Candidate';
+      // Try mapped field name first, then raw, then common aliases
+      const poolFieldName=f.CandPoolId||'CandPoolId';
+      candPoolId=cObj[poolFieldName]||cObj['CandPoolId']||cObj['PoolId']||cObj['SeafarerPoolId']||null;
+      if(candPoolId) candPoolId=parseInt(candPoolId)||null;
+    } catch(_){}
     try { const vObj=await spGetOne('Vacancies',vacId); vacStatus=vObj.Status||'Open'; } catch(_){}
     // 3. Log candidate milestone in vacancy status history
-    await spCreate('StatusHistory',{Title:`${candName} → ${status}`,VacancyId:vacId,FromStatus:null,ToStatus:`Candidate: ${status}`,ChangedBy:S.userName,ChangedAt:nowIso(),Reason:'Candidate pipeline update'}).catch(()=>{});
-    // 3b. Sync status change into pool VacancyHistory
-    if(candPoolId) addSeafarerVacancyHistory(candPoolId,{vacancyId:vacId,vessel:'—',rank:'—',status}).catch(()=>{});
+    const histReason=rejectionReason?`Rejected by ${S.userName}: ${rejectionReason}`:'Candidate pipeline update';
+    await spCreate('StatusHistory',{Title:`${candName} → ${status}`,VacancyId:vacId,FromStatus:null,ToStatus:`Candidate: ${status}`,ChangedBy:S.userName,ChangedAt:nowIso(),Reason:histReason}).catch(()=>{});
+    // 3b. Sync status change into pool VacancyHistory (fetch real vessel+rank)
+    if(candPoolId) {
+      let vessel='—', rank='—';
+      try { const vObj2=await spGetOne('Vacancies',vacId,'?$expand=Vessel,Rank&$select=Id,Vessel/Title,Rank/Title'); vessel=vObj2.Vessel?.Title||'—'; rank=vObj2.Rank?.Title||'—'; } catch(_){}
+      addSeafarerVacancyHistory(candPoolId,{vacancyId:vacId,vessel,rank,status,rejectedBy:rejectionReason?S.userName:undefined,rejectedReason:rejectionReason||undefined}).catch(()=>{});
+    }
     // 4. Auto-advance vacancy status
     if(status==='Offered' && vacStatus==='Open') {
       await spUpdate('Vacancies',vacId,{Status:'Offer Made'});
@@ -1856,6 +1917,20 @@ function formatDobInput(el) {
   if(d.length>4) out=d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4);
   else if(d.length>2) out=d.slice(0,2)+'.'+d.slice(2);
   el.value=out;
+  // Live clamp: prevent day >31 and month >12 as user types
+  if(d.length>=2){ const dd=parseInt(d.slice(0,2)); if(dd>31) el.value=el.value.replace(/^\d{2}/,'31'); }
+  if(d.length>=4){ const mm=parseInt(d.slice(2,4)); if(mm>12) el.value=el.value.replace(/^(\d{2}\.)(\d{2})/,(_,a)=>a+'12'); }
+}
+// Validate a fully entered DD.MM.YYYY date — returns error string or null
+function validateDob(val, label='Date') {
+  if(!val) return null; // empty handled by required-field checks
+  const m=val.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(!m) return `${label} must be DD.MM.YYYY`;
+  const dd=parseInt(m[1]), mm=parseInt(m[2]), yyyy=parseInt(m[3]);
+  if(dd<1||dd>31) return `${label}: day must be 01–31`;
+  if(mm<1||mm>12) return `${label}: month must be 01–12`;
+  if(yyyy<1900||yyyy>2100) return `${label}: year must be 1900–2100`;
+  return null;
 }
 
 function openCandidateModal(vacId,candId=null) {
@@ -1867,6 +1942,7 @@ function openCandidateModal(vacId,candId=null) {
   ['cm-lastname','cm-firstname','cm-phone','cm-email','cm-cvlink','cm-notes','cm-dob','cm-eval-date','cm-eval-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['cm-nat','cm-agency','cm-gender','cm-english'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   S.pendingCvFile=null;
+  window._poolCache=null; // force fresh load next time pool search opens
   const fn=document.getElementById('cv-file-name'); if(fn) fn.textContent='';
   const dz=document.getElementById('cv-drop-zone'); if(dz){dz.style.borderColor='#ccc';dz.style.background='#fafafa';}
   const fi=document.getElementById('cv-file-input'); if(fi) fi.value='';
@@ -1903,37 +1979,58 @@ function openCandidateModal(vacId,candId=null) {
 
 // ── Pool search helpers ───────────────────────────────────────────
 let _poolSearchTimer=null;
+function renderPoolDropdown(results, term) {
+  const res=document.getElementById('cm-pool-results');
+  if(!res) return;
+  if(!results.length){
+    res.innerHTML=`<div class="border rounded bg-white shadow-sm p-2" style="font-size:.82rem;color:#888">${term?'No seafarers found for "'+h(term)+'"':'No seafarers in pool yet'}</div>`;
+    return;
+  }
+  res.innerHTML=`<div class="border rounded bg-white shadow-sm" style="max-height:220px;overflow-y:auto">${
+    results.slice(0,50).map(sf=>{
+      const name=[sf.LastName,sf.FirstName].filter(Boolean).join(', ')||sf.Title||'—';
+      const sfData={id:sf.Id,fn:sf.FirstName||'',ln:sf.LastName||'',dob:sf.DOB||'',gender:sf.Gender||'',nat:sf.Nationality||'',rank:sf.Rank||'',phone:sf.Phone||'',email:sf.Email||'',agency:sf.AgencyName||'',english:sf.EnglishLevel||'',evalDate:sf.EnglishEvalDate||'',evalNote:sf.EnglishEvalNote||'',notes:sf.Notes||'',name:[sf.FirstName,sf.LastName].filter(Boolean).join(' ')||sf.Title||'—'};
+      return `<button type="button" class="list-group-item list-group-item-action py-1 px-2 border-0" style="font-size:.83rem" onclick='selectPoolSeafarer(${JSON.stringify(sfData).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'>
+        <strong>${h(name)}</strong>
+        ${sf.Rank?`<span class="badge ms-1" style="background:var(--mc-blue);font-size:.68rem">${h(sf.Rank)}</span>`:''}
+        ${sf.Nationality?`<span class="text-muted ms-2" style="font-size:.78rem">${h(sf.Nationality)}</span>`:''}
+        ${sf.DOB?`<span class="text-muted ms-1" style="font-size:.78rem">· ${h(sf.DOB)}</span>`:''}
+        ${sf.AgencyName?`<span class="text-muted ms-1" style="font-size:.75rem">(${h(sf.AgencyName)})</span>`:''}
+      </button>`;
+    }).join('')
+  }</div>`;
+}
 function searchPoolLive(term) {
   clearTimeout(_poolSearchTimer);
   const res=document.getElementById('cm-pool-results');
-  if(!term||term.length<2){if(res)res.innerHTML='';return;}
-  if(res) res.innerHTML='<span class="text-muted" style="font-size:.78rem">Searching…</span>';
+  // If we already have a cached pool list, filter client-side instantly
+  if(window._poolCache) {
+    const q=(term||'').toLowerCase().trim();
+    const filtered=!q?window._poolCache:window._poolCache.filter(sf=>{
+      const blob=[sf.FirstName,sf.LastName,sf.Title,sf.Rank,sf.Nationality,sf.AgencyName].filter(Boolean).join(' ').toLowerCase();
+      return blob.includes(q);
+    });
+    renderPoolDropdown(filtered, term);
+    return;
+  }
+  if(res) res.innerHTML='<span class="text-muted" style="font-size:.78rem;padding:.25rem .5rem;display:block">Loading…</span>';
   _poolSearchTimer=setTimeout(async()=>{
     try {
-      const safe=term.replace(/'/g,"''");
-      const results=await spGet('SeafarerPool',
-        `?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Phone,Email,AgencyName,EnglishLevel,EnglishEvalDate,EnglishEvalNote,Notes&$top=20&$filter=substringof('${safe}',Title) or substringof('${safe}',LastName) or substringof('${safe}',FirstName)`)
+      // Load all seafarers once and cache — subsequent searches filter client-side
+      const all=await spGet('SeafarerPool',
+        `?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Phone,Email,AgencyName,EnglishLevel,EnglishEvalDate,EnglishEvalNote,Notes&$orderby=LastName&$top=500`)
         .catch(()=>[]);
-      if(!results.length){
-        if(res) res.innerHTML='<span class="text-muted" style="font-size:.78rem">No matches in pool.</span>';
-        return;
-      }
-      if(res) res.innerHTML=`<div class="list-group mt-1" style="max-height:180px;overflow-y:auto">${
-        results.map(sf=>{
-          const name=[sf.FirstName,sf.LastName].filter(Boolean).join(' ')||sf.Title||'—';
-          const sfData={id:sf.Id,fn:sf.FirstName||'',ln:sf.LastName||'',dob:sf.DOB||'',gender:sf.Gender||'',nat:sf.Nationality||'',rank:sf.Rank||'',phone:sf.Phone||'',email:sf.Email||'',agency:sf.AgencyName||'',english:sf.EnglishLevel||'',evalDate:sf.EnglishEvalDate||'',evalNote:sf.EnglishEvalNote||'',notes:sf.Notes||'',name};
-          return `<button type="button" class="list-group-item list-group-item-action py-1 px-2" style="font-size:.83rem" onclick='selectPoolSeafarer(${JSON.stringify(sfData).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'>
-            <strong>${h(name)}</strong>
-            ${sf.Rank?`<span class="badge bg-secondary ms-1" style="font-size:.7rem">${h(sf.Rank)}</span>`:''}
-            ${sf.Nationality?`<span class="text-muted ms-1">${h(sf.Nationality)}</span>`:''}
-            ${sf.DOB?`<span class="text-muted ms-1">· ${h(sf.DOB)}</span>`:''}
-          </button>`;
-        }).join('')
-      }</div>`;
+      window._poolCache=all;
+      const q=(term||'').toLowerCase().trim();
+      const filtered=!q?all:all.filter(sf=>{
+        const blob=[sf.FirstName,sf.LastName,sf.Title,sf.Rank,sf.Nationality,sf.AgencyName].filter(Boolean).join(' ').toLowerCase();
+        return blob.includes(q);
+      });
+      renderPoolDropdown(filtered, term);
     } catch(e) {
-      if(res) res.innerHTML=`<span class="text-danger" style="font-size:.78rem">Search failed: ${h(e.message)}</span>`;
+      if(res) res.innerHTML=`<span class="text-danger" style="font-size:.78rem;padding:.25rem .5rem;display:block">Search failed: ${h(e.message)}</span>`;
     }
-  }, 320);
+  }, 200);
 }
 
 function selectPoolSeafarer(sf) {
@@ -2022,6 +2119,36 @@ async function uploadCvFile(file, vacId) {
   return `https://martraconeu.sharepoint.com${rel}`;
 }
 
+// ── Seafarer Pool CV upload helpers (sf-cv-* IDs, uploads to SeafarerPool/CVs) ──
+function sfCvDragOver(e) { e.preventDefault(); const z=document.getElementById('sf-cv-drop-zone'); if(z){z.style.borderColor='#2E74B5';z.style.background='#EBF3FB';} }
+function sfCvDragLeave(e) { const z=document.getElementById('sf-cv-drop-zone'); if(z){z.style.borderColor='#ccc';z.style.background='#fafafa';} }
+function sfCvDrop(e) { e.preventDefault(); sfCvDragLeave(e); const f=e.dataTransfer.files[0]; if(f) handleSfCvFile(f); }
+function sfCvFileSelected(inp) { const f=inp.files[0]; if(f) handleSfCvFile(f); }
+function handleSfCvFile(file) {
+  const ok=['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)||/\.(pdf|doc|docx)$/i.test(file.name);
+  if(!ok){toast('Only PDF or Word files are supported','warning');return;}
+  S.pendingSfCvFile=file;
+  const fn=document.getElementById('sf-cv-file-name'); if(fn) fn.innerHTML=`<i class="bi bi-paperclip me-1"></i>${h(file.name)} (${(file.size/1024).toFixed(0)} KB)`;
+  const z=document.getElementById('sf-cv-drop-zone'); if(z) z.style.borderColor='#2E74B5';
+}
+async function uploadSfCvFile(file, sfId) {
+  const token=await getToken();
+  const siteRel='/sites/Management';
+  const folderPath=`${siteRel}/Shared Documents/SeafarerPool/CVs`;
+  // Ensure folder exists
+  await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(siteRel+'/Shared Documents')}')/Folders/add('${encodeURIComponent('SeafarerPool/CVs')}')`,
+    {method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','X-RequestDigest':'nodigest'}}).catch(()=>{});
+  const safe=file.name.replace(/[^a-zA-Z0-9._()-]/g,'_');
+  const fileName=`sf${sfId||'new'}_${Date.now()}_${safe}`;
+  const prog=document.getElementById('sf-cv-upload-progress'); if(prog) prog.style.display='';
+  const up=await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(folderPath)}')/Files/add(url='${encodeURIComponent(fileName)}',overwrite=true)`,
+    {method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose'},body:await file.arrayBuffer()});
+  if(prog) prog.style.display='none';
+  if(!up.ok) throw new Error(`SF CV upload: ${up.status}`);
+  const j=await up.json();
+  return `https://martraconeu.sharepoint.com${j.d.ServerRelativeUrl}`;
+}
+
 // ── Pool duplicate confirmation dialog ────────────────────────────
 // Returns Promise resolving to 'use_existing' | 'create_new' | 'cancel'
 function showPoolDuplicateDialog(sf) {
@@ -2100,6 +2227,8 @@ async function saveCandidateModal() {
   // ── Pool pre-check (new candidates only, before touching SharePoint) ──
   const poolId=document.getElementById('cm-pool-id')?.value||'';
   const dob=document.getElementById('cm-dob')?.value?.trim()||'';
+  // DOB format validation
+  { const err=validateDob(dob,'Date of Birth'); if(err){toast(err,'warning');return;} }
   // Determines what happens with the pool after candidate is saved
   // 'link_existing': link to existing pool record (id=linkPoolId)
   // 'create_new': auto-create pool entry
@@ -2767,7 +2896,7 @@ async function setupSeafarerPool() {
     {name:'AgencyName',     type:2,max:255},{name:'AgencyEmail',   type:2,max:255},
     {name:'Gender',         type:2,max:20}, {name:'CVLink',        type:2,max:500},
     {name:'EnglishLevel',   type:2,max:10}, {name:'EnglishEvalDate',type:2,max:20},
-    {name:'EnglishEvalNote',type:3},
+    {name:'EnglishEvalNote',type:3},        {name:'Status',        type:2,max:50},
   ];
   for(const c of cols){
     const b=c.type===3
@@ -3083,49 +3212,105 @@ async function renderReports() {
 // ═══════════════════════════════════════════════════════════════════
 // VIEW: SEAFARER POOL
 // ═══════════════════════════════════════════════════════════════════
-async function renderSeafarers(searchTerm='') {
+async function renderSeafarers() {
   const el=document.getElementById('v-seafarers'); spin(el);
   try {
-    const filter=searchTerm?`&$filter=substringof('${encodeURIComponent(searchTerm)}',Title) or substringof('${encodeURIComponent(searchTerm)}',LastName) or substringof('${encodeURIComponent(searchTerm)}',FirstName)`:'';
-    const seafarers=await spGet('SeafarerPool',`?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Email,Phone,PassportNum,PassportExp,CDC,CDCExp,Notes,VacancyHistory,AgencyName,CVLink,EnglishLevel,EnglishEvalDate,EnglishEvalNote&$orderby=LastName&$top=500${filter}`).catch(()=>[]);
-    const rankOpts=S.ranks.map(r=>`<option value="${h(r.Title)}">${h(r.Title)}</option>`).join('');
+    const seafarers=await spGet('SeafarerPool',`?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Email,Phone,Notes,VacancyHistory,AgencyName,CVLink,EnglishLevel,EnglishEvalDate,EnglishEvalNote,Status&$orderby=LastName&$top=500`).catch(()=>[]);
+    window._allSeafarers=seafarers;
+    window._sfSortKey='LastName'; window._sfSortDir='asc';
+    // Build filter options from data
+    const rankSet=[...new Set(seafarers.map(s=>s.Rank).filter(Boolean))].sort();
+    const natSet=[...new Set(seafarers.map(s=>s.Nationality).filter(Boolean))].sort();
+    const rankOpts=rankSet.map(r=>`<option value="${h(r)}">${h(r)}</option>`).join('');
+    const natOpts=natSet.map(n=>`<option value="${h(n)}">${h(n)}</option>`).join('');
     el.innerHTML=`
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
       <h4 class="sec-title mb-0 me-auto"><i class="bi bi-person-vcard me-2"></i>Seafarer Pool</h4>
-      <div class="input-group input-group-sm" style="max-width:260px">
-        <input type="text" class="form-control" id="sf-search" placeholder="Search name…" value="${h(searchTerm)}" onkeydown="if(event.key==='Enter')renderSeafarers(this.value)">
-        <button class="btn btn-outline-secondary" onclick="renderSeafarers(document.getElementById('sf-search').value)"><i class="bi bi-search"></i></button>
-        ${searchTerm?`<button class="btn btn-outline-secondary" onclick="renderSeafarers('')"><i class="bi bi-x"></i></button>`:''}
-      </div>
       <button class="btn btn-sm btn-primary" onclick="openSeafarerModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Seafarer</button>
     </div>
-    ${seafarers.length===0?`<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>${searchTerm?'No results for "'+h(searchTerm)+'".':'No seafarers in pool yet. Click "Add Seafarer" to add the first one. Make sure to run Admin → Setup Seafarer Pool first.'}</div>`:`
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle">
-        <thead class="table-light sticky-top"><tr>
-          <th>Name</th><th>Rank</th><th>Nationality</th><th>DOB</th><th>Passport Exp.</th><th>Phone / Email</th><th>Agency</th><th>History</th><th style="width:80px"></th>
-        </tr></thead>
-        <tbody>
-          ${seafarers.map(sf=>{
-            const fullName=[sf.FirstName,sf.LastName].filter(Boolean).join(' ')||sf.Title||'—';
-            let history=[];try{history=JSON.parse(sf.VacancyHistory||'[]');}catch(_){}
-            return `<tr>
-              <td><strong>${h(fullName)}</strong></td>
-              <td>${h(sf.Rank||'—')}</td>
-              <td>${h(sf.Nationality||'—')}</td>
-              <td>${sf.DOB?h(sf.DOB):'—'}</td>
-              <td>${sf.PassportExp?h(sf.PassportExp):'—'}</td>
-              <td style="font-size:.8rem">${sf.Phone?`<div><i class="bi bi-phone"></i> ${h(sf.Phone)}</div>`:''}${sf.Email?`<div><i class="bi bi-envelope"></i> ${h(sf.Email)}</div>`:''}</td>
-              <td style="font-size:.82rem">${h(sf.AgencyName||'—')}</td>
-              <td><span class="badge bg-secondary">${history.length}</span></td>
-              <td><button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="openSeafarerModal(${sf.Id})"><i class="bi bi-pencil"></i></button>
-                  <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-1" onclick="deleteSeafarer(${sf.Id})"><i class="bi bi-trash"></i></button></td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`}`;
+    <div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Rank</label>
+        <select class="form-select form-select-sm" id="sf-f-rank" onchange="filterSeafarers()"><option value="">All ranks</option>${rankOpts}</select></div>
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Nationality</label>
+        <select class="form-select form-select-sm" id="sf-f-nat" onchange="filterSeafarers()"><option value="">All</option>${natOpts}</select></div>
+      <div class="col"><label class="form-label form-label-sm mb-1">Search</label>
+        <input class="form-control form-control-sm" id="sf-f-search" type="text" placeholder="Name, rank, agency…" oninput="filterSeafarers()"></div>
+      <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('sf-f-rank').value='';document.getElementById('sf-f-nat').value='';document.getElementById('sf-f-search').value='';filterSeafarers()">Clear</button></div>
+    </div></div></div>
+    <div id="sf-table-wrap"></div>`;
+    filterSeafarers();
   } catch(e) { el.innerHTML=errBox(e); }
+}
+
+function filterSeafarers() {
+  const rank=document.getElementById('sf-f-rank')?.value||'';
+  const nat=document.getElementById('sf-f-nat')?.value||'';
+  const q=(document.getElementById('sf-f-search')?.value||'').toLowerCase();
+  let list=(window._allSeafarers||[]).filter(sf=>{
+    if(rank&&sf.Rank!==rank) return false;
+    if(nat&&sf.Nationality!==nat) return false;
+    if(q){
+      const blob=[sf.FirstName,sf.LastName,sf.Title,sf.Rank,sf.Nationality,sf.AgencyName,sf.Phone,sf.Email].filter(Boolean).join(' ').toLowerCase();
+      if(!blob.includes(q)) return false;
+    }
+    return true;
+  });
+  const key=window._sfSortKey||'LastName', dir=window._sfSortDir||'asc';
+  list=[...list].sort((a,b)=>{
+    const va=(a[key]||'').toString().toLowerCase(), vb=(b[key]||'').toString().toLowerCase();
+    if(va<vb) return dir==='asc'?-1:1;
+    if(va>vb) return dir==='asc'?1:-1;
+    return 0;
+  });
+  function sfTh(label,k){
+    const active=window._sfSortKey===k, d=window._sfSortDir||'asc';
+    const arrow=active?(d==='asc'?'&#9650;':'&#9660;'):'<span style="opacity:.3">&#8597;</span>';
+    return `<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortSeafarers('${k}')">${label} ${arrow}</th>`;
+  }
+  const wrap=document.getElementById('sf-table-wrap');
+  if(!wrap) return;
+  if(!list.length){
+    wrap.innerHTML=`<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>${(window._allSeafarers||[]).length===0?'No seafarers in pool yet — click "Add Seafarer" to get started. (Run Admin → Setup Seafarer Pool first if you haven\'t.)':'No seafarers match the current filters.'}</div>`;
+    return;
+  }
+  wrap.innerHTML=`<div class="card shadow-sm"><div class="table-responsive" style="max-height:65vh;overflow-y:auto">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead style="position:sticky;top:0;z-index:2;background:#fff">
+        <tr style="background:var(--mc-blue);color:#fff">
+          ${sfTh('Name','LastName')}${sfTh('Rank','Rank')}${sfTh('Nationality','Nationality')}${sfTh('DOB','DOB')}${sfTh('Agency','AgencyName')}
+          <th>Contact</th>${sfTh('History','_hist')}<th style="width:70px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${list.map(sf=>{
+          const fullName=[sf.LastName,sf.FirstName].filter(Boolean).join(', ')||sf.Title||'—';
+          let hist=[];try{hist=JSON.parse(sf.VacancyHistory||'[]');}catch(_){}
+          // annotate for sort
+          sf._hist=hist.length;
+          return `<tr>
+            <td class="ps-2"><a href="javascript:void(0)" class="fw-bold text-decoration-none" style="color:var(--mc-blue)" onclick="openSeafarerModal(${sf.Id})">${h(fullName)}</a></td>
+            <td>${h(sf.Rank||'—')}</td>
+            <td>${h(sf.Nationality||'—')}</td>
+            <td style="white-space:nowrap">${sf.DOB?h(sf.DOB):'—'}</td>
+            <td style="font-size:.82rem">${h(sf.AgencyName||'—')}</td>
+            <td style="font-size:.78rem">${sf.Phone?`<div><i class="bi bi-phone me-1"></i>${h(sf.Phone)}</div>`:''}${sf.Email?`<div><i class="bi bi-envelope me-1"></i>${h(sf.Email)}</div>`:''}</td>
+            <td><span class="badge bg-secondary">${hist.length}</span></td>
+            <td class="text-end pe-2">
+              <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="event.stopPropagation();deleteSeafarer(${sf.Id})" title="Delete"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer text-muted" style="font-size:.78rem">${list.length} seafarer${list.length!==1?'s':''}</div>
+  </div>`;
+}
+
+function sortSeafarers(key) {
+  if(window._sfSortKey===key){ window._sfSortDir=window._sfSortDir==='asc'?'desc':'asc'; }
+  else { window._sfSortKey=key; window._sfSortDir='asc'; }
+  filterSeafarers();
 }
 
 async function openSeafarerModal(id) {
@@ -3183,33 +3368,43 @@ async function openSeafarerModal(id) {
     <div class="modal-body">
       <input type="hidden" id="sf-id" value="${id||''}">
       <div class="row g-2 mb-2">
-        <div class="col-md-4"><label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-ln" value="${h(sf?.LastName||'')}" placeholder="Last name"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-fn" value="${h(sf?.FirstName||'')}" placeholder="First name"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"><div class="form-text">DD.MM.YYYY — auto-formatted</div></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-ln" value="${h(sf?.LastName||'')}" placeholder="Last name"></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-fn" value="${h(sf?.FirstName||'')}" placeholder="First name"></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"><div class="form-text mt-0" style="font-size:.7rem;color:var(--mc-blue)">DD.MM.YYYY — auto-formatted</div></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-md-3"><label class="form-label fw-bold">Gender <span class="text-danger">*</span></label><select class="form-select" id="sf-gender"><option value="">— select —</option><option value="Male"${sf?.Gender==='Male'?' selected':''}>Male</option><option value="Female"${sf?.Gender==='Female'?' selected':''}>Female</option><option value="Diverse"${sf?.Gender==='Diverse'?' selected':''}>Diverse</option></select></div>
-        <div class="col-md-5"><label class="form-label fw-bold">Nationality <span class="text-danger">*</span></label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Rank</label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
+        <div class="col-md-3"><label class="form-label fw-bold mb-1">Gender <span class="text-danger">*</span></label><select class="form-select" id="sf-gender"><option value="">— select —</option><option value="Male"${sf?.Gender==='Male'?' selected':''}>Male</option><option value="Female"${sf?.Gender==='Female'?' selected':''}>Female</option><option value="Diverse"${sf?.Gender==='Diverse'?' selected':''}>Diverse</option></select></div>
+        <div class="col-md-5"><label class="form-label fw-bold mb-1">Nationality <span class="text-danger">*</span></label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Rank</label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-md-4"><label class="form-label fw-bold">Agency <span class="text-danger">*</span></label><select class="form-select" id="sf-agency"><option value="">— select —</option>${agencyOpts}</select></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Phone / Mobile <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-phone" value="${h(sf?.Phone||'')}" placeholder="+49 123 456789"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">E-Mail <span class="text-danger">*</span></label><input type="email" class="form-control" id="sf-email" value="${h(sf?.Email||'')}" placeholder="email@example.com"></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Agency <span class="text-danger">*</span></label><select class="form-select" id="sf-agency"><option value="">— select —</option>${agencyOpts}</select></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Phone / Mobile <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-phone" value="${h(sf?.Phone||'')}" placeholder="+49 123 456789"></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">E-Mail <span class="text-danger">*</span></label><input type="email" class="form-control" id="sf-email" value="${h(sf?.Email||'')}" placeholder="email@example.com"></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-md-2"><label class="form-label fw-bold">English</label><select class="form-select" id="sf-english">${engOpts}</select></div>
-        <div class="col-md-3"><label class="form-label fw-bold">Interview Date</label><input type="text" class="form-control" id="sf-eval-date" value="${h(sf?.EnglishEvalDate||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"></div>
-        <div class="col-md-7"><label class="form-label fw-bold">Interview Remark</label><input type="text" class="form-control" id="sf-eval-note" value="${h(sf?.EnglishEvalNote||'')}" placeholder="e.g. Good command, slight accent…"></div>
+        <div class="col-md-2"><label class="form-label fw-bold mb-1">English <small class="text-muted">(1–10)</small></label><select class="form-select" id="sf-english">${engOpts}</select></div>
+        <div class="col-md-3"><label class="form-label fw-bold mb-1">Interview Date</label><input type="text" class="form-control" id="sf-eval-date" value="${h(sf?.EnglishEvalDate||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Interview Remark</label><input type="text" class="form-control" id="sf-eval-note" value="${h(sf?.EnglishEvalNote||'')}" placeholder="e.g. Good command, slight accent…"></div>
+        <div class="col-md-3"><label class="form-label fw-bold mb-1">Status</label><select class="form-select" id="sf-status"><option value="Active"${(sf?.Status||'Active')==='Active'?' selected':''}>Active</option><option value="Applied"${sf?.Status==='Applied'?' selected':''}>Applied</option><option value="Shortlisted"${sf?.Status==='Shortlisted'?' selected':''}>Shortlisted</option><option value="Placed"${sf?.Status==='Placed'?' selected':''}>Placed</option><option value="Inactive"${sf?.Status==='Inactive'?' selected':''}>Inactive</option></select></div>
       </div>
-      <div class="row g-2 mb-2">
-        <div class="col-md-4"><label class="form-label fw-bold">Passport No.</label><input type="text" class="form-control" id="sf-pnum" value="${h(sf?.PassportNum||'')}"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Passport Exp.</label><input type="text" class="form-control" id="sf-pexp" value="${h(sf?.PassportExp||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">CDC No.</label><input type="text" class="form-control" id="sf-cdc" value="${h(sf?.CDC||'')}"></div>
+      <div class="mb-2"><label class="form-label fw-bold mb-1">CV / Document</label>
+        <div id="sf-cv-drop-zone" onclick="document.getElementById('sf-cv-file-input').click()"
+          ondragover="sfCvDragOver(event)" ondragleave="sfCvDragLeave(event)" ondrop="sfCvDrop(event)"
+          style="border:2px dashed #ccc;border-radius:8px;padding:.9rem;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa">
+          <i class="bi bi-cloud-upload fs-4 text-muted"></i>
+          <div class="text-muted mt-1" style="font-size:.8rem">Drag &amp; drop PDF or Word file here, or click to browse</div>
+          <div id="sf-cv-file-name" class="mt-1 fw-bold text-primary" style="font-size:.8rem"></div>
+        </div>
+        <input type="file" id="sf-cv-file-input" accept=".pdf,.doc,.docx" style="display:none" onchange="sfCvFileSelected(this)">
+        <div id="sf-cv-upload-progress" class="mt-1" style="display:none">
+          <div class="progress" style="height:5px"><div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%"></div></div>
+          <div class="text-muted" style="font-size:.75rem">Uploading to SharePoint…</div>
+        </div>
+        <input type="url" class="form-control form-control-sm mt-1" id="sf-cvlink" value="${h(sf?.CVLink||'')}" placeholder="Or paste a direct link (SharePoint / OneDrive)">
+        ${sf?.CVLink?`<div class="form-text"><a href="${h(sf.CVLink)}" target="_blank"><i class="bi bi-box-arrow-up-right me-1"></i>Open CV</a></div>`:''}
       </div>
-      <div class="mb-2"><label class="form-label fw-bold">CV Link</label><input type="text" class="form-control" id="sf-cvlink" value="${h(sf?.CVLink||'')}" placeholder="https://... or SharePoint path to CV document">${sf?.CVLink?`<div class="form-text"><a href="${h(sf.CVLink)}" target="_blank"><i class="bi bi-box-arrow-up-right me-1"></i>Open CV</a></div>`:''}</div>
-      <div class="mb-2"><label class="form-label fw-bold">STCW Certificates / Endorsements</label><textarea class="form-control" id="sf-stcw" rows="2" placeholder="e.g. GMDSS, Basic Safety, Advanced Firefighting…">${h(sf?.STCW||'')}</textarea></div>
-      <div class="mb-2"><label class="form-label fw-bold">Notes</label><textarea class="form-control" id="sf-notes" rows="2" placeholder="Remarks, preferences, age limit exceptions… (optional)">${h(sf?.Notes||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label fw-bold mb-1">Notes <small class="text-muted">(optional)</small></label><textarea class="form-control" id="sf-notes" rows="2" placeholder="Remarks, preferences, age limit exceptions…">${h(sf?.Notes||'')}</textarea></div>
       ${histHtml}
     </div>
     <div class="modal-footer d-flex gap-2">
@@ -3352,6 +3547,7 @@ async function saveSeafarer() {
   if(!ln){toast('Last name is required','warning');return;}
   if(!fn){toast('First name is required','warning');return;}
   if(!dob){toast('Date of birth is required','warning');return;}
+  { const err=validateDob(dob,'Date of Birth'); if(err){toast(err,'warning');return;} }
   if(!gender){toast('Gender is required','warning');return;}
   if(!nat){toast('Nationality is required','warning');return;}
   if(!agency){toast('Agency is required','warning');return;}
@@ -3373,18 +3569,21 @@ async function saveSeafarer() {
     Rank:document.getElementById('sf-rank')?.value||null,
     Phone:phone||null,
     Email:email||null,
-    PassportNum:document.getElementById('sf-pnum')?.value?.trim()||null,
-    PassportExp:document.getElementById('sf-pexp')?.value?.trim()||null,
-    CDC:document.getElementById('sf-cdc')?.value?.trim()||null,
     AgencyName:agency||null,
-    CVLink:document.getElementById('sf-cvlink')?.value?.trim()||null,
+    Status:document.getElementById('sf-status')?.value||'Active',
     EnglishLevel:document.getElementById('sf-english')?.value||null,
     EnglishEvalDate:document.getElementById('sf-eval-date')?.value?.trim()||null,
     EnglishEvalNote:document.getElementById('sf-eval-note')?.value?.trim()||null,
-    STCW:document.getElementById('sf-stcw')?.value?.trim()||null,
     Notes:document.getElementById('sf-notes')?.value?.trim()||null,
   };
   try {
+    // Upload CV file if one was selected
+    let cvUrl=null;
+    if(S.pendingSfCvFile){
+      cvUrl=await uploadSfCvFile(S.pendingSfCvFile, id||'new');
+      S.pendingSfCvFile=null;
+    }
+    data.CVLink=cvUrl||document.getElementById('sf-cvlink')?.value?.trim()||null;
     if(id){ await spUpdate('SeafarerPool',parseInt(id),data); toast('Seafarer updated ✓'); }
     else { await spCreate('SeafarerPool',data); toast('Seafarer added to pool ✓'); }
     bootstrap.Modal.getInstance(document.getElementById('modalSeafarer'))?.hide();
