@@ -438,9 +438,10 @@
       <ul class="navbar-nav ms-auto gap-1 align-items-lg-center">
         <li class="nav-item"><a class="nav-link" id="nav-open"    href="javascript:void(0)" onclick="nav('open')"><i class="bi bi-list-ul me-1"></i>Open Vacancies</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-all"     href="javascript:void(0)" onclick="nav('all')"><i class="bi bi-archive me-1"></i>All Vacancies</a></li>
-        <li class="nav-item"><a class="nav-link" id="nav-salary"  href="javascript:void(0)" onclick="nav('salary')"><i class="bi bi-cash-stack me-1"></i>Salary</a></li>
-        <li class="nav-item"><a class="nav-link" id="nav-reports" href="javascript:void(0)" onclick="nav('reports')"><i class="bi bi-bar-chart-line me-1"></i>Reports</a></li>
-        <li class="nav-item"><a class="nav-link" id="nav-admin"   href="javascript:void(0)" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Admin</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-salary"    href="javascript:void(0)" onclick="nav('salary')"><i class="bi bi-cash-stack me-1"></i>Salary</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-seafarers" href="javascript:void(0)" onclick="nav('seafarers')"><i class="bi bi-person-vcard me-1"></i>Seafarers</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-reports"  href="javascript:void(0)" onclick="nav('reports')"><i class="bi bi-bar-chart-line me-1"></i>Reports</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-admin"    href="javascript:void(0)" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Admin</a></li>
       </ul>
       <div class="ms-3 d-none d-lg-flex align-items-center gap-2">
         <button class="btn btn-sm d-flex align-items-center gap-1" onclick="openUserProfile()" title="My Profile — name, title, mobile for email signature"
@@ -461,6 +462,7 @@
   <div id="v-all" class="d-none"></div>
   <div id="v-detail" class="d-none"></div>
   <div id="v-salary" class="d-none"></div>
+  <div id="v-seafarers" class="d-none"></div>
   <div id="v-reports" class="d-none"></div>
   <div id="v-admin" class="d-none"></div>
 </div>
@@ -882,6 +884,21 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <!-- Seafarer pool search -->
+        <div class="mb-3 rounded p-2" style="background:#eaf1f8;border:1px solid var(--mc-border)">
+          <div class="d-flex gap-2 align-items-center mb-1">
+            <i class="bi bi-person-vcard" style="color:var(--mc-blue);font-size:1rem;flex-shrink:0"></i>
+            <span class="fw-bold" style="font-size:.83rem;color:var(--mc-blue);flex-shrink:0">Pick from Pool</span>
+            <input type="text" class="form-control form-control-sm" id="cm-pool-search" placeholder="Search seafarer pool by name…" oninput="searchPoolLive(this.value)" autocomplete="off">
+            <button class="btn btn-sm btn-outline-secondary py-0" onclick="clearPoolSelection()" title="Clear selection"><i class="bi bi-x"></i></button>
+          </div>
+          <div id="cm-pool-results"></div>
+          <div id="cm-pool-selected" class="d-none mt-1 px-1" style="font-size:.82rem;color:var(--mc-blue)">
+            <i class="bi bi-check-circle-fill me-1"></i><span id="cm-pool-selected-name"></span>
+            <span class="text-muted ms-1">(from pool — vacancy will be added to their history on save)</span>
+          </div>
+          <input type="hidden" id="cm-pool-id" value="">
+        </div>
         <div class="row g-3">
           <div class="col-md-4"><label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="cm-lastname" placeholder="Shevchenko"></div>
           <div class="col-md-4"><label class="form-label fw-bold">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="cm-firstname" placeholder="Oleksiy"></div>
@@ -927,6 +944,11 @@
             <input type="url" class="form-control form-control-sm mt-1" id="cm-cvlink" placeholder="Or paste a direct link (SharePoint / OneDrive)">
           </div>
           <div class="col-12"><label class="form-label fw-bold">Notes</label><textarea class="form-control" id="cm-notes" rows="3" placeholder="Impressions, language level, availability, certificate status…"></textarea></div>
+          <div class="col-md-4" id="cm-dob-row">
+            <label class="form-label fw-bold">Date of Birth <span id="cm-dob-star" class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="cm-dob" placeholder="DD.MM.YYYY">
+            <div class="form-text mt-0" style="font-size:.72rem;color:var(--mc-blue)"><i class="bi bi-person-vcard me-1"></i>Checked against Seafarer Pool on save</div>
+          </div>
         </div>
       </div>
       <div class="modal-footer py-2">
@@ -1137,7 +1159,7 @@ async function spDelete(list, id) {
 }
 
 function listType(list) {
-  const m={ VesselMaster:'SP.Data.VesselMasterListItem', ClientMaster:'SP.Data.ClientMasterListItem', RankList:'SP.Data.RankListListItem', AgencyList:'SP.Data.AgencyListListItem', SalaryRates:'SP.Data.SalaryRatesListItem', Vacancies:'SP.Data.VacanciesListItem', Candidates:'SP.Data.CandidatesListItem', StatusHistory:'SP.Data.StatusHistoryListItem' };
+  const m={ VesselMaster:'SP.Data.VesselMasterListItem', ClientMaster:'SP.Data.ClientMasterListItem', RankList:'SP.Data.RankListListItem', AgencyList:'SP.Data.AgencyListListItem', SalaryRates:'SP.Data.SalaryRatesListItem', Vacancies:'SP.Data.VacanciesListItem', Candidates:'SP.Data.CandidatesListItem', StatusHistory:'SP.Data.StatusHistoryListItem', SeafarerPool:'SP.Data.SeafarerPoolListItem' };
   return m[list]||'SP.ListItem';
 }
 function enc(s) { return encodeURIComponent(s); }
@@ -1166,7 +1188,7 @@ function errBox(e) { return `<div class="alert alert-danger"><i class="bi bi-exc
 // ═══════════════════════════════════════════════════════════════════
 async function loadRefData() {
   const [vessels,ranks,salaryRates,clients,agencies] = await Promise.all([
-    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500').catch(()=>spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')),
+    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500').catch(()=>spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')),
     spGet('RankList','?$select=Id,Title,RankCategory,SortOrder,IsActive&$filter=IsActive eq 1&$orderby=SortOrder&$top=200'),
     spGet('SalaryRates','?$select=Id,Title,EffectiveYear,SalaryMin,SalaryMax,Currency,ClientId,RankId,SeniorityLevel,CBACode&$top=2000'),
     spGet('ClientMaster','?$select=Id,Title,IsActive&$orderby=Title&$top=200'),
@@ -1182,7 +1204,7 @@ function nav(name,param=null) {
   // Close mobile navbar if open
   const navColl=document.getElementById('navColl');
   if(navColl?.classList.contains('show')) bootstrap.Collapse.getInstance(navColl)?.hide();
-  ['open','all','detail','salary','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
+  ['open','all','detail','salary','seafarers','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
   document.querySelectorAll('.nav-link[id^="nav-"]').forEach(l=>l.classList.remove('active'));
   const navEl=document.getElementById('nav-'+(name==='detail'?S.prevViewName:name));
   if(navEl) navEl.classList.add('active');
@@ -1195,6 +1217,7 @@ function nav(name,param=null) {
   else if(name==='all') renderAll();
   else if(name==='detail') renderDetail(param);
   else if(name==='salary') renderSalary();
+  else if(name==='seafarers') renderSeafarers();
   else if(name==='reports') renderReports();
   else if(name==='admin') renderAdmin();
 }
@@ -1441,11 +1464,63 @@ function onVesselChange(sel) {
   if(vessel?.TradingArea && tradingField && !tradingField.value) tradingField.value=vessel.TradingArea;
 }
 
+function getRankCategory(rankId) {
+  if(!rankId) return null;
+  const r=S.ranks.find(x=>x.Id==rankId);
+  return (r?.RankCategory||'').toLowerCase();
+}
+function isEngineDept(rankId) {
+  const cat=getRankCategory(rankId);
+  return cat.includes('engine') || cat.includes('engineer');
+}
+function isDeckDept(rankId) {
+  const cat=getRankCategory(rankId);
+  if(!cat) return true; // default to deck if unknown
+  return cat.includes('deck') || cat.includes('officer') || cat.includes('bridge') || cat.includes('rating') || cat.includes('catering') || cat.includes('combined');
+}
 function refreshVesselSidebar(vesselId) {
   const v=S.vessels.find(x=>x.Id==vesselId), body=document.getElementById('vessel-info-body');
   if(!body) return;
   if(!v) { body.innerHTML='—'; return; }
-  body.innerHTML=`<strong>${h(v.Title)}</strong><br><span class="text-muted">Flag:</span> ${h(v.Flag||'—')} &nbsp;<span class="text-muted">Built:</span> ${v.BuiltYear||'—'} &nbsp;<span class="text-muted">Type:</span> ${h(v.VesselType||'—')}<br><span class="text-muted">Entity:</span> ${h(v.MartraconEntity||'—')} &nbsp;<span class="text-muted">Service:</span> ${h(v.ServiceType||'—')}<br><span class="text-muted">Union:</span> ${h(v.Union||'—')}<br><span class="text-muted">Mgt. nationality:</span> ${h(v.ManagementNationality||'—')}`;
+  const rankId=document.getElementById('f-rank')?.value;
+  const showEngine=!rankId || isEngineDept(rankId);
+  const showDeck=!rankId || isDeckDept(rankId);
+  const dwtStr=v.DWT?`${Number(v.DWT).toLocaleString('de-DE')} t`:(v.GRT?`${Number(v.GRT).toLocaleString('de-DE')} t GRT`:'—');
+  const sp=(l,val)=>val?`<div class="mb-1"><span class="text-muted" style="font-size:.8rem">${l}</span><div style="font-size:.85rem">${h(val)}</div></div>`:'';
+  let html=`<div class="fw-bold mb-2" style="color:var(--mc-blue);font-size:.95rem">${h(v.Title)}</div>`;
+  // Common fields — visible to all
+  html+=`<div class="row g-1 mb-1">
+    <div class="col-6">${sp('Flag',v.Flag||'—')}</div>
+    <div class="col-6">${sp('Built',v.BuiltYear?String(v.BuiltYear):'—')}</div>
+    <div class="col-6">${sp('Type',v.VesselType||'—')}</div>
+    <div class="col-6">${sp('DWT/GRT',dwtStr)}</div>
+    ${v.IMONumber?`<div class="col-6">${sp('IMO',v.IMONumber)}</div>`:''}
+    ${v.Union?`<div class="col-6">${sp('Union/CBA',v.Union)}</div>`:''}
+  </div>`;
+  if(v.TEU) html+=sp('TEU / Reefers',v.TEU);
+  if(v.Gear && v.Gear!=='N/A') html+=sp('Gear',v.Gear);
+  if(v.BWTS) html+=sp('BWTS',v.BWTS);
+  if(v.Thrusters) html+=sp('Bow/Stern Thruster',v.Thrusters);
+  if(v.TradingArea) html+=sp('Trading Area',v.TradingArea);
+  // Deck/bridge fields
+  if(showDeck) {
+    if(v.ECDIS) html+=`<div class="mt-1 p-1 rounded" style="background:#eaf6ff;font-size:.82rem"><i class="bi bi-display me-1 text-primary"></i><strong>ECDIS:</strong> ${h(v.ECDIS)}</div>`;
+    if(v.PMS) html+=sp('PMS',v.PMS);
+    if(v.LoadingProgram) html+=sp('Loading Program',v.LoadingProgram);
+    if(v.BridgeCrew) html+=sp('Bridge Crew',v.BridgeCrew);
+    if(v.DeckCrew) html+=sp('Deck Crew',v.DeckCrew);
+  }
+  // Engine fields
+  if(showEngine) {
+    if(v.EngineSpecs) html+=`<div class="mt-1 p-1 rounded" style="background:#fff8e1;font-size:.82rem"><i class="bi bi-gear me-1 text-warning"></i><strong>M/E:</strong> ${h(v.EngineSpecs)}</div>`;
+    if(v.FuelType) html+=sp('Fuel Type',v.FuelType);
+    if(v.AuxEngine) html+=sp('Aux Engine',v.AuxEngine);
+    if(v.Scrubber && v.Scrubber!=='N/A') html+=sp('Scrubber',v.Scrubber);
+    if(v.EngineCrew) html+=sp('Engine Crew',v.EngineCrew);
+  }
+  if(v.FlagReq) html+=`<div class="mt-1 p-1 rounded" style="background:#fff3cd;font-size:.8rem"><i class="bi bi-flag me-1 text-warning"></i>${h(v.FlagReq)}</div>`;
+  if(v.VesselEmail||v.VesselPhone) html+=`<div class="mt-2 text-muted" style="font-size:.78rem">${v.VesselEmail?`<div><i class="bi bi-envelope me-1"></i>${h(v.VesselEmail)}</div>`:''}${v.VesselPhone?`<div><i class="bi bi-telephone me-1"></i>${h(v.VesselPhone)}</div>`:''}</div>`;
+  body.innerHTML=html;
 }
 
 function parseContractDuration(str) {
@@ -1460,6 +1535,9 @@ function parseContractDuration(str) {
   return null;
 }
 function onRankChange() {
+  // Refresh vessel sidebar with rank-sensitive display
+  const vesselId=document.getElementById('f-vessel')?.value;
+  if(vesselId) refreshVesselSidebar(vesselId);
   const clientId=document.getElementById('f-client-id')?.value, rankId=document.getElementById('f-rank')?.value;
   if(!clientId||!rankId) return;
   const year=new Date().getFullYear();
@@ -1574,6 +1652,7 @@ async function ensureCandidateFields() {
     Notes:               find('Notes','CandidateNotes','Body','Comments'),
     VacancyId:           vacField,
     VacancyIdIsLookup:   typeOf(vacField)==='Lookup',
+    CandPoolId:          find('CandPoolId','PoolId','SeafarerPoolId'),
   };
   console.log('Candidate field map:', S.candidateFields);
   return S.candidateFields;
@@ -1652,8 +1731,12 @@ async function loadCandidatesSection(vacId) {
       const cv=(f.CVLink?c[f.CVLink]:'')||c['CandidateCV']||c['CandCVLink']||'';
       const st=(f.CandidateStatus?c[f.CandidateStatus]:'')||c['CandidateStatus']||'Applied';
       const nt=(f.Notes?c[f.Notes]:'')||c['Notes']||'';
+      const poolId=(f.CandPoolId?c[f.CandPoolId]:'')||c['CandPoolId']||0;
+      const poolBadge=poolId
+        ?`<a href="javascript:void(0)" onclick="openSeafarerModal(${poolId})" class="badge text-decoration-none ms-1" style="background:var(--mc-blue);color:#fff;cursor:pointer;font-size:.68rem;vertical-align:middle" title="View pool profile"><i class="bi bi-person-vcard me-1"></i>Pool</a>`
+        :'';
       return `<tr class="cand-row">
-        <td class="ps-3"><a href="javascript:void(0)" class="fw-bold text-decoration-none" style="color:var(--mc-blue)" onclick="openCandidateModal(${vacId},${c.Id})">${h(c.Title)}</a></td>
+        <td class="ps-3"><a href="javascript:void(0)" class="fw-bold text-decoration-none" style="color:var(--mc-blue)" onclick="openCandidateModal(${vacId},${c.Id})">${h(c.Title)}</a>${poolBadge}</td>
         <td>${h(nat||'—')}</td><td>${h(agn||'—')}</td>
         <td>${ph?`<a href="tel:${h(ph)}">${h(ph)}</a>`:'—'}</td>
         <td>${em?`<a href="mailto:${h(em)}">${h(em)}</a>`:'—'}</td>
@@ -1690,12 +1773,14 @@ async function setCandidateStatus(candId,status,vacId) {
     candSafeSet(update, f.allFields, 'CandidateStatus', status);
     if(!Object.keys(update).length){ const fn=f.CandidateStatus||'CandidateStatus'; update[fn]=status; }
     await spUpdate('Candidates',candId,update);
-    // 2. Fetch candidate name + current vacancy status
-    let candName='Candidate', vacStatus='Open';
-    try { const cObj=await spGetOne('Candidates',candId); candName=cObj.Title||'Candidate'; } catch(_){}
+    // 2. Fetch candidate name + current vacancy status + pool link
+    let candName='Candidate', vacStatus='Open', candPoolId=null;
+    try { const cObj=await spGetOne('Candidates',candId); candName=cObj.Title||'Candidate'; candPoolId=cObj['CandPoolId']||null; } catch(_){}
     try { const vObj=await spGetOne('Vacancies',vacId); vacStatus=vObj.Status||'Open'; } catch(_){}
     // 3. Log candidate milestone in vacancy status history
     await spCreate('StatusHistory',{Title:`${candName} → ${status}`,VacancyId:vacId,FromStatus:null,ToStatus:`Candidate: ${status}`,ChangedBy:S.userName,ChangedAt:nowIso(),Reason:'Candidate pipeline update'}).catch(()=>{});
+    // 3b. Sync status change into pool VacancyHistory
+    if(candPoolId) addSeafarerVacancyHistory(candPoolId,{vacancyId:vacId,vessel:'—',rank:'—',status}).catch(()=>{});
     // 4. Auto-advance vacancy status
     if(status==='Offered' && vacStatus==='Open') {
       await spUpdate('Vacancies',vacId,{Status:'Offer Made'});
@@ -1735,7 +1820,7 @@ function openCandidateModal(vacId,candId=null) {
   const agSel=document.getElementById('cm-agency');
   if(agSel) agSel.innerHTML=`<option value="">— select or leave blank —</option>`+S.agencies.map(a=>`<option value="${h(a.Title)}">${h(a.Title)}</option>`).join('');
   // Reset form
-  ['cm-lastname','cm-firstname','cm-phone','cm-email','cm-cvlink','cm-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['cm-lastname','cm-firstname','cm-phone','cm-email','cm-cvlink','cm-notes','cm-dob'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('cm-nat').value=''; document.getElementById('cm-agency').value='';
   S.pendingCvFile=null;
   const fn=document.getElementById('cv-file-name'); if(fn) fn.textContent='';
@@ -1743,6 +1828,13 @@ function openCandidateModal(vacId,candId=null) {
   const fi=document.getElementById('cv-file-input'); if(fi) fi.value='';
   const prog=document.getElementById('cv-upload-progress'); if(prog) prog.style.display='none';
   document.getElementById('cm-status').value='Applied';
+  // Reset pool search section
+  clearPoolSelection();
+  // DOB field: visible for new candidates, hidden when editing (not stored in Candidates list)
+  const dobRow=document.getElementById('cm-dob-row');
+  if(dobRow) dobRow.style.display=candId?'none':'';
+  const dobStar=document.getElementById('cm-dob-star');
+  if(dobStar) dobStar.style.display='';
   document.getElementById('cm-title').innerHTML=`<i class="bi bi-person-${candId?'gear':'plus'} me-2"></i>${candId?'Edit Candidate':'Add Candidate'}`;
   if(candId) {
     Promise.all([ensureCandidateFields(), spGetOne('Candidates',candId)]).then(([f,c])=>{
@@ -1763,6 +1855,84 @@ function openCandidateModal(vacId,candId=null) {
   }
   document.getElementById('btn-cm-save').onclick=saveCandidateModal;
   new bootstrap.Modal(document.getElementById('modalCandidate')).show();
+}
+
+// ── Pool search helpers ───────────────────────────────────────────
+let _poolSearchTimer=null;
+function searchPoolLive(term) {
+  clearTimeout(_poolSearchTimer);
+  const res=document.getElementById('cm-pool-results');
+  if(!term||term.length<2){if(res)res.innerHTML='';return;}
+  if(res) res.innerHTML='<span class="text-muted" style="font-size:.78rem">Searching…</span>';
+  _poolSearchTimer=setTimeout(async()=>{
+    try {
+      const safe=term.replace(/'/g,"''");
+      const results=await spGet('SeafarerPool',
+        `?$select=Id,Title,FirstName,LastName,DOB,Nationality,Rank,Phone,Email,AgencyName,PassportNum,PassportExp,CDC,STCW,Notes&$top=20&$filter=substringof('${safe}',Title) or substringof('${safe}',LastName) or substringof('${safe}',FirstName)`)
+        .catch(()=>[]);
+      if(!results.length){
+        if(res) res.innerHTML='<span class="text-muted" style="font-size:.78rem">No matches in pool.</span>';
+        return;
+      }
+      if(res) res.innerHTML=`<div class="list-group mt-1" style="max-height:180px;overflow-y:auto">${
+        results.map(sf=>{
+          const name=[sf.FirstName,sf.LastName].filter(Boolean).join(' ')||sf.Title||'—';
+          return `<button type="button" class="list-group-item list-group-item-action py-1 px-2" style="font-size:.83rem" onclick='selectPoolSeafarer(${JSON.stringify({id:sf.Id,fn:sf.FirstName||'',ln:sf.LastName||'',dob:sf.DOB||'',nat:sf.Nationality||'',rank:sf.Rank||'',phone:sf.Phone||'',email:sf.Email||'',agency:sf.AgencyName||'',notes:sf.Notes||'',name:name}).replace(/'/g,"&#39;")})'>
+            <strong>${h(name)}</strong>
+            ${sf.Rank?`<span class="badge bg-secondary ms-1" style="font-size:.7rem">${h(sf.Rank)}</span>`:''}
+            ${sf.Nationality?`<span class="text-muted ms-1">${h(sf.Nationality)}</span>`:''}
+            ${sf.DOB?`<span class="text-muted ms-1">· ${h(sf.DOB)}</span>`:''}
+          </button>`;
+        }).join('')
+      }</div>`;
+    } catch(e) {
+      if(res) res.innerHTML=`<span class="text-danger" style="font-size:.78rem">Search failed: ${h(e.message)}</span>`;
+    }
+  }, 320);
+}
+
+function selectPoolSeafarer(sf) {
+  // Fill form fields from pool entry
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  set('cm-lastname',sf.ln);
+  set('cm-firstname',sf.fn);
+  set('cm-phone',sf.phone);
+  set('cm-email',sf.email);
+  set('cm-notes',sf.notes);
+  set('cm-dob',sf.dob);
+  // Nationality: try to match existing option
+  const natSel=document.getElementById('cm-nat');
+  if(natSel && sf.nat) {
+    const opt=[...natSel.options].find(o=>o.value===sf.nat||o.text===sf.nat);
+    natSel.value=opt?sf.nat:'Other';
+  }
+  // Agency: try to match
+  const agSel=document.getElementById('cm-agency');
+  if(agSel && sf.agency) {
+    const opt=[...agSel.options].find(o=>o.value===sf.agency||o.text===sf.agency);
+    if(!opt){ const no=new Option(sf.agency,sf.agency); agSel.add(no); }
+    agSel.value=sf.agency;
+  }
+  // Mark as from pool
+  const pidEl=document.getElementById('cm-pool-id'); if(pidEl) pidEl.value=sf.id;
+  const selDiv=document.getElementById('cm-pool-selected'); if(selDiv) selDiv.classList.remove('d-none');
+  const selName=document.getElementById('cm-pool-selected-name'); if(selName) selName.textContent=sf.name;
+  const res=document.getElementById('cm-pool-results'); if(res) res.innerHTML='';
+  const srch=document.getElementById('cm-pool-search'); if(srch) srch.value='';
+  // DOB field: already in pool so suppress required marker; dim the field
+  const dobRow=document.getElementById('cm-dob-row');
+  if(dobRow){dobRow.style.opacity='0.55';}
+  const dobStar=document.getElementById('cm-dob-star'); if(dobStar) dobStar.style.display='none';
+}
+
+function clearPoolSelection() {
+  const pidEl=document.getElementById('cm-pool-id'); if(pidEl) pidEl.value='';
+  const selDiv=document.getElementById('cm-pool-selected'); if(selDiv) selDiv.classList.add('d-none');
+  const res=document.getElementById('cm-pool-results'); if(res) res.innerHTML='';
+  const srch=document.getElementById('cm-pool-search'); if(srch) srch.value='';
+  // Restore DOB field
+  const dobRow=document.getElementById('cm-dob-row'); if(dobRow){dobRow.style.opacity='1';dobRow.style.display='';}
+  const dobStar=document.getElementById('cm-dob-star'); if(dobStar) dobStar.style.display='';
 }
 
 // ── CV file upload helpers ────────────────────────────────────────
@@ -1812,18 +1982,110 @@ async function uploadCvFile(file, vacId) {
   return `https://martraconeu.sharepoint.com${rel}`;
 }
 
+// ── Pool duplicate confirmation dialog ────────────────────────────
+// Returns Promise resolving to 'use_existing' | 'create_new' | 'cancel'
+function showPoolDuplicateDialog(sf) {
+  return new Promise(resolve => {
+    const old=document.getElementById('modalPoolDuplicate'); if(old) old.remove();
+    const fullName=[sf.FirstName,sf.LastName].filter(Boolean).join(' ')||sf.Title||'Unknown';
+    const div=document.createElement('div');
+    div.innerHTML=`<div class="modal fade" id="modalPoolDuplicate" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered" style="max-width:440px">
+        <div class="modal-content">
+          <div class="modal-header py-2" style="background:var(--mc-yellow);border-bottom:2px solid var(--mc-blue)">
+            <h6 class="modal-title fw-bold mb-0" style="color:var(--mc-blue)">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>Seafarer Already in Pool
+            </h6>
+          </div>
+          <div class="modal-body pb-2">
+            <p class="mb-2" style="font-size:.9rem">A seafarer with the same name and date of birth already exists:</p>
+            <div class="p-2 rounded mb-3" style="background:#eaf1f8;border:1px solid var(--mc-border)">
+              <div class="fw-bold fs-6">${h(fullName)}</div>
+              <div class="text-muted" style="font-size:.83rem">
+                DOB: ${h(sf.DOB||'—')}
+                ${sf.Rank?` &nbsp;·&nbsp; Rank: ${h(sf.Rank)}`:''}
+                ${sf.Nationality?` &nbsp;·&nbsp; ${h(sf.Nationality)}`:''}
+              </div>
+            </div>
+            <p class="mb-0 text-muted" style="font-size:.82rem">How do you want to proceed?</p>
+          </div>
+          <div class="modal-footer flex-column align-items-stretch gap-2 py-2">
+            <button class="btn btn-primary" id="dup-use-existing" style="text-align:left">
+              <i class="bi bi-link-45deg me-1"></i><strong>Link to existing record</strong>
+              <div style="font-size:.74rem;opacity:.85;font-weight:normal">Add this vacancy to their pool history — no duplicate created</div>
+            </button>
+            <button class="btn btn-outline-danger" id="dup-create-new" style="text-align:left">
+              <i class="bi bi-person-plus me-1"></i><strong>Create new entry anyway</strong>
+              <div style="font-size:.74rem;opacity:.8;font-weight:normal">Only if you are sure this is a different person with the same name &amp; DOB</div>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" id="dup-cancel">
+              <i class="bi bi-arrow-left me-1"></i>Cancel — go back to form
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(div.firstElementChild);
+    const modalEl=document.getElementById('modalPoolDuplicate');
+    const m=new bootstrap.Modal(modalEl);
+    const cleanup=(choice)=>{
+      m.hide();
+      modalEl.addEventListener('hidden.bs.modal',()=>{modalEl.remove();resolve(choice);},{once:true});
+    };
+    document.getElementById('dup-use-existing').onclick=()=>cleanup('use_existing');
+    document.getElementById('dup-create-new').onclick=()=>cleanup('create_new');
+    document.getElementById('dup-cancel').onclick=()=>cleanup('cancel');
+    m.show();
+  });
+}
+
 async function saveCandidateModal() {
   const{vacId,candId}=S.pendingCand;
   const last=document.getElementById('cm-lastname').value.trim(), first=document.getElementById('cm-firstname').value.trim();
   if(!last&&!first){toast('First or Last name is required','warning');return;}
+
+  // ── Pool pre-check (new candidates only, before touching SharePoint) ──
+  const poolId=document.getElementById('cm-pool-id')?.value||'';
+  const dob=document.getElementById('cm-dob')?.value?.trim()||'';
+  // Determines what happens with the pool after candidate is saved
+  // 'link_existing': link to existing pool record (id=linkPoolId)
+  // 'create_new': auto-create pool entry
+  // 'skip': no pool action
+  let poolAction='skip', linkPoolId=poolId?parseInt(poolId):null;
+
+  if(!candId) { // only for new candidates
+    if(poolId) {
+      // User explicitly picked from pool → link to that record
+      poolAction='link_existing'; linkPoolId=parseInt(poolId);
+    } else if(dob) {
+      // Run duplicate check
+      const safe=s=>(s||'').replace(/'/g,"''");
+      let existing=[];
+      try {
+        existing=await spGet('SeafarerPool',
+          `?$select=Id,Title,FirstName,LastName,DOB,Rank,Nationality&$top=5&$filter=FirstName eq '${safe(first)}' and LastName eq '${safe(last)}' and DOB eq '${safe(dob)}'`);
+      } catch(_) { /* pool list may not exist yet — skip check */ }
+      if(existing.length>0) {
+        // Duplicate found — ask user
+        const choice=await showPoolDuplicateDialog(existing[0]);
+        if(choice==='cancel') return; // user stays on form, nothing saved
+        if(choice==='use_existing'){poolAction='link_existing';linkPoolId=existing[0].Id;}
+        else{poolAction='create_new';}
+      } else {
+        poolAction='create_new';
+      }
+    }
+    // If no DOB: poolAction stays 'skip' (no pool save, no warning)
+  }
+
+  // ── Proceed with saving ──────────────────────────────────────────
   const btn=document.getElementById('btn-cm-save');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';}
   try {
-    // Upload CV file if one was selected
+    // Upload CV if pending
     let cvUrl=null;
     if(S.pendingCvFile){cvUrl=await uploadCvFile(S.pendingCvFile,vacId);S.pendingCvFile=null;}
     const f=await ensureCandidateFields();
-    // Warn if CV field not found — file uploaded but link can't be stored
     if(cvUrl && !f.CVLink){
       const af=f.allFields||[];
       const cvFd=af.find(x=>x.InternalName.toLowerCase().replace(/_x0020_/g,'').replace(/_/g,'').includes('candidatecv')||
@@ -1831,9 +2093,51 @@ async function saveCandidateModal() {
                             x.InternalName.toLowerCase().replace(/_x0020_/g,'').replace(/_/g,'').includes('candcv'));
       if(!cvFd) toast('⚠ CV uploaded to SharePoint but CV column missing — run Admin → Setup first','warning');
     }
+
+    // Fetch vacancy context (vessel + rank) for history — only for new candidates with pool action
+    let vacObj=null, rankTitle='', histEntry=null;
+    if(poolAction!=='skip' && !candId) {
+      vacObj=await spGetOne('Vacancies',vacId,'?$expand=Vessel,Rank&$select=Id,Vessel/Title,Rank/Title').catch(()=>null);
+      rankTitle=vacObj?.Rank?.Title||document.getElementById('f-rank')?.selectedOptions[0]?.text||'';
+      histEntry={vacancyId:vacId,vessel:vacObj?.Vessel?.Title||'—',rank:rankTitle,status:document.getElementById('cm-status')?.value||'Applied',date:new Date().toISOString().split('T')[0]};
+    }
+
+    // ── If creating a new pool entry: do it FIRST to capture the pool ID ──
+    let resolvedPoolId=linkPoolId;
+    if(poolAction==='create_new' && !candId) {
+      try {
+        const newPool=await spCreate('SeafarerPool',{
+          Title:`${last} ${first}`,FirstName:first,LastName:last,DOB:dob,
+          Nationality:document.getElementById('cm-nat')?.value||null,
+          Rank:rankTitle||null,
+          Phone:document.getElementById('cm-phone')?.value?.trim()||null,
+          Email:document.getElementById('cm-email')?.value?.trim()||null,
+          AgencyName:document.getElementById('cm-agency')?.value||null,
+          Notes:document.getElementById('cm-notes')?.value?.trim()||null,
+          VacancyHistory:JSON.stringify([histEntry]),
+        });
+        resolvedPoolId=newPool?.Id||null;
+      } catch(e){ toast('Pool save failed: '+e.message+' — candidate saved without pool link','warning'); resolvedPoolId=null; }
+    }
+
+    // ── Save candidate (include CandPoolId in the same write) ──
     const data=buildCandData(f,vacId,cvUrl);
-    if(candId) { await spUpdate('Candidates',candId,data); toast('Candidate updated'); }
-    else { await spCreate('Candidates',data); toast('Candidate added'); }
+    if(resolvedPoolId) candSafeSet(data,f.allFields,'CandPoolId',resolvedPoolId);
+    if(candId){ await spUpdate('Candidates',candId,data); toast('Candidate updated'); }
+    else { await spCreate('Candidates',data); }
+
+    // ── If linking to existing pool record: upsert vacancy into their history ──
+    if(poolAction==='link_existing' && resolvedPoolId && !candId) {
+      await addSeafarerVacancyHistory(resolvedPoolId,histEntry);
+    }
+
+    // Toast for new candidates
+    if(!candId){
+      if(poolAction==='create_new' && resolvedPoolId) toast('Candidate saved & added to Seafarer Pool ✓');
+      else if(poolAction==='link_existing' && resolvedPoolId) toast('Candidate saved & linked to pool record ✓');
+      else toast('Candidate saved');
+    }
+
     bootstrap.Modal.getInstance(document.getElementById('modalCandidate'))?.hide();
     loadCandidatesSection(vacId);
   } catch(e) { toast(`Save failed: ${e.message}`,'danger'); }
@@ -2344,6 +2648,173 @@ async function setupCrmColumns() {
   if(btn2){btn2.insertAdjacentHTML('afterend',`<div class="mt-2 small"><pre style="font-size:.72rem;background:#f8f9fa;padding:.4rem;border-radius:4px">${results.join('\n')}</pre></div>`);btn2.disabled=false;btn2.innerHTML='<i class="bi bi-database-add me-1"></i>Run Setup';}
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// VESSEL EXTENDED COLUMNS SETUP
+// ═══════════════════════════════════════════════════════════════════
+async function setupVesselExtendedColumns() {
+  const btn=document.getElementById('btn-setup-vessel-ext');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
+  const token=await getToken();
+  const fields=[
+    {name:'VesselEmail',  type:2, max:255},
+    {name:'VesselPhone',  type:2, max:100},
+    {name:'TEU',          type:2, max:100},
+    {name:'LoadingProgram',type:2,max:255},
+    {name:'PMS',          type:2, max:255},
+    {name:'ECDIS',        type:2, max:255},
+    {name:'Gear',         type:2, max:255},
+    {name:'BWTS',         type:2, max:255},
+    {name:'Thrusters',    type:2, max:255},
+    {name:'FuelType',     type:2, max:100},
+    {name:'AuxEngine',    type:2, max:255},
+    {name:'Scrubber',     type:2, max:255},
+    {name:'BridgeCrew',   type:2, max:255},
+    {name:'DeckCrew',     type:2, max:255},
+    {name:'EngineCrew',   type:2, max:255},
+    {name:'FlagReq',      type:3},  // multiline
+  ];
+  const results=[];
+  for(const f of fields){
+    const body=f.type===3
+      ?JSON.stringify({__metadata:{type:'SP.FieldMultiLineText'},Title:f.name,InternalName:f.name,FieldTypeKind:3,Required:false,NumberOfLines:4})
+      :JSON.stringify({__metadata:{type:'SP.FieldText'},Title:f.name,InternalName:f.name,FieldTypeKind:2,Required:false,MaxLength:f.max});
+    const r=await fetch(`${API}/lists/getbytitle('VesselMaster')/fields`,{method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':'nodigest'},body});
+    results.push((r.ok||r.status===400)?`✓ ${f.name}`:`✗ ${f.name}: ${r.status}`);
+  }
+  toast('Extended vessel columns setup done','info');
+  const btn2=document.getElementById('btn-setup-vessel-ext');
+  if(btn2){btn2.insertAdjacentHTML('afterend',`<div class="mt-2 small"><pre style="font-size:.72rem;background:#f8f9fa;padding:.4rem;border-radius:4px">${results.join('\n')}</pre></div>`);btn2.disabled=false;btn2.innerHTML='<i class="bi bi-database-add me-1"></i>Run Setup';}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SEAFARER POOL SP LIST SETUP
+// ═══════════════════════════════════════════════════════════════════
+async function setupSeafarerPool() {
+  const btn=document.getElementById('btn-setup-seafarer');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
+  const token=await getToken();
+  const results=[];
+  // 1. Create the list
+  const listBody=JSON.stringify({__metadata:{type:'SP.List'},Title:'SeafarerPool',BaseTemplate:100,Description:'Martracon seafarer pool register'});
+  const lr=await fetch(`${SP_SITE}/_api/web/lists`,{method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':'nodigest'},body:listBody}).catch(e=>({ok:false,status:e.message}));
+  results.push(lr.ok||lr.status===400?'✓ SeafarerPool list created':'✗ List may already exist (ok)');
+  // 2. Add columns
+  const cols=[
+    {name:'FirstName',    type:2,max:100},{name:'LastName',    type:2,max:100},
+    {name:'DOB',          type:2,max:20}, {name:'Nationality', type:2,max:100},
+    {name:'Rank',         type:2,max:100},{name:'Email',       type:2,max:255},
+    {name:'Phone',        type:2,max:100},{name:'PassportNum', type:2,max:50},
+    {name:'PassportExp',  type:2,max:20}, {name:'CDC',         type:2,max:50},
+    {name:'CDCExp',       type:2,max:20}, {name:'STCW',        type:3},
+    {name:'Notes',        type:3},        {name:'VacancyHistory',type:3},
+    {name:'AgencyName',   type:2,max:255},{name:'AgencyEmail',  type:2,max:255},
+  ];
+  for(const c of cols){
+    const b=c.type===3
+      ?JSON.stringify({__metadata:{type:'SP.FieldMultiLineText'},Title:c.name,InternalName:c.name,FieldTypeKind:3,Required:false,NumberOfLines:4})
+      :JSON.stringify({__metadata:{type:'SP.FieldText'},Title:c.name,InternalName:c.name,FieldTypeKind:2,Required:false,MaxLength:c.max});
+    const r=await fetch(`${SP_SITE}/_api/web/lists/getbytitle('SeafarerPool')/fields`,{method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':'nodigest'},body:b}).catch(e=>({ok:false,status:e.message}));
+    results.push(r.ok||r.status===400?`✓ ${c.name}`:`✗ ${c.name}: ${r.status}`);
+  }
+  toast('Seafarer Pool setup done','info');
+  const btn2=document.getElementById('btn-setup-seafarer');
+  if(btn2){btn2.insertAdjacentHTML('afterend',`<div class="mt-2 small"><pre style="font-size:.72rem;background:#f8f9fa;padding:.4rem;border-radius:4px">${results.join('\n')}</pre></div>`);btn2.disabled=false;btn2.innerHTML='<i class="bi bi-database-add me-1"></i>Run Setup';}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VESSEL DATA IMPORT (from vessel dets.xlsx)
+// ═══════════════════════════════════════════════════════════════════
+const VESSEL_IMPORT_DATA=[
+  {n:'Bianca Rambow',email:'Company.Biancarambow@SkyFile.com',phone:'Sat: +4723679769',teu:'862 TEU / 150 RF',lp:'SLS - Sietas',pms:'Paper / CODIE',ecdis:'Charts',gear:'N/A',bwts:'Alfa Laval PureBallast 3',thr:'Bow 750 kW / Stern 450 kW',eng:'MAK 9M43C (7950 kW) - 4 stroke',fuel:'RMD 80 / MDO',aux:'Cat 3412',scr:'N/A',bc:'Capt, CO, 2O',dc:'1 x AB / 3 x OS',ec:'CE, 2E, OLR',fr:'German Law Test for (Capt, CO, CE, 2E)'},
+  {n:'Ida Rambow',email:'ida-rambow@rambowshipping.de',phone:'Sat: +4560235246',teu:'1008 TEU / 234 RF',lp:'SLS - Sietas',pms:'Paper / CODIE',ecdis:'Raytheon Anschütz Synapsis NX',gear:'N/A',bwts:'Alfa Laval PureBallast 3',thr:'Bow 750 kW',eng:'MAK 9M43C (8400 kW) - 4 stroke',fuel:'RMD 80 / MDO',aux:'Cat 3508/3512',scr:'N/A',bc:'Capt, CO, 2O',dc:'1 x AB / 4 x OS',ec:'CE, 2E, OLR',fr:'German Law Test for (Capt, CO, CE, 2E)'},
+  {n:'Henneke Rambow',email:'martracon.hennekerambow@skyfile.com',phone:'Sat: +4722407354',teu:'868 TEU',lp:'SLS - Sietas',pms:'Paper / CODIE',ecdis:'Charts',gear:'N/A',bwts:'Alfa Laval PureBallast 3',thr:'Bow',eng:'MAK 9M43C (9000 kW) - 4 stroke',fuel:'RMD 80 / MDO',aux:'Cat 3508/3512',scr:'N/A',bc:'Capt, CO, 2O',dc:'1 x AB / 4 x OS',ec:'CE, 2E, OLR',fr:'German Law Test for (Capt, CO, CE, 2E)'},
+  {n:'Atria',email:'Master.Msatria@SkyFile.com',phone:'Mob: +49 1708057482',teu:'966 TEU / 126 RF',lp:'SLS - Sietas',ecdis:'FURUNO FMD 3100',gear:'N/A',thr:'Bow 800 kW Kamewa',eng:'Wartsila 7L64 A (12600 kW) - 4 stroke',aux:'Mitsubishi 2 x 440kw',scr:'Alfa Laval PureSOx Single Inlet Sea Water System open loop',bc:'Capt, CO, 2O',dc:'1 x AB / 4 x OS',ec:'CE, 2E, OLR, WPR',fr:'German Law Test for (Capt, CO, CE, 2E)'},
+  {n:'Mira',email:'bridge.Msmira@SkyFile.com',phone:'Sat: +4723670324',teu:'850 TEU / 102 RF',lp:'SLS - Sietas',ecdis:'no double / Furuno 3000',gear:'N/A',bwts:'BAWAT',thr:'Bow 1000 kW Rolls-Royce',eng:'Wartsila 6L64 A2 (12600 kW) - 4 stroke',aux:'Hansa-Mitsubishi/Volvo Penta 2 x 595 kW',scr:'Alfa Laval Pure Sox Single Inlet Sea Water System open loop',bc:'Capt, CO, 2O',dc:'1 x AB / 4 x OS',ec:'CE, 2E, OLR, WPR',fr:'German Law Test for (Capt, CO, CE, 2E)'},
+  {n:'Nova',email:'master.Msnova@SkyFile.com',phone:'Sat: +47 2339 8964',teu:'956 TEU / 126 RF',lp:'SLS - Sietas',ecdis:'Wärtsilä CHARTPILOT',gear:'N/A',bwts:'DESMI',thr:'Bow 800 kW Kamewa',eng:'Wartsila 7L64 A (12600 kW) CPP - 4 stroke',aux:'Volvo Penta 2x 480 kW, 1x 220 kW',scr:'Wärtsilä Scrubber close loop',bc:'Capt, CO, 2O',dc:'1 x AB / 4 x OS',ec:'CE, 2E, 3E, OLR, WPR',fr:'German Law Test for (Capt, CO, CE, 2E)'},
+  {n:'Hera',email:'mvhera@hpw-ships.de',phone:'Mob: +49 15158584537',teu:'1075 TEU / 276 RF',lp:'LoadStar',ecdis:'Furuno MFD 3300',gear:'N/A',bwts:'Headway / OceanGuard',thr:'Wärtsilä',eng:'MAN B&W 6S50ME-9.6-HPSCR (8400 kW) - 2 stroke',aux:'MAN D2862LE328 / 700 kW',bc:'Capt, CO, 2O',dc:'1 x AB / 4 x OS',ec:'CE, 2E, OLR, WPR, ETO',fr:'German Law Test for (Capt, CO, CE, 2E)'},
+  {n:'Samskip Hoffell',email:'Samskip.Hoffell.bridge@samskip.com',phone:'Sat: +31 108080659',teu:'501 TEU / 84 RF',lp:'Macs 3',ecdis:'no double / Furuno 3000',gear:'2x40 t / NMF',bwts:'DESMI',thr:'Bow 350 kW',eng:'MAN B&W 9L 32/40 (4320 kW) - 4 stroke',aux:'2 x Volvo TAMD 163A x each 384 kW',bc:'Capt, CO, 2O',dc:'Bosun, 3xAB, OS, D/C',ec:'CE, 2E, OLR',fr:'No Europeans, Dutch Law for Master'},
+  {n:'Samskip Skaftafell',email:'samskip.skaftafell.bridge@samskip.com',phone:'Sat: +881 677770953',teu:'501 TEU / 84 RF',lp:'Macs 3',ecdis:'no double / Furuno 3000',gear:'2x40 t / Liebher',bwts:'DESMI',thr:'Bow 500 kW',eng:'MAN B&W 9L 32/40 (4320 kW) - 4 stroke',aux:'MAN-B&W 2/450KWT',bc:'Capt, CO, 2O',dc:'Bosun, 2xAB, 2xOS',ec:'CE, 2E, OLR',fr:'No Europeans, Dutch Law for Master'},
+  {n:'Samskip Kvitbjorn',email:'Samskip-Kvitbjorn.master@samskip.com',phone:'Sat: +47 572 18 614',teu:'94 TEU / 38 RF',lp:'NAPA',ecdis:'Furuno FMD 3300',gear:'80 t / TTS',thr:'Bow 750 kW',eng:'Roll-Royce Bergen Engines B35/40L9 PG (3940 kW) - 4 stroke LNG',aux:'2x Caterpillar / 2x 700 kW',bc:'Capt, CO, 2O, 2O',dc:'Bosun, 4 AB\'s',ec:'CE, 2E, ELEC',fr:'PEC Norwegian Coast for Cpt and CO, Norwegian Medical'},
+  {n:'Samskip Kvitnos',email:'Samskip-Kvitnos.ccr@samskip.com',phone:'Sat: +88 16 417 06 887',teu:'94 TEU / 38 RF',lp:'NAPA',ecdis:'Furuno FMD 3300',gear:'80 t / TTS',thr:'Bow 750 kW',eng:'Roll-Royce Bergen Engines B35/40L9 PG (3940 kW) - 4 stroke LNG',aux:'2x Caterpillar / 2x 700 kW',bc:'Capt, CO, 2O, 2O',dc:'Bosun, 4 AB\'s',ec:'CE, 2E, ELEC',fr:'PEC Norwegian Coast for Cpt and CO, Norwegian Medical'},
+  {n:'Arnarfell',email:'Arnarfellcapt@samskip.com',phone:'Sat: +88167 772 9902',teu:'908 TEU / 253 RF',lp:'Macs 3',gear:'N/A',eng:'MAN-B&W 7L48/60B (8400 kW) - 4 stroke',aux:'MAN-B&W 2 x 800kW',scr:'LangTech open loop',bc:'Capt, CO, 2O',dc:'Bosun, 3xAB, OS, D/C',ec:'CE, 2E, OLR, Elect',fr:'Faroese Maritime law course'},
+  {n:'Helgafell',email:'helgafellcapt@samskip.com',phone:'Sat: +871764456885',teu:'908 TEU / 253 RF',lp:'Macs 3',gear:'N/A',eng:'MAN-B&W 7L48/60B (8400 kW) - 4 stroke',aux:'MAN-B&W 2 x 800kW',scr:'LangTech open loop',bc:'Capt, CO, 2O',dc:'Bosun, 3xAB, OS, D/C',ec:'CE, 2E, OLR',fr:'Faroese Maritime law course'},
+  {n:'Nina B',email:'ninab@oss-fleet.de',phone:'Mob: +49 17630007556',lp:'N/A (Excel)',pms:'CSM',ecdis:'Transas 4000',gear:'N/A',thr:'Bow 220 kW',eng:'AB Volvo Penta 2 x 374 kW (742 kW) - 4 stroke',aux:'2 x 53 kW',scr:'N/A',bc:'Capt, C/O',dc:'3 x AB, Cook O/S',ec:'SE',fr:'NIL'},
+  {n:'Baltic Coaster',email:'balticcoaster@oss-fleet.de',phone:'Sat: +49 49218206793',teu:'176 TEU',lp:'Locopias',pms:'CSM',ecdis:'Furuno FMD 3100',gear:'Gantry crane',bwts:'Alfa Laval PureBallast 3',thr:'Bow 280 kW',eng:'ABC Diesel 6DZC (1100 kW) - 4 stroke (6 cylinders)',aux:'AB Volvo Penta D13 (515 kW) / D7A T (120 kW)',scr:'N/A',bc:'Capt, CO, 3O',dc:'AB, DCDT, Cook/OS',ec:'SE (III/2), WPR',fr:'NIL'},
+  {n:'Baltic Eclipse',email:'balticeclipse@oss-fleet.de',phone:'Mob: +49 17630007558',teu:'176 TEU',lp:'Locopias',pms:'CSM',ecdis:'Furuno FMD 3100',gear:'Gantry crane',bwts:'Alfa Laval PureBallast 3',thr:'Bow 280 kW',eng:'ABC Diesel 6DZC (1100 kW) - 4 stroke (6 cylinders)',aux:'AB Volvo Penta D13 (515 kW) / D7A T (120 kW)',scr:'N/A',bc:'Capt, CO, 3O',dc:'AB, DCDT, Cook/OS',ec:'SE (III/2), WPR',fr:'NIL'},
+  {n:'HAV Coral',email:'master.havcoral@este.dno-fleet.com',phone:'Mob: +49 15164327861',lp:'Locopias',pms:'CSM',ecdis:'Furuno FMD 3005',gear:'Gantry crane',bwts:'DESMI',thr:'Bow 300 kW',eng:'MAN 27/38S (2100 kW) - 4 stroke',fuel:'MGO',aux:'2 x Perkins 129 kW',scr:'SCR fitted',bc:'Capt, CO, 3O',dc:'AB, 2 x OS, Cook/OS',ec:'CE, JE',fr:'NIL'},
+  {n:'HAV Sardis',email:'master.havsardis@oste.dno-fleet.com',phone:'Mob: +49 16091565053',lp:'Locopias',pms:'CSM',ecdis:'Furuno FMD 3005',gear:'Gantry crane',bwts:'DESMI',thr:'Bow 300 kW',eng:'MAN 27/38S (2100 kW) - 4 stroke',fuel:'MGO',aux:'2 x Perkins 129 kW',scr:'SCR fitted',bc:'Capt, CO, 3O',dc:'AB, 2 x OS, Cook/OS',ec:'CE, JE',fr:'NIL'},
+  {n:'Nordic Felicia',email:'master.nordicfelicia@felicia.dno-fleet.com',phone:'Mob: +49 151706 695111',lp:'Locopias',pms:'CSM',ecdis:'Furuno FMD 3005',gear:'Gantry crane',bwts:'DESMI',thr:'Bow 300 kW',eng:'MAN 27/38S (2100 kW) - 4 stroke',fuel:'MGO',aux:'2 x Perkins 129 kW',scr:'SCR fitted',bc:'Capt, CO, 3O',dc:'AB, 2 x OS, Cook/OS',ec:'CE, JE',fr:'NIL'},
+  {n:'Alanna M',email:'MvAlannaM@outlook.com',lp:'Bartex',pms:'MARAD',ecdis:'Furuno FMD 3100',gear:'excavator',bwts:'Techcross',thr:'Jastram 200 kW',eng:'Wartsila 8SW280 (1740 kW) - 4 Stroke',fuel:'LSFO',aux:'Scania DS9 67M / 146kW',scr:'N/A',bc:'Capt, C/O',dc:'2 x AB, OS/Cook',ec:'CE, OLR',fr:'NIL'},
+  {n:'Vestri II',teu:'N/A',lp:'N/A',gear:'N/A',bwts:'N/A',eng:'Wartsila 6FHD2 40-F (730 kW) - 4 stroke',aux:'Cummins',scr:'N/A',bc:'Capt, C/O',dc:'AB, Cook/AB',ec:'SE',fr:'NIL'},
+  {n:'Vertom Joy',email:'mv.vertomjoy@vertom.com',phone:'Sat: +49 49549953978',teu:'541 TEU',lp:'TBA',pms:'CSM',ecdis:'Furuno 3000',gear:'2x80 mt',thr:'Bow 995 kW',eng:'Diesel-Electric 2 x generator Wartsila W8L20 (1400 kW)',aux:'2 x Volvo Penta D16-505 kW',scr:'N/A',bc:'Capt, CO, 2O',dc:'3 AB + CCK',ec:'SE',fr:'No Europeans, Dutch Law for Master'},
+  {n:'COE Gisela',email:'coe.gisela@shipsnavo.de',phone:'Mob: +49 15161538050',lp:'N/A (Excel)',pms:'Google platform',ecdis:'eGlobe G2',gear:'N/A',thr:'Bow 132 kW',eng:'DEUTZ MWM TBD 440-6K (441 kW) - 4 stroke (6 cylinders)',aux:'2 x MAN D 2566ME 103 kW',scr:'N/A',bc:'Capt, CO',dc:'2 x AB, Cook/AB',ec:'SE',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Noren',email:'bridge@noren.brarenship.com',lp:'Locopias',pms:'MARAD',ecdis:'ChartWorld eGlobe G2',gear:'Gantry crane',bwts:'Ocean Guard HMT 200',thr:'AAA Propulsion',eng:'MAK 6M25E (2100 kW) - 4 stroke (6 cylinders)',fuel:'MDO',aux:'Perkins E70TAG 2 x 130 kW',scr:'N/A',bc:'Capt, CO, 3O',dc:'3 x AB, Cook O/S',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Mangen',email:'bridge@mangen.brarenship.com',phone:'+49 41283399716',lp:'Locopias',pms:'MARAD',ecdis:'ChartWorld eGlobe G2',gear:'Gantry crane',bwts:'Ocean Guard HMT 200',thr:'AAA Propulsion',eng:'ABC Diesel 8DZC (1780 kW) - 4 stroke (6 cylinders)',fuel:'MDO',aux:'Perkins E70TAG 2 x 130 kW',scr:'N/A',bc:'Capt, CO, 3O',dc:'3 x AB, Cook O/S',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Unden',email:'bridge@unden.brarenship.com',phone:'+49 4128 339 97 17',lp:'Locopias',pms:'MARAD',ecdis:'ChartWorld eGlobe G2',gear:'Gantry crane',bwts:'Ocean Guard HMT 200',thr:'AAA Propulsion',eng:'ABC Diesel 8DZC (1780 kW) - 4 stroke (6 cylinders)',fuel:'MDO',aux:'Perkins E70TAG 2 x 130 kW',scr:'N/A',bc:'Capt, CO, 3O',dc:'3 x AB, Cook O/S',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Annika Braren',email:'bridge@annika.brarenship.com',phone:'+49 4128 339 97 15',lp:'Trifestab',pms:'MARAD',ecdis:'ChartWorld eGlobe G2',gear:'Gantry crane',bwts:'Ocean Guard HMT 200',thr:'AAA Propulsion',eng:'MAK 6M25 (1850 kW) - 4 stroke',fuel:'MDO',aux:'Caterpillar 75 kW',scr:'N/A',bc:'Capt, CO, 3O',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Elene',email:'bridge@elene.brarenship.com',phone:'+49 4128 33997 13',lp:'N/A (Excel)',pms:'MARAD',ecdis:'Paper charts and Furuno ECDIS',gear:'2 cranes',bwts:'Alfa Laval PureBallast 3',thr:'Jastram',eng:'MAK 6M25 (1850 kW) - 4 stroke',fuel:'MDO',aux:'Volvo Penta D12D 310kW',scr:'N/A',bc:'Capt, CO, 3O',dc:'3 x AB, Cook O/S',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Unilurio',email:'bridge@coeanna.brarenship.com',phone:'+49 41283399714',lp:'N/A (Excel)',pms:'MARAD',ecdis:'Paper charts and Transas ECDIS',gear:'2 cranes',bwts:'Alfa Laval PureBallast 3',thr:'Jastram',eng:'MAK 8M32 (3599 kW) - 4 stroke',fuel:'MDO & IFO',aux:'MAN D 2840 LE 301 435kW',scr:'N/A',bc:'Capt, CO, 3O',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Cellus',email:'bridge@cellus.brarenship.com',phone:'+49 4128 33997 12',lp:'Trifestab',pms:'MARAD',ecdis:'Paper charts and eGlobe G2',gear:'2 cranes',bwts:'Alfa Laval PureBallast 3',thr:'Jastram',eng:'MAK 8M32 (3599 kW) - 4 stroke',fuel:'MDO',aux:'MAN 6L 16/24 540kW',scr:'N/A',bc:'Capt, CO, 3O',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+  {n:'Timbus',email:'bridge@timbus.brarenship.com',phone:'+49 4128 33997 11',lp:'Trifestab',pms:'MARAD',ecdis:'Paper charts and eGlobe G2',gear:'2 cranes',bwts:'Alfa Laval PureBallast 3',thr:'Jastram',eng:'MAK 8M32 (3599 kW) - 4 stroke',fuel:'MDO',aux:'MAN 6L 16/24 540kW',scr:'N/A',bc:'Capt, CO, 3O',ec:'SE (III/3), WPR',fr:'German Law Test for (Capt, CO, SE)'},
+];
+
+async function importVesselData() {
+  const btn=document.getElementById('btn-import-vessels');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Importing…';}
+  const token=await getToken();
+  // Load all vessels including inactive to match by name
+  const allVessels=await spGet('VesselMaster','?$select=Id,Title&$top=500');
+  const results=[];
+  let matched=0,notFound=0;
+  for(const d of VESSEL_IMPORT_DATA){
+    // Fuzzy match: case-insensitive, also match partial names (e.g. "Atria" matches "Atria / ex-Containerships VI")
+    const vessel=allVessels.find(v=>{
+      const t=(v.Title||'').toLowerCase(), name=d.n.toLowerCase();
+      return t===name||t.startsWith(name)||name.startsWith(t.split('/')[0].trim());
+    });
+    if(!vessel){results.push(`✗ NOT FOUND: ${d.n}`);notFound++;continue;}
+    // Parse engine stroke
+    const eng=d.eng||'';
+    const stroke=/2.stroke|2-stroke/i.test(eng)?'2-stroke':'4-stroke';
+    const kwMatch=eng.match(/\((\d+)\s*kw\)/i);
+    const kw=kwMatch?parseInt(kwMatch[1]):null;
+    const engKey=eng.replace(/\s*-\s*(2|4)\s*stroke.*/i,'').trim();
+    const engSpecs=[engKey, kw?kw+' kW':'', stroke].filter(Boolean).join(' | ');
+    const data={};
+    if(d.email) data.VesselEmail=d.email;
+    if(d.phone) data.VesselPhone=d.phone;
+    if(d.teu) data.TEU=d.teu;
+    if(d.lp) data.LoadingProgram=d.lp;
+    if(d.pms) data.PMS=d.pms;
+    if(d.ecdis) data.ECDIS=d.ecdis;
+    if(d.gear) data.Gear=d.gear;
+    if(d.bwts) data.BWTS=d.bwts;
+    if(d.thr) data.Thrusters=d.thr;
+    if(engSpecs) data.EngineSpecs=engSpecs;
+    if(d.fuel) data.FuelType=d.fuel;
+    if(d.aux) data.AuxEngine=d.aux;
+    if(d.scr) data.Scrubber=d.scr;
+    if(d.bc) data.BridgeCrew=d.bc;
+    if(d.dc) data.DeckCrew=d.dc;
+    if(d.ec) data.EngineCrew=d.ec;
+    if(d.fr) data.FlagReq=d.fr;
+    try {
+      const r=await fetch(`${API}/lists/getbytitle('VesselMaster')/items(${vessel.Id})`,{
+        method:'POST',
+        headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','IF-MATCH':'*','X-HTTP-Method':'MERGE'},
+        body:JSON.stringify({__metadata:{type:'SP.Data.VesselMasterListItem'},...data})
+      });
+      if(r.ok){results.push(`✓ ${d.n}`);matched++;}
+      else{const t=await r.text();results.push(`✗ ${d.n}: ${r.status} ${t.substring(0,100)}`);}
+    }catch(e){results.push(`✗ ${d.n}: ${e.message}`);}
+  }
+  toast(`Import done: ${matched} updated, ${notFound} not found`,'info');
+  // Reload vessel data
+  try { await loadRefData(); } catch(_){}
+  const btn2=document.getElementById('btn-import-vessels');
+  if(btn2){btn2.insertAdjacentHTML('afterend',`<div class="mt-2 small"><pre style="font-size:.7rem;background:#f8f9fa;padding:.4rem;border-radius:4px;max-height:200px;overflow-y:auto">${results.join('\n')}</pre></div>`);btn2.disabled=false;btn2.innerHTML='<i class="bi bi-upload me-1"></i>Run Import';}
+}
+
 async function setupVesselColumns() {
   const btn=document.getElementById('btn-setup-vessel-cols');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
@@ -2399,6 +2870,7 @@ async function setupCandidateColumns() {
     {name:'CandidateStatus', title:'Candidate Status', type:2, max:50},
     {name:'Notes',           title:'Notes',            type:3, max:null},
     {name:'VacancyId',       title:'Vacancy ID',       type:1, max:null},
+    {name:'CandPoolId',      title:'Pool Seafarer ID', type:1, max:null},
   ];
 
   const results=[];
@@ -2544,6 +3016,312 @@ async function renderReports() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// VIEW: SEAFARER POOL
+// ═══════════════════════════════════════════════════════════════════
+async function renderSeafarers(searchTerm='') {
+  const el=document.getElementById('v-seafarers'); spin(el);
+  try {
+    const filter=searchTerm?`&$filter=substringof('${encodeURIComponent(searchTerm)}',Title) or substringof('${encodeURIComponent(searchTerm)}',LastName) or substringof('${encodeURIComponent(searchTerm)}',FirstName)`:'';
+    const seafarers=await spGet('SeafarerPool',`?$select=Id,Title,FirstName,LastName,DOB,Nationality,Rank,Email,Phone,PassportNum,PassportExp,CDC,CDCExp,Notes,VacancyHistory,AgencyName&$orderby=LastName&$top=500${filter}`).catch(()=>[]);
+    const rankOpts=S.ranks.map(r=>`<option value="${h(r.Title)}">${h(r.Title)}</option>`).join('');
+    el.innerHTML=`
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <h4 class="sec-title mb-0 me-auto"><i class="bi bi-person-vcard me-2"></i>Seafarer Pool</h4>
+      <div class="input-group input-group-sm" style="max-width:260px">
+        <input type="text" class="form-control" id="sf-search" placeholder="Search name…" value="${h(searchTerm)}" onkeydown="if(event.key==='Enter')renderSeafarers(this.value)">
+        <button class="btn btn-outline-secondary" onclick="renderSeafarers(document.getElementById('sf-search').value)"><i class="bi bi-search"></i></button>
+        ${searchTerm?`<button class="btn btn-outline-secondary" onclick="renderSeafarers('')"><i class="bi bi-x"></i></button>`:''}
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="openSeafarerModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Seafarer</button>
+    </div>
+    ${seafarers.length===0?`<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>${searchTerm?'No results for "'+h(searchTerm)+'".':'No seafarers in pool yet. Click "Add Seafarer" to add the first one. Make sure to run Admin → Setup Seafarer Pool first.'}</div>`:`
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead class="table-light sticky-top"><tr>
+          <th>Name</th><th>Rank</th><th>Nationality</th><th>DOB</th><th>Passport Exp.</th><th>Phone / Email</th><th>Agency</th><th>History</th><th style="width:80px"></th>
+        </tr></thead>
+        <tbody>
+          ${seafarers.map(sf=>{
+            const fullName=[sf.FirstName,sf.LastName].filter(Boolean).join(' ')||sf.Title||'—';
+            let history=[];try{history=JSON.parse(sf.VacancyHistory||'[]');}catch(_){}
+            return `<tr>
+              <td><strong>${h(fullName)}</strong></td>
+              <td>${h(sf.Rank||'—')}</td>
+              <td>${h(sf.Nationality||'—')}</td>
+              <td>${sf.DOB?h(sf.DOB):'—'}</td>
+              <td>${sf.PassportExp?h(sf.PassportExp):'—'}</td>
+              <td style="font-size:.8rem">${sf.Phone?`<div><i class="bi bi-phone"></i> ${h(sf.Phone)}</div>`:''}${sf.Email?`<div><i class="bi bi-envelope"></i> ${h(sf.Email)}</div>`:''}</td>
+              <td style="font-size:.82rem">${h(sf.AgencyName||'—')}</td>
+              <td><span class="badge bg-secondary">${history.length}</span></td>
+              <td><button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="openSeafarerModal(${sf.Id})"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-1" onclick="deleteSeafarer(${sf.Id})"><i class="bi bi-trash"></i></button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`}`;
+  } catch(e) { el.innerHTML=errBox(e); }
+}
+
+async function openSeafarerModal(id) {
+  let sf=null;
+  if(id) { try { sf=await spGetOne('SeafarerPool',id,'?$select=*'); } catch(e){ toast('Load failed: '+e.message,'danger'); return; } }
+  const rankOpts=S.ranks.map(r=>`<option value="${h(r.Title)}"${sf?.Rank===r.Title?' selected':''}>${h(r.Title)}</option>`).join('');
+  const natOpts=COUNTRIES.map(c=>`<option${sf?.Nationality===c?' selected':''}>${h(c)}</option>`).join('');
+  let history=[]; try{history=JSON.parse(sf?.VacancyHistory||'[]');}catch(_){}
+  const sfFullName=[sf?.FirstName,sf?.LastName].filter(Boolean).join(' ')||sf?.Title||'Seafarer';
+  const histHtml=history.length?`
+    <div class="mt-3 pt-2" style="border-top:2px solid var(--mc-yellow)">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <i class="bi bi-clock-history" style="color:var(--mc-blue)"></i>
+        <strong style="font-size:.88rem;color:var(--mc-blue)">Vacancy History</strong>
+        <span class="badge" style="background:var(--mc-blue);font-size:.7rem">${history.length}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0" style="font-size:.82rem">
+          <thead style="background:#f0f4f8"><tr>
+            <th>Vessel</th><th>Rank</th><th>Status</th><th>Date</th>
+          </tr></thead>
+          <tbody>
+            ${history.map(h2=>{
+              if(typeof h2==='string') return `<tr><td colspan="4">${h(h2)}</td></tr>`;
+              const vacUrl=h2.vacancyId?`onclick="bootstrap.Modal.getInstance(document.getElementById('modalSeafarer'))?.hide();nav('detail',${h2.vacancyId})" href='javascript:void(0)' style='color:var(--mc-blue);text-decoration:none'`:'';
+              return `<tr>
+                <td>${h2.vacancyId?`<a ${vacUrl}>${h(h2.vessel||'—')}</a>`:h(h2.vessel||'—')}</td>
+                <td>${h(h2.rank||'—')}</td>
+                <td>${candidateBadge(h2.status||'Applied')}</td>
+                <td class="text-muted text-nowrap">${h(h2.date||'—')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`
+  :`<div class="mt-3 pt-2 text-muted" style="border-top:1px solid #eee;font-size:.84rem"><i class="bi bi-clock-history me-1"></i>No vacancy history yet</div>`;
+
+  const modal=`<div class="modal fade" id="modalSeafarer" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header" style="background:var(--mc-blue);color:#fff">
+      <h5 class="modal-title"><i class="bi bi-person-vcard me-2"></i>${id?'Edit Seafarer':'New Seafarer'}</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="sf-id" value="${id||''}">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4"><label class="form-label fw-bold">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-fn" value="${h(sf?.FirstName||'')}" placeholder="First name"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-ln" value="${h(sf?.LastName||'')}" placeholder="Last name"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY"></div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6"><label class="form-label fw-bold">Rank</label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Nationality</label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6"><label class="form-label fw-bold">Phone / Mobile</label><input type="text" class="form-control" id="sf-phone" value="${h(sf?.Phone||'')}" placeholder="+49 123 456789"></div>
+        <div class="col-md-6"><label class="form-label fw-bold">E-Mail</label><input type="email" class="form-control" id="sf-email" value="${h(sf?.Email||'')}" placeholder="email@example.com"></div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-4"><label class="form-label fw-bold">Passport No.</label><input type="text" class="form-control" id="sf-pnum" value="${h(sf?.PassportNum||'')}"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Passport Exp.</label><input type="text" class="form-control" id="sf-pexp" value="${h(sf?.PassportExp||'')}" placeholder="DD.MM.YYYY"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">CDC No.</label><input type="text" class="form-control" id="sf-cdc" value="${h(sf?.CDC||'')}"></div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6"><label class="form-label fw-bold">Agency</label><input type="text" class="form-control" id="sf-agency" value="${h(sf?.AgencyName||'')}" placeholder="Crewing agency name"></div>
+        <div class="col-md-6"><label class="form-label fw-bold">Agency E-Mail</label><input type="email" class="form-control" id="sf-agency-email" value="${h(sf?.AgencyEmail||'')}"></div>
+      </div>
+      <div class="mb-3"><label class="form-label fw-bold">STCW Certificates / Endorsements</label><textarea class="form-control" id="sf-stcw" rows="2" placeholder="e.g. GMDSS, Basic Safety, Advanced Firefighting…">${h(sf?.STCW||'')}</textarea></div>
+      <div class="mb-3"><label class="form-label fw-bold">Notes</label><textarea class="form-control" id="sf-notes" rows="2" placeholder="Remarks, preferences, age limit exceptions…">${h(sf?.Notes||'')}</textarea></div>
+      ${histHtml}
+    </div>
+    <div class="modal-footer d-flex gap-2">
+      ${id?`<button class="btn btn-outline-primary btn-sm me-auto" onclick="linkSeafarerToVacancy(${id},'${h(sfFullName.replace(/'/g,"\\'"))}')"><i class="bi bi-link-45deg me-1"></i>Link to Vacancy</button>`:''}
+      <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveSeafarer()"><i class="bi bi-floppy me-1"></i>Save</button>
+    </div>
+  </div></div></div>`;
+  document.getElementById('modal-wrap')?.remove();
+  const wrap=document.createElement('div'); wrap.id='modal-wrap'; wrap.innerHTML=modal; document.body.appendChild(wrap);
+  const m=new bootstrap.Modal(document.getElementById('modalSeafarer')); m.show();
+  document.getElementById('modalSeafarer').addEventListener('hidden.bs.modal',()=>wrap.remove(),{once:true});
+}
+
+// ── Link seafarer to an additional vacancy ───────────────────────
+async function linkSeafarerToVacancy(sfId, sfName) {
+  // Close the seafarer modal first, then show the linker modal
+  bootstrap.Modal.getInstance(document.getElementById('modalSeafarer'))?.hide();
+  // Give Bootstrap time to close before opening new modal
+  await new Promise(r=>setTimeout(r,350));
+  // Fetch open vacancies
+  let vacancies=[];
+  try {
+    vacancies=await spGet('Vacancies',
+      '?$select=Id,Title,Status,VesselId,Vessel/Title,RankId,Rank/Title&$expand=Vessel,Rank&$filter=Status eq \'Open\' or Status eq \'Offer Made\'&$orderby=Title&$top=200')
+      .catch(()=>[]);
+  } catch(_) {}
+  const vacOpts=vacancies.map(v=>{
+    const vessel=v.Vessel?.Title||'—';
+    const rank=v.Rank?.Title||'—';
+    return `<option value="${v.Id}" data-vessel="${h(vessel)}" data-rank="${h(rank)}">${h(vessel)} — ${h(rank)} (${h(v.Status||'Open')})</option>`;
+  }).join('');
+
+  const old=document.getElementById('modalLinkVac'); if(old) old.remove();
+  const div=document.createElement('div');
+  div.innerHTML=`<div class="modal fade" id="modalLinkVac" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
+      <div class="modal-content">
+        <div class="modal-header py-2" style="background:var(--mc-blue);color:#fff">
+          <h6 class="modal-title"><i class="bi bi-link-45deg me-2"></i>Link to Vacancy</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3" style="font-size:.9rem">Add <strong>${h(sfName)}</strong> as a candidate to another vacancy.</p>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Select Vacancy <span class="text-danger">*</span></label>
+            <select class="form-select" id="lv-vac-select">
+              <option value="">— select open vacancy —</option>
+              ${vacOpts||'<option disabled>No open vacancies found</option>'}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Initial Status</label>
+            <select class="form-select" id="lv-status">
+              <option value="Applied">Applied</option>
+              <option value="Shortlisted">Shortlisted</option>
+              <option value="Offered">Offered</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-bold">Notes</label>
+            <textarea class="form-control form-control-sm" id="lv-notes" rows="2" placeholder="Optional remarks for this vacancy application…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="btn-lv-save"><i class="bi bi-link-45deg me-1"></i>Link Seafarer</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+  const modalEl=document.getElementById('modalLinkVac');
+  const m=new bootstrap.Modal(modalEl);
+  m.show();
+  modalEl.addEventListener('hidden.bs.modal',()=>modalEl.remove(),{once:true});
+
+  document.getElementById('btn-lv-save').onclick=async()=>{
+    const vacId=parseInt(document.getElementById('lv-vac-select').value);
+    if(!vacId){toast('Please select a vacancy','warning');return;}
+    const status=document.getElementById('lv-status').value||'Applied';
+    const notes=document.getElementById('lv-notes').value?.trim()||null;
+    const btn=document.getElementById('btn-lv-save');
+    btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+    try {
+      // Load seafarer details (need fn/ln/nat/etc for candidate)
+      const sf=await spGetOne('SeafarerPool',sfId,'?$select=*');
+      // Load vacancy for vessel+rank context
+      const vacObj=await spGetOne('Vacancies',vacId,'?$expand=Vessel,Rank&$select=Id,Vessel/Title,Rank/Title').catch(()=>null);
+      const vessel=vacObj?.Vessel?.Title||'—';
+      const rankTitle=vacObj?.Rank?.Title||'—';
+      // Check if already a candidate on this vacancy
+      const f=await ensureCandidateFields();
+      const vidField=f.VacancyId||'VacancyId';
+      const vidFilter=f.VacancyIdIsLookup?`${vidField}/Id eq ${vacId}`:`${vidField} eq ${vacId}`;
+      const existing=await spGet('Candidates',`?$filter=${vidFilter}&$select=Id,Title&$top=100`).catch(()=>[]);
+      const already=existing.find(c=>c.Title===`${sf.LastName}, ${sf.FirstName}` || c.Title===sfName);
+      if(already){
+        toast(`${sfName} is already a candidate on this vacancy — updating status and history only`,'info');
+        // Still update history
+        const histEntry={vacancyId:vacId,vessel,rank:rankTitle,status,date:new Date().toISOString().split('T')[0]};
+        await addSeafarerVacancyHistory(sfId,histEntry);
+        m.hide(); return;
+      }
+      // Build candidate data
+      const candData={Title:`${sf.LastName||''}, ${sf.FirstName||''}`.replace(/^, |, $/,'').trim()||sfName};
+      const af=f.allFields||[];
+      if(f.VacancyId){ if(f.VacancyIdIsLookup) candData[f.VacancyId+'Id']=vacId; else candSafeSet(candData,af,'VacancyId',vacId); }
+      else candSafeSet(candData,af,'VacancyId',vacId);
+      candSafeSet(candData,af,'FirstName',sf.FirstName||null);
+      candSafeSet(candData,af,'LastName',sf.LastName||null);
+      candSafeSet(candData,af,'Nationality',sf.Nationality||null);
+      candSafeSet(candData,af,'Phone',sf.Phone||null);
+      candSafeSet(candData,af,'Email',sf.Email||null);
+      candSafeSet(candData,af,'AgencyName',sf.AgencyName||null);
+      candSafeSet(candData,af,'CandidateStatus',status);
+      candSafeSet(candData,af,'Notes',notes||null);
+      candSafeSet(candData,af,'CandPoolId',sfId);
+      await spCreate('Candidates',candData);
+      // Update pool history
+      const histEntry={vacancyId:vacId,vessel,rank:rankTitle,status,date:new Date().toISOString().split('T')[0]};
+      await addSeafarerVacancyHistory(sfId,histEntry);
+      toast(`${sfName} linked to vacancy ✓`);
+      m.hide();
+    } catch(e){ toast('Link failed: '+e.message,'danger'); btn.disabled=false; btn.innerHTML='<i class="bi bi-link-45deg me-1"></i>Link Seafarer'; }
+  };
+}
+
+async function saveSeafarer() {
+  const id=document.getElementById('sf-id')?.value;
+  const fn=document.getElementById('sf-fn')?.value?.trim();
+  const ln=document.getElementById('sf-ln')?.value?.trim();
+  const dob=document.getElementById('sf-dob')?.value?.trim();
+  if(!fn||!ln){toast('First and last name are required','warning');return;}
+  if(!dob){toast('Date of birth is required (needed for duplicate check)','warning');return;}
+  // Duplicate check for new seafarers
+  if(!id) {
+    const existing=await spGet('SeafarerPool',`?$select=Id,FirstName,LastName,DOB&$filter=FirstName eq '${fn.replace(/'/g,"''")}' and LastName eq '${ln.replace(/'/g,"''")}' and DOB eq '${dob.replace(/'/g,"''")}' &$top=5`).catch(()=>[]);
+    if(existing.length>0){
+      toast(`⚠️ Duplicate detected: ${fn} ${ln} (DOB: ${dob}) already exists in the pool!`,'warning');
+      if(!confirm(`Seafarer "${fn} ${ln}" with DOB "${dob}" already exists.\n\nDo you want to add a duplicate entry anyway?`)) return;
+    }
+  }
+  const data={
+    Title:`${fn} ${ln}`,
+    FirstName:fn, LastName:ln, DOB:dob,
+    Nationality:document.getElementById('sf-nat')?.value||null,
+    Rank:document.getElementById('sf-rank')?.value||null,
+    Phone:document.getElementById('sf-phone')?.value?.trim()||null,
+    Email:document.getElementById('sf-email')?.value?.trim()||null,
+    PassportNum:document.getElementById('sf-pnum')?.value?.trim()||null,
+    PassportExp:document.getElementById('sf-pexp')?.value?.trim()||null,
+    CDC:document.getElementById('sf-cdc')?.value?.trim()||null,
+    AgencyName:document.getElementById('sf-agency')?.value?.trim()||null,
+    AgencyEmail:document.getElementById('sf-agency-email')?.value?.trim()||null,
+    STCW:document.getElementById('sf-stcw')?.value?.trim()||null,
+    Notes:document.getElementById('sf-notes')?.value?.trim()||null,
+  };
+  try {
+    if(id){ await spUpdate('SeafarerPool',parseInt(id),data); toast('Seafarer updated ✓'); }
+    else { await spCreate('SeafarerPool',data); toast('Seafarer added to pool ✓'); }
+    bootstrap.Modal.getInstance(document.getElementById('modalSeafarer'))?.hide();
+    renderSeafarers();
+  } catch(e){ toast('Save failed: '+e.message,'danger'); }
+}
+
+async function deleteSeafarer(id) {
+  if(!confirm('Delete this seafarer from the pool?')) return;
+  try { await spDelete('SeafarerPool',id); toast('Seafarer deleted'); renderSeafarers(); }
+  catch(e){ toast('Delete failed: '+e.message,'danger'); }
+}
+
+// Add/update a vacancy in a seafarer's history (upserts by vacancyId)
+async function addSeafarerVacancyHistory(seafarerId, vacancyInfo) {
+  try {
+    const sf=await spGetOne('SeafarerPool',seafarerId,'?$select=Id,VacancyHistory');
+    let history=[]; try{history=JSON.parse(sf.VacancyHistory||'[]');}catch(_){}
+    const today=new Date().toISOString().split('T')[0];
+    const idx=history.findIndex(h=>h.vacancyId===vacancyInfo.vacancyId);
+    if(idx>=0){
+      // Update existing entry (keep vessel/rank from original if new entry lacks them)
+      history[idx]={...history[idx],...vacancyInfo,updatedAt:today};
+      if(!history[idx].vessel||history[idx].vessel==='—') history[idx].vessel=vacancyInfo.vessel||history[idx].vessel;
+      if(!history[idx].rank||history[idx].rank==='—') history[idx].rank=vacancyInfo.rank||history[idx].rank;
+    } else {
+      history.push({...vacancyInfo, date:today});
+    }
+    await spUpdate('SeafarerPool',seafarerId,{VacancyHistory:JSON.stringify(history)});
+  } catch(e){ console.warn('Could not update seafarer history:',e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // VIEW: ADMIN
 // ═══════════════════════════════════════════════════════════════════
 async function renderAdmin() {
@@ -2562,6 +3340,7 @@ async function renderAdmin() {
       ['rank','bi-person-badge','Ranks',`${S.ranks.length} active`],
       ['agency','bi-people','Agencies',`${S.agencies.length} active`],
     ].map(([type,icon,label,count])=>`<div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="openRefManager('${type}')"><i class="bi ${icon}" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">${label}</div><div class="text-muted" style="font-size:.78rem;min-height:1em">${count}</div></div></div>`).join('')}
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="nav('seafarers')"><i class="bi bi-person-vcard" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">Seafarers</div><div class="text-muted" style="font-size:.78rem;min-height:1em">Pool / Register</div></div></div>
     <div class="col-6 col-md-4 col-lg-3 col-xl-2"><a href="${SP_SITE}/Lists/SalaryRates" target="_blank" class="card text-decoration-none shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2"><i class="bi bi-cash-stack" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">Salary Rates</div><div class="text-muted" style="font-size:.78rem;min-height:1em"></div></a></div>
   </div>
   <h5 class="sec-title">One-Time Setup</h5>
@@ -2596,6 +3375,36 @@ async function renderAdmin() {
         <button class="btn btn-info btn-sm ms-2 text-nowrap flex-shrink-0 text-white" onclick="setupCrmColumns()" id="btn-setup-crm"><i class="bi bi-database-add me-1"></i>Run Setup</button>
       </div>
     </div>
+    <div class="col-12 col-md-6">
+      <div class="alert alert-warning d-flex align-items-center gap-3 mb-0 h-100">
+        <i class="bi bi-wrench-adjustable fs-4 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Add Extended Vessel Spec columns</strong><br>
+          <span style="font-size:.85rem">Adds ECDIS, PMS, Gear, BWTS, Thrusters, FuelType, AuxEngine, Scrubber, Crew fields, FlagReq, VesselEmail, VesselPhone, TEU, LoadingProgram to VesselMaster. Run once.</span>
+        </div>
+        <button class="btn btn-warning btn-sm ms-2 text-nowrap flex-shrink-0" onclick="setupVesselExtendedColumns()" id="btn-setup-vessel-ext"><i class="bi bi-database-add me-1"></i>Run Setup</button>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="alert alert-success d-flex align-items-center gap-3 mb-0 h-100">
+        <i class="bi bi-person-vcard fs-4 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Setup Seafarer Pool list</strong><br>
+          <span style="font-size:.85rem">Creates the SeafarerPool SharePoint list with all required columns (FirstName, LastName, DOB, Nationality, Rank, Passport, CDC, STCW, VacancyHistory…). Run once.</span>
+        </div>
+        <button class="btn btn-success btn-sm ms-2 text-nowrap flex-shrink-0" onclick="setupSeafarerPool()" id="btn-setup-seafarer"><i class="bi bi-database-add me-1"></i>Run Setup</button>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="alert alert-primary d-flex align-items-center gap-3 mb-0 h-100">
+        <i class="bi bi-upload fs-4 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Import Vessel Spec Data</strong><br>
+          <span style="font-size:.85rem">Imports all spec data from vessel dets.xlsx (ECDIS, engines, crew requirements, etc.) into existing vessels. Run after extended columns setup. Matches vessels by name.</span>
+        </div>
+        <button class="btn btn-primary btn-sm ms-2 text-nowrap flex-shrink-0" onclick="importVesselData()" id="btn-import-vessels"><i class="bi bi-upload me-1"></i>Run Import</button>
+      </div>
+    </div>
   </div>
   <h5 class="sec-title">Vacancy Stats</h5><div id="admin-stats"><div class="spinner-border spinner-border-sm text-secondary"></div></div>`;
   try { const all=await loadVacancies(null); const by={}; all.forEach(v=>{by[v.Status]=(by[v.Status]||0)+1;}); document.getElementById('admin-stats').innerHTML=`<div class="row g-2">${Object.entries(by).map(([s,n])=>`<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-blue)">${n}</div><div>${statusBadge(s)}</div></div></div>`).join('')}<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-blue)">${all.length}</div><div class="text-muted" style="font-size:.8rem">Total</div></div></div></div>`; }
@@ -2622,9 +3431,25 @@ function exportVesselsCsv() {
     {h:'IMONumber',     f:v=>v.IMONumber||''},
     {h:'DWT',           f:v=>v.DWT||''},
     {h:'GRT',           f:v=>v.GRT||''},
-    {h:'EngineMaker',   f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[0]||'').trim(); }},
+    {h:'TEU',           f:v=>v.TEU||''},
+    {h:'MainEngine',    f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[0]||'').trim(); }},
     {h:'EngineOutputKW',f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[1]||'').replace(/[^\d]/g,''); }},
     {h:'EngineStroke',  f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[2]||'').trim(); }},
+    {h:'FuelType',      f:v=>v.FuelType||''},
+    {h:'AuxEngine',     f:v=>v.AuxEngine||''},
+    {h:'Scrubber',      f:v=>v.Scrubber||''},
+    {h:'BWTS',          f:v=>v.BWTS||''},
+    {h:'Thrusters',     f:v=>v.Thrusters||''},
+    {h:'ECDIS',         f:v=>v.ECDIS||''},
+    {h:'PMS',           f:v=>v.PMS||''},
+    {h:'LoadingProgram',f:v=>v.LoadingProgram||''},
+    {h:'Gear',          f:v=>v.Gear||''},
+    {h:'BridgeCrew',    f:v=>v.BridgeCrew||''},
+    {h:'DeckCrew',      f:v=>v.DeckCrew||''},
+    {h:'EngineCrew',    f:v=>v.EngineCrew||''},
+    {h:'FlagReq',       f:v=>v.FlagReq||''},
+    {h:'VesselEmail',   f:v=>v.VesselEmail||''},
+    {h:'VesselPhone',   f:v=>v.VesselPhone||''},
     {h:'TradingArea',   f:v=>v.TradingArea||''},
     {h:'MartraconEntity',f:v=>v.MartraconEntity||''},
     {h:'ServiceType',   f:v=>v.ServiceType||''},
@@ -2648,7 +3473,7 @@ async function openVesselManager() {
   window._vesselSortKey='Title'; window._vesselSortDir='asc';
   new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
   try {
-    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
+    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
       spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500'));
   } catch(e){ window._allVessels=S.vessels; toast('Could not load all vessels: '+e.message,'warning'); }
   renderVesselTable();
@@ -2778,8 +3603,8 @@ function editVessel(id) {
       <input type="text" class="form-control" id="vf-union" value="${h(v?.Union||'')}" placeholder="e.g. DSMM, ITF"></div>
   </div>
   <div class="row g-3 mb-2">
-    <div class="col-md-5"><label class="form-label fw-bold">Main Engine Maker</label>
-      <input type="text" class="form-control" id="vf-eng-maker" value="${h(engMaker)}" placeholder="e.g. MAN B&amp;W, Wärtsilä"></div>
+    <div class="col-md-5"><label class="form-label fw-bold">Main Engine (full description)</label>
+      <input type="text" class="form-control" id="vf-eng-maker" value="${h(engMaker)}" placeholder="e.g. MAN B&amp;W 7L48/60B (8400 kW)"></div>
     <div class="col-md-3"><label class="form-label fw-bold">Output (kW)</label>
       <input type="number" class="form-control" id="vf-eng-output" step="50" min="0" value="${engOutput}" placeholder="e.g. 6800"></div>
     <div class="col-md-4 d-flex align-items-end gap-3 pb-2">
@@ -2787,6 +3612,61 @@ function editVessel(id) {
       <div class="form-check"><input class="form-check-input" type="radio" name="vf-stroke" id="vf-4stroke" value="4-stroke"${engStroke==='4-stroke'?' checked':''}><label class="form-check-label" for="vf-4stroke">4-stroke</label></div>
     </div>
   </div>
+  <div class="row g-3 mb-2">
+    <div class="col-md-6"><label class="form-label fw-bold">Fuel Type</label>
+      <input type="text" class="form-control" id="vf-fueltype" value="${h(v?.FuelType||'')}" placeholder="e.g. MDO, HFO, LNG, MGO"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">Auxiliary Engine</label>
+      <input type="text" class="form-control" id="vf-auxengine" value="${h(v?.AuxEngine||'')}" placeholder="e.g. Cat 3412 / 2×440 kW"></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label fw-bold">Scrubber</label>
+      <input type="text" class="form-control" id="vf-scrubber" value="${h(v?.Scrubber||'')}" placeholder="e.g. Alfa Laval PureSOx open loop / N/A"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">BWTS</label>
+      <input type="text" class="form-control" id="vf-bwts" value="${h(v?.BWTS||'')}" placeholder="e.g. Alfa Laval PureBallast 3"></div>
+  </div>
+  <hr class="my-2">
+  <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-display me-1"></i>Bridge &amp; Deck</p>
+  <div class="row g-3 mb-2">
+    <div class="col-md-6"><label class="form-label fw-bold">ECDIS</label>
+      <input type="text" class="form-control" id="vf-ecdis" value="${h(v?.ECDIS||'')}" placeholder="e.g. Furuno FMD 3100 / Charts"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">PMS</label>
+      <input type="text" class="form-control" id="vf-pms" value="${h(v?.PMS||'')}" placeholder="e.g. MARAD, Paper/CODIE, CSM"></div>
+  </div>
+  <div class="row g-3 mb-2">
+    <div class="col-md-6"><label class="form-label fw-bold">Cargo Gear</label>
+      <input type="text" class="form-control" id="vf-gear" value="${h(v?.Gear||'')}" placeholder="e.g. 2×80 t, Gantry crane, N/A"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">Bow/Stern Thruster</label>
+      <input type="text" class="form-control" id="vf-thrusters" value="${h(v?.Thrusters||'')}" placeholder="e.g. Bow 750 kW / Stern 450 kW"></div>
+  </div>
+  <div class="row g-3 mb-2">
+    <div class="col-md-6"><label class="form-label fw-bold">Loading Program</label>
+      <input type="text" class="form-control" id="vf-loadingprog" value="${h(v?.LoadingProgram||'')}" placeholder="e.g. SLS-Sietas, Locopias, NAPA"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">TEU / Reefers</label>
+      <input type="text" class="form-control" id="vf-teu" value="${h(v?.TEU||'')}" placeholder="e.g. 862 TEU / 150 RF"></div>
+  </div>
+  <hr class="my-2">
+  <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-people me-1"></i>Crew Requirements</p>
+  <div class="row g-3 mb-2">
+    <div class="col-md-4"><label class="form-label fw-bold">Bridge Crew</label>
+      <input type="text" class="form-control" id="vf-bridgecrew" value="${h(v?.BridgeCrew||'')}" placeholder="e.g. Capt, CO, 2O"></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Deck Crew</label>
+      <input type="text" class="form-control" id="vf-deckcrew" value="${h(v?.DeckCrew||'')}" placeholder="e.g. 1×AB / 3×OS"></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Engine Crew</label>
+      <input type="text" class="form-control" id="vf-enginecrew" value="${h(v?.EngineCrew||'')}" placeholder="e.g. CE, 2E, OLR"></div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label fw-bold">Flag-Specific Requirements</label>
+    <textarea class="form-control" id="vf-flagreq" rows="2" placeholder="e.g. German Law Test for (Capt, CO, CE, 2E)">${h(v?.FlagReq||'')}</textarea>
+  </div>
+  <hr class="my-2">
+  <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-envelope me-1"></i>Contact &amp; Communication</p>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label fw-bold">Vessel E-Mail</label>
+      <input type="email" class="form-control" id="vf-email" value="${h(v?.VesselEmail||'')}" placeholder="e.g. bridge@vessel.com"></div>
+    <div class="col-md-6"><label class="form-label fw-bold">Vessel Phone / Sat</label>
+      <input type="text" class="form-control" id="vf-phone" value="${h(v?.VesselPhone||'')}" placeholder="e.g. Sat: +4723679769"></div>
+  </div>
+  <hr class="my-2">
   <div class="mb-3">
     <label class="form-label fw-bold">Trading Areas (select all that apply)</label>
     <div class="border rounded p-2" style="background:#f8f9fa;max-height:130px;overflow-y:auto">${tradingCheckboxes}</div>
@@ -2871,10 +3751,27 @@ async function saveVessel() {
   const imo=document.getElementById('vf-imo')?.value?.trim(); if(imo) data.IMONumber=imo;
   if(engStr) data.EngineSpecs=engStr;
   if(tradingStr) data.TradingArea=tradingStr;
+  // Extended spec fields
+  const vfFuelType=document.getElementById('vf-fueltype')?.value?.trim(); if(vfFuelType) data.FuelType=vfFuelType;
+  const vfAuxEngine=document.getElementById('vf-auxengine')?.value?.trim(); if(vfAuxEngine) data.AuxEngine=vfAuxEngine;
+  const vfScrubber=document.getElementById('vf-scrubber')?.value?.trim(); if(vfScrubber) data.Scrubber=vfScrubber;
+  const vfBwts=document.getElementById('vf-bwts')?.value?.trim(); if(vfBwts) data.BWTS=vfBwts;
+  const vfEcdis=document.getElementById('vf-ecdis')?.value?.trim(); if(vfEcdis) data.ECDIS=vfEcdis;
+  const vfPms=document.getElementById('vf-pms')?.value?.trim(); if(vfPms) data.PMS=vfPms;
+  const vfGear=document.getElementById('vf-gear')?.value?.trim(); if(vfGear) data.Gear=vfGear;
+  const vfThrusters=document.getElementById('vf-thrusters')?.value?.trim(); if(vfThrusters) data.Thrusters=vfThrusters;
+  const vfLoadingProg=document.getElementById('vf-loadingprog')?.value?.trim(); if(vfLoadingProg) data.LoadingProgram=vfLoadingProg;
+  const vfTeu=document.getElementById('vf-teu')?.value?.trim(); if(vfTeu) data.TEU=vfTeu;
+  const vfBridgeCrew=document.getElementById('vf-bridgecrew')?.value?.trim(); if(vfBridgeCrew) data.BridgeCrew=vfBridgeCrew;
+  const vfDeckCrew=document.getElementById('vf-deckcrew')?.value?.trim(); if(vfDeckCrew) data.DeckCrew=vfDeckCrew;
+  const vfEngineCrew=document.getElementById('vf-enginecrew')?.value?.trim(); if(vfEngineCrew) data.EngineCrew=vfEngineCrew;
+  const vfFlagReq=document.getElementById('vf-flagreq')?.value?.trim(); if(vfFlagReq) data.FlagReq=vfFlagReq;
+  const vfEmail=document.getElementById('vf-email')?.value?.trim(); if(vfEmail) data.VesselEmail=vfEmail;
+  const vfPhone=document.getElementById('vf-phone')?.value?.trim(); if(vfPhone) data.VesselPhone=vfPhone;
   const btn=document.getElementById('btn-vessel-save');
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
   // Extended SP columns that may not exist yet (require Setup Vessel Columns to be run first)
-  const EXTENDED_COLS=['EngineSpecs','TradingArea','DWT','GRT','IMONumber'];
+  const EXTENDED_COLS=['EngineSpecs','TradingArea','DWT','GRT','IMONumber','FuelType','AuxEngine','Scrubber','BWTS','ECDIS','PMS','Gear','Thrusters','LoadingProgram','TEU','BridgeCrew','DeckCrew','EngineCrew','FlagReq','VesselEmail','VesselPhone'];
   try {
     const id=S._editingVesselId;
     try {
@@ -3072,20 +3969,39 @@ async function generatePositionList() {
       const salary=vac.SalaryMin?`${Number(vac.SalaryMin).toLocaleString('de-DE')} ${vac.SalaryCurrency||'EUR'}`:'—';
       const teamLabel=isEngineRank(rankName)?'Engine Team:':'Bridge Team:';
 
+      const rankObjDoc=S.ranks.find(r=>r.Title===rankName||r.Id==vac.RankId);
+      const rankCatDoc=(rankObjDoc?.RankCategory||'').toLowerCase();
+      const showEngDoc=!rankCatDoc||rankCatDoc.includes('engine');
+      const showDeckDoc=!rankCatDoc||!rankCatDoc.includes('engine');
       const rows=[
         hdrRow(vesselName,rankName),
         dataRow('Type:',vessel.VesselType||'—'),
-        dataRow('DWT:',dwtStr),
+        dataRow('DWT / GRT:',dwtStr),
         dataRow('Flag:',vessel.Flag||'—'),
         dataRow('Built:',vessel.BuiltYear?String(vessel.BuiltYear):'—'),
       ];
-      if(vessel.EngineSpecs) rows.push(dataRow('Engine:',vessel.EngineSpecs));
-      if(vac.TradingArea) rows.push(dataRow('Trading area:',vac.TradingArea));
+      if(vessel.TEU) rows.push(dataRow('TEU / Reefers:',vessel.TEU));
+      if(vessel.Gear && vessel.Gear!=='N/A') rows.push(dataRow('Gear:',vessel.Gear));
+      if(showDeckDoc && vessel.ECDIS) rows.push(dataRow('ECDIS:',vessel.ECDIS));
+      if(showDeckDoc && vessel.LoadingProgram) rows.push(dataRow('Loading Program:',vessel.LoadingProgram));
+      if(showDeckDoc && vessel.PMS) rows.push(dataRow('PMS:',vessel.PMS));
+      if(showEngDoc && vessel.EngineSpecs) rows.push(dataRow('Main Engine:',vessel.EngineSpecs));
+      if(showEngDoc && vessel.FuelType) rows.push(dataRow('Fuel Type:',vessel.FuelType));
+      if(showEngDoc && vessel.AuxEngine) rows.push(dataRow('Aux Engine:',vessel.AuxEngine));
+      if(showEngDoc && vessel.Scrubber && vessel.Scrubber!=='N/A') rows.push(dataRow('Scrubber:',vessel.Scrubber));
+      if(vessel.BWTS) rows.push(dataRow('BWTS:',vessel.BWTS));
+      if(vessel.Thrusters) rows.push(dataRow('Thrusters:',vessel.Thrusters));
+      if(vac.TradingArea||vessel.TradingArea) rows.push(dataRow('Trading area:',vac.TradingArea||vessel.TradingArea));
       rows.push(hlRow('Joining:',joining,'CC0000'));
       if(vac.PlaceOfJoining) rows.push(dataRow('Place of joining:',vac.PlaceOfJoining));
       rows.push(dataRow('Contract:',contract));
       rows.push(dataRow('Salary:',salary));
+      if(showDeckDoc && vessel.BridgeCrew) rows.push(dataRow('Bridge Crew:',vessel.BridgeCrew));
+      if(showDeckDoc && vessel.DeckCrew) rows.push(dataRow('Deck Crew:',vessel.DeckCrew));
+      if(showEngDoc && vessel.EngineCrew) rows.push(dataRow('Engine Crew:',vessel.EngineCrew));
       if(vac.CrewOnboard) rows.push(dataRow(teamLabel,vac.CrewOnboard));
+      if(vessel.FlagReq && vessel.FlagReq!=='NIL') rows.push(dataRow('Flag requirements:',vessel.FlagReq));
+      if(vessel.VesselEmail) rows.push(dataRow('Vessel e-mail:',vessel.VesselEmail));
       if(vac.NationalityRequirements) rows.push(hlRow('Nationality requires:',vac.NationalityRequirements,'B54800'));
       if(vac.Remarks){
         const lines=vac.Remarks.split('\n').filter(Boolean);
@@ -3620,18 +4536,38 @@ function buildEmailHtml(selectedVacs,week,year,sigName,customIntro=''){
     const contract=vac.ContractDurationValue?`${vac.ContractDurationValue} ${vac.ContractDurationUnit||'Months'}${vac.ContractTolerance?` +/- ${vac.ContractTolerance} weeks`:''}` :'—';
     const salary=vac.SalaryMin?`${Number(vac.SalaryMin).toLocaleString('de-DE')} ${vac.SalaryCurrency||'EUR'}`:'—';
     const teamLabel=isEngineRank(rankName)?'Engine Team:':'Bridge Team:';
+    const rankObj=S.ranks.find(r=>r.Title===rankName||r.Id==vac.RankId);
+    const rankCatStr=(rankObj?.RankCategory||'').toLowerCase();
+    const showEng=!rankCatStr||rankCatStr.includes('engine');
+    const showDeck=!rankCatStr||!rankCatStr.includes('engine');
     let rows=hR(vesselName,rankName);
     rows+=dR('Type:',vessel.VesselType||'—');
-    rows+=dR('DWT:',dwtStr);
+    rows+=dR('DWT / GRT:',dwtStr);
     rows+=dR('Flag:',vessel.Flag||'—');
     rows+=dR('Built:',vessel.BuiltYear||'—');
-    if(vessel.EngineSpecs) rows+=dR('Engine:',vessel.EngineSpecs);
-    if(vac.TradingArea) rows+=dR('Trading area:',vac.TradingArea);
+    if(vessel.TEU) rows+=dR('TEU / Reefers:',vessel.TEU);
+    if(vessel.Gear && vessel.Gear!=='N/A') rows+=dR('Gear:',vessel.Gear);
+    if(showDeck && vessel.ECDIS) rows+=dR('ECDIS:',vessel.ECDIS);
+    if(showDeck && vessel.LoadingProgram) rows+=dR('Loading Program:',vessel.LoadingProgram);
+    if(showDeck && vessel.PMS) rows+=dR('PMS:',vessel.PMS);
+    if(showEng && vessel.EngineSpecs) rows+=dR('Main Engine:',vessel.EngineSpecs);
+    if(showEng && vessel.FuelType) rows+=dR('Fuel Type:',vessel.FuelType);
+    if(showEng && vessel.AuxEngine) rows+=dR('Aux Engine:',vessel.AuxEngine);
+    if(showEng && vessel.Scrubber && vessel.Scrubber!=='N/A') rows+=dR('Scrubber:',vessel.Scrubber);
+    if(vessel.BWTS) rows+=dR('BWTS:',vessel.BWTS);
+    if(vessel.Thrusters) rows+=dR('Thrusters:',vessel.Thrusters);
+    if(vac.TradingArea||vessel.TradingArea) rows+=dR('Trading area:',vac.TradingArea||vessel.TradingArea);
     rows+=lR('Joining:',joiningStr(vac)||'—','#CC0000');
     if(vac.PlaceOfJoining) rows+=dR('Place of joining:',vac.PlaceOfJoining);
     rows+=dR('Contract:',contract);
     rows+=dR('Salary:',salary);
+    if(showDeck && vessel.BridgeCrew) rows+=dR('Bridge Crew:',vessel.BridgeCrew);
+    if(showDeck && vessel.DeckCrew) rows+=dR('Deck Crew:',vessel.DeckCrew);
+    if(showEng && vessel.EngineCrew) rows+=dR('Engine Crew:',vessel.EngineCrew);
     if(vac.CrewOnboard) rows+=dR(teamLabel,vac.CrewOnboard);
+    if(vessel.FlagReq && vessel.FlagReq!=='NIL') rows+=dR('Flag requirements:',vessel.FlagReq);
+    if(vessel.VesselEmail) rows+=dR('Vessel e-mail:',vessel.VesselEmail);
+    if(vessel.VesselPhone) rows+=dR('Vessel phone:',vessel.VesselPhone);
     if(vac.NationalityRequirements) rows+=lR('Nationality requires:',vac.NationalityRequirements,'#B54800');
     if(vac.Remarks){const lines=vac.Remarks.split('\n').filter(Boolean);lines.forEach((line,i)=>{rows+=lR(i===0?'Remark:':'',line,'#7D6008');});}
     tables+=`<table width="100%" style="border-collapse:collapse;margin-bottom:20px">${rows}</table>`;
