@@ -1777,44 +1777,101 @@ async function loadCandidatesSection(vacId) {
   try {
     const f=await ensureCandidateFields();
     const vidField=f.VacancyId||'VacancyId';
-    // Lookup fields need "/Id" expansion in OData filter; Number fields use plain equality
     const vidFilter=f.VacancyIdIsLookup ? `${vidField}/Id eq ${vacId}` : `${vidField} eq ${vacId}`;
     const cands=await spGet('Candidates',`?$filter=${vidFilter}&$orderby=Created desc&$top=100`);
+    // Normalise each candidate into a flat display object
+    window._vacCands=cands.map(c=>({
+      _raw:c,
+      id:c.Id,
+      name:c.Title||'',
+      nat:(f.Nationality?c[f.Nationality]:'')||c['Nationality']||'',
+      agn:(f.AgencyName?c[f.AgencyName]:'')||c['AgencyName']||'',
+      ph:(f.Phone?c[f.Phone]:'')||c['Phone']||'',
+      em:(f.Email?c[f.Email]:'')||c['Email']||'',
+      cv:(f.CVLink?c[f.CVLink]:'')||c['CandidateCV']||c['CandCVLink']||'',
+      st:(f.CandidateStatus?c[f.CandidateStatus]:'')||c['CandidateStatus']||'Applied',
+      nt:(f.Notes?c[f.Notes]:'')||c['Notes']||'',
+      poolId:(f.CandPoolId?c[f.CandPoolId]:'')||c['CandPoolId']||0,
+    }));
+    window._vacId=vacId;
+    window._candSortKey='name'; window._candSortDir='asc';
     if(!cands.length) {
       panel.innerHTML=`<div class="text-center text-muted py-5"><i class="bi bi-people" style="font-size:2.5rem;opacity:.25"></i><div class="mt-2">No candidates yet — use Add Candidate to track applicants.</div></div>`;
       return;
     }
-    const rows=cands.map(c=>{
-      // Read using discovered InternalNames (fuzzy-matched, so reliable) with plain-name fallback
-      const nat=(f.Nationality?c[f.Nationality]:'')||c['Nationality']||'';
-      const agn=(f.AgencyName?c[f.AgencyName]:'')||c['AgencyName']||'';
-      const ph=(f.Phone?c[f.Phone]:'')||c['Phone']||'';
-      const em=(f.Email?c[f.Email]:'')||c['Email']||'';
-      const cv=(f.CVLink?c[f.CVLink]:'')||c['CandidateCV']||c['CandCVLink']||'';
-      const st=(f.CandidateStatus?c[f.CandidateStatus]:'')||c['CandidateStatus']||'Applied';
-      const nt=(f.Notes?c[f.Notes]:'')||c['Notes']||'';
-      const poolId=(f.CandPoolId?c[f.CandPoolId]:'')||c['CandPoolId']||0;
-      const poolBadge=poolId
-        ?`<a href="javascript:void(0)" onclick="openSeafarerModal(${poolId})" class="badge text-decoration-none ms-1" style="background:var(--mc-blue);color:#fff;cursor:pointer;font-size:.68rem;vertical-align:middle" title="View pool profile"><i class="bi bi-person-vcard me-1"></i>Pool</a>`
-        :'';
-      return `<tr class="cand-row">
-        <td class="ps-3"><a href="javascript:void(0)" class="fw-bold text-decoration-none" style="color:var(--mc-blue)" onclick="openCandidateModal(${vacId},${c.Id})">${h(c.Title)}</a>${poolBadge}</td>
-        <td>${h(nat||'—')}</td><td>${h(agn||'—')}</td>
-        <td>${ph?`<a href="tel:${h(ph)}">${h(ph)}</a>`:'—'}</td>
-        <td>${em?`<a href="mailto:${h(em)}">${h(em)}</a>`:'—'}</td>
-        <td class="text-center">${cv?`<a href="${h(cv)}" target="_blank" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Open CV"><i class="bi bi-file-earmark-person"></i></a>`:'—'}</td>
-        <td>${candidateBadge(st||'Applied')}</td>
-        <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(nt||'')}">${h((nt||'').substring(0,80))}</td>
-        <td class="pe-2"><div class="d-flex gap-1 flex-nowrap">${buildCandidateActions(c,vacId,st||'Applied')}</div></td>
-      </tr>`;
-    }).join('');
-    panel.innerHTML=`<div class="table-responsive"><table class="table table-sm mb-0 align-middle">
-      <thead style="background:#f0f4f8;font-size:.8rem"><tr>
-        <th class="ps-3">Name</th><th>Nationality</th><th>Agency</th><th>Phone</th><th>Email</th><th>CV</th><th>Status</th><th>Notes</th><th></th>
-      </tr></thead><tbody>${rows}</tbody>
-    </table></div>
-    <div class="card-footer text-muted" style="font-size:.78rem">${cands.length} candidate${cands.length!==1?'s':''}</div>`;
+    panel.innerHTML=`
+    <div class="card shadow-sm mb-2"><div class="card-body py-2"><div class="row g-2 align-items-end">
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Status</label>
+        <select class="form-select form-select-sm" id="cand-f-status" onchange="filterCandidates()">
+          <option value="">All</option><option>Applied</option><option>Shortlisted</option><option>Offered</option><option>Placed</option><option>Rejected</option>
+        </select></div>
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Nationality</label>
+        <select class="form-select form-select-sm" id="cand-f-nat" onchange="filterCandidates()">
+          <option value="">All</option>${[...new Set((window._vacCands||[]).map(c=>c.nat).filter(Boolean))].sort().map(n=>`<option>${h(n)}</option>`).join('')}
+        </select></div>
+      <div class="col"><label class="form-label form-label-sm mb-1">Search</label>
+        <input class="form-control form-control-sm" id="cand-f-search" type="text" placeholder="Name, agency…" oninput="filterCandidates()"></div>
+      <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('cand-f-status').value='';document.getElementById('cand-f-nat').value='';document.getElementById('cand-f-search').value='';filterCandidates()">Clear</button></div>
+    </div></div></div>
+    <div id="cand-table-wrap"></div>`;
+    filterCandidates();
   } catch(e) { if(panel) panel.innerHTML=`<div class="p-3">${errBox(e)}</div>`; }
+}
+
+function filterCandidates() {
+  const status=document.getElementById('cand-f-status')?.value||'';
+  const nat=document.getElementById('cand-f-nat')?.value||'';
+  const q=(document.getElementById('cand-f-search')?.value||'').toLowerCase();
+  let list=(window._vacCands||[]).filter(c=>{
+    if(status&&c.st!==status) return false;
+    if(nat&&c.nat!==nat) return false;
+    if(q&&![c.name,c.nat,c.agn,c.ph,c.em].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const key=window._candSortKey||'name', dir=window._candSortDir||'asc';
+  list=[...list].sort((a,b)=>{
+    const va=(a[key]||'').toString().toLowerCase(), vb=(b[key]||'').toString().toLowerCase();
+    if(va<vb) return dir==='asc'?-1:1; if(va>vb) return dir==='asc'?1:-1; return 0;
+  });
+  function cTh(label,k){
+    const active=window._candSortKey===k, d=window._candSortDir||'asc';
+    const arrow=active?(d==='asc'?'&#9650;':'&#9660;'):'<span style="opacity:.3">&#8597;</span>';
+    return `<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortCandidates('${k}')">${label} ${arrow}</th>`;
+  }
+  const vacId=window._vacId;
+  const wrap=document.getElementById('cand-table-wrap');
+  if(!wrap) return;
+  if(!list.length){ wrap.innerHTML=`<div class="text-center text-muted py-4">No candidates match the current filter.</div>`; return; }
+  const rows=list.map(c=>{
+    const poolBadge=c.poolId
+      ?`<a href="javascript:void(0)" onclick="openSeafarerModal(${c.poolId})" class="badge text-decoration-none ms-1" style="background:var(--mc-blue);color:#fff;cursor:pointer;font-size:.68rem;vertical-align:middle" title="View pool profile"><i class="bi bi-person-vcard me-1"></i>Pool</a>`
+      :'';
+    return `<tr class="cand-row">
+      <td class="ps-2"><a href="javascript:void(0)" class="fw-bold text-decoration-none" style="color:var(--mc-blue)" onclick="openCandidateModal(${vacId},${c.id})">${h(c.name)}</a>${poolBadge}</td>
+      <td>${h(c.nat||'—')}</td><td>${h(c.agn||'—')}</td>
+      <td>${c.ph?`<a href="tel:${h(c.ph)}">${h(c.ph)}</a>`:'—'}</td>
+      <td>${c.em?`<a href="mailto:${h(c.em)}">${h(c.em)}</a>`:'—'}</td>
+      <td class="text-center">${c.cv?`<a href="${h(c.cv)}" target="_blank" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Open CV"><i class="bi bi-file-earmark-person"></i></a>`:'—'}</td>
+      <td>${candidateBadge(c.st||'Applied')}</td>
+      <td class="text-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(c.nt||'')}">${h((c.nt||'').substring(0,60))}</td>
+      <td class="pe-2"><div class="d-flex gap-1 flex-nowrap">${buildCandidateActions(c._raw,vacId,c.st||'Applied')}</div></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML=`<div class="table-responsive" style="max-height:55vh;overflow-y:auto">
+    <table class="table table-sm mb-0 align-middle">
+      <thead style="position:sticky;top:0;z-index:2;background:var(--mc-blue);color:#fff;font-size:.8rem">
+        <tr>${cTh('Name','name')}${cTh('Nationality','nat')}${cTh('Agency','agn')}${cTh('Phone','ph')}${cTh('Email','em')}<th>CV</th>${cTh('Status','st')}${cTh('Notes','nt')}<th></th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div class="text-muted px-2 py-1" style="font-size:.78rem">${list.length} of ${(window._vacCands||[]).length} candidate${list.length!==1?'s':''}</div>`;
+}
+
+function sortCandidates(key) {
+  if(window._candSortKey===key){ window._candSortDir=window._candSortDir==='asc'?'desc':'asc'; }
+  else { window._candSortKey=key; window._candSortDir='asc'; }
+  filterCandidates();
 }
 
 function buildCandidateActions(c,vacId,status) {
@@ -1875,7 +1932,10 @@ async function doSetCandidateStatus(candId,status,vacId,rejectionReason) {
     if(candPoolId) {
       let vessel='—', rank='—';
       try { const vObj2=await spGetOne('Vacancies',vacId,'?$expand=Vessel,Rank&$select=Id,Vessel/Title,Rank/Title'); vessel=vObj2.Vessel?.Title||'—'; rank=vObj2.Rank?.Title||'—'; } catch(_){}
-      addSeafarerVacancyHistory(candPoolId,{vacancyId:vacId,vessel,rank,status,rejectedBy:rejectionReason?S.userName:undefined,rejectedReason:rejectionReason||undefined}).catch(()=>{});
+      addSeafarerVacancyHistory(candPoolId,{vacancyId:Number(vacId),vessel,rank,status,rejectedBy:rejectionReason?S.userName:undefined,rejectedReason:rejectionReason||undefined})
+        .catch(e=>toast(`Pool history update failed: ${e.message} — run Admin → Setup Seafarer Pool if the list is not set up`,'warning'));
+    } else {
+      console.info('Pool sync skipped: CandPoolId not set on this candidate (may have been created before pool linking was enabled)');
     }
     // 4. Auto-advance vacancy status
     if(status==='Offered' && vacStatus==='Open') {
@@ -2281,7 +2341,7 @@ async function saveCandidateModal() {
     if(poolAction!=='skip' && !candId) {
       vacObj=await spGetOne('Vacancies',vacId,'?$expand=Vessel,Rank&$select=Id,Vessel/Title,Rank/Title').catch(()=>null);
       rankTitle=vacObj?.Rank?.Title||document.getElementById('f-rank')?.selectedOptions[0]?.text||'';
-      histEntry={vacancyId:vacId,vessel:vacObj?.Vessel?.Title||'—',rank:rankTitle,status:document.getElementById('cm-status')?.value||'Applied',date:new Date().toISOString().split('T')[0]};
+      histEntry={vacancyId:Number(vacId),vessel:vacObj?.Vessel?.Title||'—',rank:rankTitle,status:document.getElementById('cm-status')?.value||'Applied',date:new Date().toISOString().split('T')[0]};
     }
 
     // ── If creating a new pool entry: do it FIRST to capture the pool ID ──
@@ -3375,18 +3435,20 @@ async function openSeafarerModal(id) {
       <div class="row g-2 mb-2">
         <div class="col-md-3"><label class="form-label fw-bold mb-1">Gender <span class="text-danger">*</span></label><select class="form-select" id="sf-gender"><option value="">— select —</option><option value="Male"${sf?.Gender==='Male'?' selected':''}>Male</option><option value="Female"${sf?.Gender==='Female'?' selected':''}>Female</option><option value="Diverse"${sf?.Gender==='Diverse'?' selected':''}>Diverse</option></select></div>
         <div class="col-md-5"><label class="form-label fw-bold mb-1">Nationality <span class="text-danger">*</span></label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
-        <div class="col-md-4"><label class="form-label fw-bold mb-1">Rank</label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Agency <span class="text-danger">*</span></label><select class="form-select" id="sf-agency"><option value="">— select —</option>${agencyOpts}</select></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-md-4"><label class="form-label fw-bold mb-1">Agency <span class="text-danger">*</span></label><select class="form-select" id="sf-agency"><option value="">— select —</option>${agencyOpts}</select></div>
         <div class="col-md-4"><label class="form-label fw-bold mb-1">Phone / Mobile <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-phone" value="${h(sf?.Phone||'')}" placeholder="+49 123 456789"></div>
-        <div class="col-md-4"><label class="form-label fw-bold mb-1">E-Mail <span class="text-danger">*</span></label><input type="email" class="form-control" id="sf-email" value="${h(sf?.Email||'')}" placeholder="email@example.com"></div>
+        <div class="col-md-5"><label class="form-label fw-bold mb-1">E-Mail <span class="text-danger">*</span></label><input type="email" class="form-control" id="sf-email" value="${h(sf?.Email||'')}" placeholder="email@example.com"></div>
+        <div class="col-md-3"><label class="form-label fw-bold mb-1">Status</label><select class="form-select" id="sf-status"><option value="Active"${(sf?.Status||'Active')==='Active'?' selected':''}>Active</option><option value="Applied"${sf?.Status==='Applied'?' selected':''}>Applied</option><option value="Shortlisted"${sf?.Status==='Shortlisted'?' selected':''}>Shortlisted</option><option value="Placed"${sf?.Status==='Placed'?' selected':''}>Placed</option><option value="Inactive"${sf?.Status==='Inactive'?' selected':''}>Inactive</option></select></div>
       </div>
       <div class="row g-2 mb-2">
         <div class="col-md-2"><label class="form-label fw-bold mb-1">English <small class="text-muted">(1–10)</small></label><select class="form-select" id="sf-english">${engOpts}</select></div>
         <div class="col-md-3"><label class="form-label fw-bold mb-1">Interview Date</label><input type="text" class="form-control" id="sf-eval-date" value="${h(sf?.EnglishEvalDate||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"></div>
-        <div class="col-md-4"><label class="form-label fw-bold mb-1">Interview Remark</label><input type="text" class="form-control" id="sf-eval-note" value="${h(sf?.EnglishEvalNote||'')}" placeholder="e.g. Good command, slight accent…"></div>
-        <div class="col-md-3"><label class="form-label fw-bold mb-1">Status</label><select class="form-select" id="sf-status"><option value="Active"${(sf?.Status||'Active')==='Active'?' selected':''}>Active</option><option value="Applied"${sf?.Status==='Applied'?' selected':''}>Applied</option><option value="Shortlisted"${sf?.Status==='Shortlisted'?' selected':''}>Shortlisted</option><option value="Placed"${sf?.Status==='Placed'?' selected':''}>Placed</option><option value="Inactive"${sf?.Status==='Inactive'?' selected':''}>Inactive</option></select></div>
+        <div class="col-md-7"><label class="form-label fw-bold mb-1">Interview Remark</label><input type="text" class="form-control" id="sf-eval-note" value="${h(sf?.EnglishEvalNote||'')}" placeholder="e.g. Good command, slight accent…"></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Rank <small class="text-muted">(optional)</small></label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
       </div>
       <div class="mb-2"><label class="form-label fw-bold mb-1">CV / Document</label>
         <div id="sf-cv-drop-zone" onclick="document.getElementById('sf-cv-file-input').click()"
@@ -3505,7 +3567,7 @@ async function linkSeafarerToVacancy(sfId, sfName) {
       if(already){
         toast(`${sfName} is already a candidate on this vacancy — updating status and history only`,'info');
         // Still update history
-        const histEntry={vacancyId:vacId,vessel,rank:rankTitle,status,date:new Date().toISOString().split('T')[0]};
+        const histEntry={vacancyId:Number(vacId),vessel,rank:rankTitle,status,date:new Date().toISOString().split('T')[0]};
         await addSeafarerVacancyHistory(sfId,histEntry);
         m.hide(); return;
       }
@@ -3610,17 +3672,22 @@ async function addSeafarerVacancyHistory(seafarerId, vacancyInfo) {
     const sf=await spGetOne('SeafarerPool',seafarerId,'?$select=Id,VacancyHistory');
     let history=[]; try{history=JSON.parse(sf.VacancyHistory||'[]');}catch(_){}
     const today=new Date().toISOString().split('T')[0];
-    const idx=history.findIndex(h=>h.vacancyId===vacancyInfo.vacancyId);
+    // Type-safe comparison: vacancyId may be stored as string or number
+    const idx=history.findIndex(h=>String(h.vacancyId)===String(vacancyInfo.vacancyId));
     if(idx>=0){
-      // Update existing entry (keep vessel/rank from original if new entry lacks them)
-      history[idx]={...history[idx],...vacancyInfo,updatedAt:today};
-      if(!history[idx].vessel||history[idx].vessel==='—') history[idx].vessel=vacancyInfo.vessel||history[idx].vessel;
-      if(!history[idx].rank||history[idx].rank==='—') history[idx].rank=vacancyInfo.rank||history[idx].rank;
+      // Update existing entry — keep vessel/rank from original if new entry lacks them
+      const prev=history[idx];
+      history[idx]={...prev,...vacancyInfo,updatedAt:today};
+      if(!history[idx].vessel||history[idx].vessel==='—') history[idx].vessel=prev.vessel||'—';
+      if(!history[idx].rank||history[idx].rank==='—') history[idx].rank=prev.rank||'—';
     } else {
       history.push({...vacancyInfo, date:today});
     }
     await spUpdate('SeafarerPool',seafarerId,{VacancyHistory:JSON.stringify(history)});
-  } catch(e){ console.warn('Could not update seafarer history:',e.message); }
+  } catch(e){
+    console.warn('Could not update seafarer history:',e.message);
+    throw e; // re-throw so callers can decide whether to surface the error
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
