@@ -1283,15 +1283,81 @@ async function renderOpen() {
   const el=document.getElementById('v-open'); spin(el);
   try {
     const vacs=await loadVacancies(`Status eq 'Open' or Status eq 'Offer Made'`);
+    window._openVacs=vacs;
+    window._openSortKey='Modified'; window._openSortDir='desc';
     const openCt=vacs.filter(v=>v.Status==='Open').length, offerCt=vacs.filter(v=>v.Status==='Offer Made').length;
+    const clientOpts=[...new Set(vacs.map(v=>v.Client?.Title).filter(Boolean))].sort().map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
     el.innerHTML=`<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
       <h4 class="sec-title mb-0 me-auto">Open Positions</h4>
       <span class="badge bg-primary px-3 py-2">${openCt} Open</span>
       <span class="badge bg-warning text-dark px-3 py-2">${offerCt} Offer Made</span>
       <button class="btn btn-sm btn-outline-secondary" onclick="openPositionList()"><i class="bi bi-file-earmark-word me-1"></i>Position List</button>
       <button class="btn btn-sm btn-primary" onclick="goDetail(null)"><i class="bi bi-plus-lg me-1"></i>New Vacancy</button>
-    </div>${buildVacTable(vacs,'No open vacancies at this time.')}`;
+    </div>
+    <div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Status</label>
+        <select class="form-select form-select-sm" id="op-status" onchange="filterOpen()">
+          <option value="">All</option><option value="Open">Open</option><option value="Offer Made">Offer Made</option>
+        </select></div>
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Client</label>
+        <select class="form-select form-select-sm" id="op-client" onchange="filterOpen()"><option value="">All clients</option>${clientOpts}</select></div>
+      <div class="col"><label class="form-label form-label-sm mb-1">Search</label>
+        <input class="form-control form-control-sm" id="op-search" type="text" placeholder="Vessel or rank…" oninput="filterOpen()"></div>
+      <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('op-status').value='';document.getElementById('op-client').value='';document.getElementById('op-search').value='';filterOpen()">Clear</button></div>
+    </div></div></div>
+    <div id="open-table"></div>`;
+    filterOpen();
   } catch(e) { el.innerHTML=errBox(e); }
+}
+function filterOpen() {
+  const status=document.getElementById('op-status')?.value||'';
+  const client=document.getElementById('op-client')?.value||'';
+  const q=(document.getElementById('op-search')?.value||'').toLowerCase();
+  let vacs=(window._openVacs||[]).filter(v=>{
+    if(status&&v.Status!==status) return false;
+    if(client&&v.Client?.Title!==client) return false;
+    if(q&&!((v.Vessel?.Title||'').toLowerCase().includes(q)||(v.Rank?.Title||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const key=window._openSortKey||'Modified', dir=window._openSortDir||'desc';
+  vacs=[...vacs].sort((a,b)=>{
+    let va,vb;
+    if(key==='Vessel'){va=(a.Vessel?.Title||'').toLowerCase();vb=(b.Vessel?.Title||'').toLowerCase();}
+    else if(key==='Rank'){va=(a.Rank?.Title||'').toLowerCase();vb=(b.Rank?.Title||'').toLowerCase();}
+    else if(key==='Client'){va=(a.Client?.Title||'').toLowerCase();vb=(b.Client?.Title||'').toLowerCase();}
+    else if(key==='Status'){va=a.Status||'';vb=b.Status||'';}
+    else if(key==='ReceivedDate'){va=a.ReceivedDate||'';vb=b.ReceivedDate||'';}
+    else if(key==='SalaryMin'){va=a.SalaryMin||0;vb=b.SalaryMin||0;}
+    else if(key==='Joining'){va=a.JoiningDateOverride||(a.JoiningYear?`${a.JoiningYear}-W${String(a.JoiningWeek||0).padStart(2,'0')}`:'');vb=b.JoiningDateOverride||(b.JoiningYear?`${b.JoiningYear}-W${String(b.JoiningWeek||0).padStart(2,'0')}`:'');}
+    else{va=a.Modified||a.ReceivedDate||'';vb=b.Modified||b.ReceivedDate||'';}
+    if(va<vb)return dir==='asc'?-1:1; if(va>vb)return dir==='asc'?1:-1; return 0;
+  });
+  function oTh(label,k){
+    const active=window._openSortKey===k, d=window._openSortDir||'asc';
+    const arrow=active?(d==='asc'?'&#9650;':'&#9660;'):'<span style="opacity:.3">&#8597;</span>';
+    return `<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortOpenVacs('${k}')">${label} ${arrow}</th>`;
+  }
+  const rows=vacs.length?vacs.map(v=>`<tr class="vac-row" onclick="goDetail(${v.Id})">
+    <td class="ps-3">${statusBadge(v.Status)}</td><td><strong>${h(v.Vessel?.Title||'—')}</strong></td>
+    <td>${h(v.Rank?.Title||'—')}</td><td class="text-muted">${h(v.Client?.Title||'—')}</td>
+    <td>${fmtDate(v.ReceivedDate)}</td><td>${fmtDate(v.Modified)}</td><td>${joiningStr(v)}</td>
+    <td class="text-nowrap">${fmtSalary(v.SalaryMin,v.SalaryMax,v.SalaryCurrency)}</td>
+    <td class="text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h((v.NationalityRequirements||'').substring(0,50))}</td>
+  </tr>`).join(''):`<tr><td colspan="9" class="text-center text-muted py-5">${(window._openVacs||[]).length?'No vacancies match the current filter.':'No open vacancies at this time.'}</td></tr>`;
+  const el=document.getElementById('open-table'); if(!el) return;
+  el.innerHTML=`<div class="card shadow-sm"><div class="table-responsive" style="max-height:65vh;overflow-y:auto"><table class="table table-hover table-sm mb-0 align-middle">
+    <thead style="position:sticky;top:0;z-index:2;background:var(--mc-blue);color:#fff"><tr>
+      <th class="ps-3"><span style="cursor:pointer;user-select:none" onclick="sortOpenVacs('Status')">Status ${window._openSortKey==='Status'?(window._openSortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span></th>
+      ${oTh('Vessel','Vessel')}${oTh('Rank','Rank')}${oTh('Client','Client')}${oTh('Received','ReceivedDate')}${oTh('Modified','Modified')}${oTh('Joining','Joining')}${oTh('Salary','SalaryMin')}<th>Nationality</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>
+  <div class="card-footer text-muted" style="font-size:.78rem">${vacs.length} of ${(window._openVacs||[]).length} record${vacs.length!==1?'s':''}</div></div>`;
+}
+function sortOpenVacs(key) {
+  if(window._openSortKey===key){ window._openSortDir=window._openSortDir==='asc'?'desc':'asc'; }
+  else { window._openSortKey=key; window._openSortDir=key==='Modified'||key==='ReceivedDate'?'desc':'asc'; }
+  filterOpen();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1356,8 +1422,8 @@ function buildVacTable(vacs,emptyMsg='No vacancies found.',showLegacy=false,sort
     <td class="text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h((v.NationalityRequirements||'').substring(0,50))}</td>
     ${showLegacy?`<td>${v.IsLegacyMigrated?'<span class="badge bg-secondary" style="font-size:.65rem">legacy</span>':''}</td>`:''}
   </tr>`).join(''):`<tr><td colspan="${showLegacy?10:9}" class="text-center text-muted py-5">${emptyMsg}</td></tr>`;
-  return `<div class="card shadow-sm"><div class="table-responsive"><table class="table table-hover table-sm mb-0 align-middle">
-    <thead style="background:var(--mc-blue);color:#fff"><tr><th class="ps-3">${sortable?`<span style="cursor:pointer;user-select:none" onclick="sortAllVacs('Status')">Status ${window._sortKey==='Status'?(window._sortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span>`:'Status'}</th>${th('Vessel','Vessel')}${th('Rank','Rank')}${th('Client','Client')}${th('Received','ReceivedDate')}${th('Modified','Modified')}${th('Joining','Joining')}${th('Salary','SalaryMin')}<th>Nationality</th>${showLegacy?'<th></th>':''}</tr></thead>
+  return `<div class="card shadow-sm"><div class="table-responsive" style="max-height:65vh;overflow-y:auto"><table class="table table-hover table-sm mb-0 align-middle">
+    <thead style="position:sticky;top:0;z-index:2;background:var(--mc-blue);color:#fff"><tr><th class="ps-3">${sortable?`<span style="cursor:pointer;user-select:none" onclick="sortAllVacs('Status')">Status ${window._sortKey==='Status'?(window._sortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span>`:'Status'}</th>${th('Vessel','Vessel')}${th('Rank','Rank')}${th('Client','Client')}${th('Received','ReceivedDate')}${th('Modified','Modified')}${th('Joining','Joining')}${th('Salary','SalaryMin')}<th>Nationality</th>${showLegacy?'<th></th>':''}</tr></thead>
     <tbody>${rows}</tbody></table></div>
     <div class="card-footer text-muted" style="font-size:.78rem">${vacs.length} record${vacs.length!==1?'s':''}</div></div>`;
 }
@@ -2397,7 +2463,7 @@ async function renderSalary() {
   const el=document.getElementById('v-salary'); spin(el);
   try {
     const rates=await spGet('SalaryRates','?$select=Id,Title,EffectiveYear,SalaryMin,SalaryMax,Currency,CBACode,SeniorityLevel,IsNegotiatedRate,ContractDuration,ClientId,Client/Title,Client/Id,RankId,Rank/Title,Rank/Id&$expand=Client,Rank&$orderby=EffectiveYear desc,Client/Title,Rank/Title&$top=1000');
-    window._salRates=rates;
+    window._salRates=rates; window._salSortKey='EffectiveYear'; window._salSortDir='desc';
     // Also refresh the compact cache used by vacancy auto-fill
     S.salaryRates=rates;
     const years=[...new Set(rates.map(r=>r.EffectiveYear).filter(Boolean))].sort((a,b)=>b-a);
@@ -2430,7 +2496,24 @@ async function renderSalary() {
 
 function filterSalary() {
   const year=document.getElementById('sr-year')?.value||'',client=document.getElementById('sr-client')?.value||'',q=(document.getElementById('sr-search')?.value||'').toLowerCase();
-  const rates=(window._salRates||[]).filter(r=>{if(year&&String(r.EffectiveYear)!==year)return false;if(client&&r.Client?.Title!==client)return false;if(q&&!(r.Rank?.Title||'').toLowerCase().includes(q))return false;return true;});
+  let rates=(window._salRates||[]).filter(r=>{if(year&&String(r.EffectiveYear)!==year)return false;if(client&&r.Client?.Title!==client)return false;if(q&&!(r.Rank?.Title||'').toLowerCase().includes(q))return false;return true;});
+  const key=window._salSortKey||'EffectiveYear', dir=window._salSortDir||'desc';
+  rates=[...rates].sort((a,b)=>{
+    let va,vb;
+    if(key==='EffectiveYear'){va=a.EffectiveYear||0;vb=b.EffectiveYear||0;}
+    else if(key==='Client'){va=(a.Client?.Title||'').toLowerCase();vb=(b.Client?.Title||'').toLowerCase();}
+    else if(key==='Rank'){va=(a.Rank?.Title||'').toLowerCase();vb=(b.Rank?.Title||'').toLowerCase();}
+    else if(key==='SalaryMin'){va=a.SalaryMin||0;vb=b.SalaryMin||0;}
+    else if(key==='ContractDuration'){va=(a.ContractDuration||'').toLowerCase();vb=(b.ContractDuration||'').toLowerCase();}
+    else if(key==='CBACode'){va=(a.CBACode||'').toLowerCase();vb=(b.CBACode||'').toLowerCase();}
+    else{va=a[key]||'';vb=b[key]||'';}
+    if(va<vb)return dir==='asc'?-1:1; if(va>vb)return dir==='asc'?1:-1; return 0;
+  });
+  function sTh(label,k){
+    const active=window._salSortKey===k, d=window._salSortDir||'asc';
+    const arrow=active?(d==='asc'?'&#9650;':'&#9660;'):'<span style="opacity:.3">&#8597;</span>';
+    return `<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortSalary('${k}')">${label} ${arrow}</th>`;
+  }
   const rows=rates.length?rates.map(r=>`<tr class="vac-row" style="cursor:pointer" onclick="openSalaryModal(${r.Id})">
     <td>${r.EffectiveYear||'—'}</td>
     <td>${h(r.Client?.Title||'—')}</td>
@@ -2444,7 +2527,12 @@ function filterSalary() {
       <button class="btn btn-xs btn-outline-danger" style="padding:1px 7px;font-size:.75rem" onclick="deleteSalaryRate(${r.Id})"><i class="bi bi-trash"></i></button>
     </td>
   </tr>`).join(''):`<tr><td colspan="8" class="text-center text-muted py-4">${(window._salRates||[]).length?'No rates match filters.':'No salary rates yet — click Add Rate.'}</td></tr>`;
-  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle"><thead style="background:var(--mc-blue);color:#fff"><tr><th>Year</th><th>Client</th><th>Rank</th><th>Salary</th><th>Duration</th><th>CBA</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
+  document.getElementById('salary-table').innerHTML=`<div class="card shadow-sm"><div class="table-responsive" style="max-height:65vh;overflow-y:auto"><table class="table table-sm table-hover mb-0 align-middle"><thead style="position:sticky;top:0;z-index:2;background:var(--mc-blue);color:#fff"><tr>${sTh('Year','EffectiveYear')}${sTh('Client','Client')}${sTh('Rank','Rank')}${sTh('Salary','SalaryMin')}${sTh('Duration','ContractDuration')}${sTh('CBA','CBACode')}<th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-footer text-muted" style="font-size:.78rem">${rates.length} rate${rates.length!==1?'s':''} shown · ${(window._salRates||[]).length} total</div></div>`;
+}
+function sortSalary(key) {
+  if(window._salSortKey===key){ window._salSortDir=window._salSortDir==='asc'?'desc':'asc'; }
+  else { window._salSortKey=key; window._salSortDir=key==='EffectiveYear'||key==='SalaryMin'?'desc':'asc'; }
+  filterSalary();
 }
 
 // ── Salary field type discovery (cached) ─────────────────────────
