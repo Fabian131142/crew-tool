@@ -899,10 +899,23 @@
           </div>
           <input type="hidden" id="cm-pool-id" value="">
         </div>
-        <div class="row g-3">
-          <div class="col-md-4"><label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="cm-lastname" placeholder="Shevchenko"></div>
-          <div class="col-md-4"><label class="form-label fw-bold">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="cm-firstname" placeholder="Oleksiy"></div>
-          <div class="col-md-4"><label class="form-label fw-bold">Nationality</label>
+        <div class="row g-2">
+          <!-- Row 1: Names + DOB -->
+          <div class="col-md-4"><label class="form-label fw-bold mb-1">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="cm-lastname" placeholder="Shevchenko"></div>
+          <div class="col-md-4"><label class="form-label fw-bold mb-1">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="cm-firstname" placeholder="Oleksiy"></div>
+          <div class="col-md-4" id="cm-dob-row">
+            <label class="form-label fw-bold mb-1">Date of Birth <span id="cm-dob-star" class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="cm-dob" placeholder="DD.MM.YYYY" maxlength="10" oninput="formatDobInput(this)">
+            <div class="form-text mt-0" style="font-size:.7rem;color:var(--mc-blue)"><i class="bi bi-person-vcard me-1"></i>Pool duplicate check on save</div>
+          </div>
+          <!-- Row 2: Gender + Nationality + Agency -->
+          <div class="col-md-3"><label class="form-label fw-bold mb-1">Gender <span class="text-danger">*</span></label>
+            <select class="form-select" id="cm-gender">
+              <option value="">— select —</option>
+              <option value="Male">Male</option><option value="Female">Female</option><option value="Diverse">Diverse</option>
+            </select>
+          </div>
+          <div class="col-md-5"><label class="form-label fw-bold mb-1">Nationality <span class="text-danger">*</span></label>
             <select class="form-select" id="cm-nat">
               <option value="">— select —</option>
               <option>Ukrainian</option><option>Russian</option><option>Filipino</option><option>Indian</option>
@@ -915,26 +928,39 @@
               <option>Other</option>
             </select>
           </div>
-          <div class="col-md-5"><label class="form-label fw-bold">Agency</label>
-            <select class="form-select" id="cm-agency">
-              <option value="">— select or leave blank —</option>
-            </select>
+          <div class="col-md-4"><label class="form-label fw-bold mb-1">Agency <span class="text-danger">*</span></label>
+            <select class="form-select" id="cm-agency"><option value="">— select —</option></select>
           </div>
-          <div class="col-md-3"><label class="form-label fw-bold">Status</label>
+          <!-- Row 3: Phone + Email + Status -->
+          <div class="col-md-4"><label class="form-label fw-bold mb-1">Phone <span class="text-danger">*</span></label><input type="tel" class="form-control" id="cm-phone" placeholder="+380…"></div>
+          <div class="col-md-5"><label class="form-label fw-bold mb-1">Email <span class="text-danger">*</span></label><input type="email" class="form-control" id="cm-email"></div>
+          <div class="col-md-3"><label class="form-label fw-bold mb-1">Status</label>
             <select class="form-select" id="cm-status">
               <option value="Applied">Applied</option><option value="Shortlisted">Shortlisted</option>
               <option value="Offered">Offered</option><option value="Placed">Placed</option><option value="Rejected">Rejected</option>
             </select>
           </div>
-          <div class="col-md-4"><label class="form-label fw-bold">Phone</label><input type="tel" class="form-control" id="cm-phone" placeholder="+380…"></div>
-          <div class="col-md-5"><label class="form-label fw-bold">Email</label><input type="email" class="form-control" id="cm-email"></div>
-          <div class="col-12"><label class="form-label fw-bold">CV / Document</label>
+          <!-- Row 4: English level + interview date + interview remark -->
+          <div class="col-md-2">
+            <label class="form-label fw-bold mb-1">English <small class="text-muted">(1–10)</small></label>
+            <select class="form-select" id="cm-english">
+              <option value="">—</option>
+              <option value="1">1 — Very poor</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5 — Intermediate</option><option value="6">6</option>
+              <option value="7">7</option><option value="8">8 — Good</option><option value="9">9</option>
+              <option value="10">10 — Native</option>
+            </select>
+          </div>
+          <div class="col-md-3"><label class="form-label fw-bold mb-1">Interview Date</label><input type="text" class="form-control" id="cm-eval-date" placeholder="DD.MM.YYYY" maxlength="10" oninput="formatDobInput(this)"></div>
+          <div class="col-md-7"><label class="form-label fw-bold mb-1">Interview Remark</label><input type="text" class="form-control" id="cm-eval-note" placeholder="e.g. Good verbal skills, accent noticeable…"></div>
+          <!-- Row 5: CV -->
+          <div class="col-12"><label class="form-label fw-bold mb-1">CV / Document</label>
             <div id="cv-drop-zone" onclick="document.getElementById('cv-file-input').click()"
               ondragover="cvDragOver(event)" ondragleave="cvDragLeave(event)" ondrop="cvDrop(event)"
-              style="border:2px dashed #ccc;border-radius:8px;padding:1.2rem;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa">
-              <i class="bi bi-cloud-upload fs-3 text-muted"></i>
-              <div class="text-muted mt-1" style="font-size:.82rem">Drag &amp; drop PDF or Word file here, or click to browse</div>
-              <div id="cv-file-name" class="mt-1 fw-bold text-primary" style="font-size:.82rem"></div>
+              style="border:2px dashed #ccc;border-radius:8px;padding:.9rem;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa">
+              <i class="bi bi-cloud-upload fs-4 text-muted"></i>
+              <div class="text-muted mt-1" style="font-size:.8rem">Drag &amp; drop PDF or Word file here, or click to browse</div>
+              <div id="cv-file-name" class="mt-1 fw-bold text-primary" style="font-size:.8rem"></div>
             </div>
             <input type="file" id="cv-file-input" accept=".pdf,.doc,.docx" style="display:none" onchange="cvFileSelected(this)">
             <div id="cv-upload-progress" class="mt-1" style="display:none">
@@ -943,12 +969,8 @@
             </div>
             <input type="url" class="form-control form-control-sm mt-1" id="cm-cvlink" placeholder="Or paste a direct link (SharePoint / OneDrive)">
           </div>
-          <div class="col-12"><label class="form-label fw-bold">Notes</label><textarea class="form-control" id="cm-notes" rows="3" placeholder="Impressions, language level, availability, certificate status…"></textarea></div>
-          <div class="col-md-4" id="cm-dob-row">
-            <label class="form-label fw-bold">Date of Birth <span id="cm-dob-star" class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="cm-dob" placeholder="DD.MM.YYYY">
-            <div class="form-text mt-0" style="font-size:.72rem;color:var(--mc-blue)"><i class="bi bi-person-vcard me-1"></i>Checked against Seafarer Pool on save</div>
-          </div>
+          <!-- Row 6: Notes -->
+          <div class="col-12"><label class="form-label fw-bold mb-1">Notes <small class="text-muted">(optional)</small></label><textarea class="form-control" id="cm-notes" rows="2" placeholder="Availability, certificates, remarks…"></textarea></div>
         </div>
       </div>
       <div class="modal-footer py-2">
@@ -1656,6 +1678,11 @@ async function ensureCandidateFields() {
     VacancyId:           vacField,
     VacancyIdIsLookup:   typeOf(vacField)==='Lookup',
     CandPoolId:          find('CandPoolId','PoolId','SeafarerPoolId'),
+    DOB:                 find('DOB','DateOfBirth','BirthDate'),
+    Gender:              find('Gender','Sex'),
+    EnglishLevel:        find('EnglishLevel','EngLevel','English'),
+    EnglishEvalDate:     find('EnglishEvalDate','EvalDate','InterviewDate'),
+    EnglishEvalNote:     find('EnglishEvalNote','EvalNote','InterviewNote'),
   };
   console.log('Candidate field map:', S.candidateFields);
   return S.candidateFields;
@@ -1704,6 +1731,11 @@ function buildCandData(fields, vacId, cvUrl) {
   candSafeSet(d, af, 'CandidateCV',     cvUrl || document.getElementById('cm-cvlink').value || null);
   candSafeSet(d, af, 'CandidateStatus', document.getElementById('cm-status').value || 'Applied');
   candSafeSet(d, af, 'Notes',           document.getElementById('cm-notes').value  || null);
+  candSafeSet(d, af, 'DOB',             document.getElementById('cm-dob')?.value?.trim() || null);
+  candSafeSet(d, af, 'Gender',          document.getElementById('cm-gender')?.value || null);
+  candSafeSet(d, af, 'EnglishLevel',    document.getElementById('cm-english')?.value || null);
+  candSafeSet(d, af, 'EnglishEvalDate', document.getElementById('cm-eval-date')?.value?.trim() || null);
+  candSafeSet(d, af, 'EnglishEvalNote', document.getElementById('cm-eval-note')?.value?.trim() || null);
   return d;
 }
 
@@ -1817,40 +1849,49 @@ async function confirmPlacedClose() {
   renderDetail(vacId);
 }
 
+// Auto-format date fields (DD.MM.YYYY) — strips non-digits, inserts dots
+function formatDobInput(el) {
+  const d=el.value.replace(/\D/g,'').slice(0,8);
+  let out=d;
+  if(d.length>4) out=d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4);
+  else if(d.length>2) out=d.slice(0,2)+'.'+d.slice(2);
+  el.value=out;
+}
+
 function openCandidateModal(vacId,candId=null) {
   S.pendingCand={vacId,candId};
   // Populate agency select
   const agSel=document.getElementById('cm-agency');
-  if(agSel) agSel.innerHTML=`<option value="">— select or leave blank —</option>`+S.agencies.map(a=>`<option value="${h(a.Title)}">${h(a.Title)}</option>`).join('');
-  // Reset form
-  ['cm-lastname','cm-firstname','cm-phone','cm-email','cm-cvlink','cm-notes','cm-dob'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('cm-nat').value=''; document.getElementById('cm-agency').value='';
+  if(agSel) agSel.innerHTML=`<option value="">— select —</option>`+S.agencies.map(a=>`<option value="${h(a.Title)}">${h(a.Title)}</option>`).join('');
+  // Reset all form fields
+  ['cm-lastname','cm-firstname','cm-phone','cm-email','cm-cvlink','cm-notes','cm-dob','cm-eval-date','cm-eval-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['cm-nat','cm-agency','cm-gender','cm-english'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   S.pendingCvFile=null;
   const fn=document.getElementById('cv-file-name'); if(fn) fn.textContent='';
   const dz=document.getElementById('cv-drop-zone'); if(dz){dz.style.borderColor='#ccc';dz.style.background='#fafafa';}
   const fi=document.getElementById('cv-file-input'); if(fi) fi.value='';
   const prog=document.getElementById('cv-upload-progress'); if(prog) prog.style.display='none';
   document.getElementById('cm-status').value='Applied';
-  // Reset pool search section
+  // DOB row always visible; hide required star when editing (DOB already set)
+  const dobRow=document.getElementById('cm-dob-row'); if(dobRow) dobRow.style.display='';
+  const dobStar=document.getElementById('cm-dob-star'); if(dobStar) dobStar.style.display=candId?'none':'';
   clearPoolSelection();
-  // DOB field: visible for new candidates, hidden when editing (not stored in Candidates list)
-  const dobRow=document.getElementById('cm-dob-row');
-  if(dobRow) dobRow.style.display=candId?'none':'';
-  const dobStar=document.getElementById('cm-dob-star');
-  if(dobStar) dobStar.style.display='';
   document.getElementById('cm-title').innerHTML=`<i class="bi bi-person-${candId?'gear':'plus'} me-2"></i>${candId?'Edit Candidate':'Add Candidate'}`;
   if(candId) {
     Promise.all([ensureCandidateFields(), spGetOne('Candidates',candId)]).then(([f,c])=>{
-      // Helper: read using discovered InternalName first (fuzzy-resolved), then hardcoded fallback
-      const rv=(hardcoded, discovered)=> (discovered&&c[discovered]!=null?c[discovered]:'') || (c[hardcoded]!=null?c[hardcoded]:'') || '';
-      // Title stored as "Lastname, Firstname" — split back
+      const rv=(hc,disc)=>(disc&&c[disc]!=null?c[disc]:'')||(c[hc]!=null?c[hc]:'')||'';
       const parts=(c.Title||'').split(',').map(s=>s.trim());
       document.getElementById('cm-lastname').value=rv('LastName',f.LastName)||parts[0]||'';
       document.getElementById('cm-firstname').value=rv('FirstName',f.FirstName)||parts[1]||'';
+      document.getElementById('cm-dob').value=rv('DOB',f.DOB);
+      document.getElementById('cm-gender').value=rv('Gender',f.Gender);
       document.getElementById('cm-nat').value=rv('Nationality',f.Nationality);
       document.getElementById('cm-agency').value=rv('AgencyName',f.AgencyName);
       document.getElementById('cm-phone').value=rv('Phone',f.Phone);
       document.getElementById('cm-email').value=rv('Email',f.Email);
+      document.getElementById('cm-english').value=rv('EnglishLevel',f.EnglishLevel);
+      document.getElementById('cm-eval-date').value=rv('EnglishEvalDate',f.EnglishEvalDate);
+      document.getElementById('cm-eval-note').value=rv('EnglishEvalNote',f.EnglishEvalNote);
       document.getElementById('cm-cvlink').value=rv('CandidateCV',f.CVLink)||rv('CandCVLink',null);
       document.getElementById('cm-status').value=rv('CandidateStatus',f.CandidateStatus)||'Applied';
       document.getElementById('cm-notes').value=rv('Notes',f.Notes);
@@ -1871,7 +1912,7 @@ function searchPoolLive(term) {
     try {
       const safe=term.replace(/'/g,"''");
       const results=await spGet('SeafarerPool',
-        `?$select=Id,Title,FirstName,LastName,DOB,Nationality,Rank,Phone,Email,AgencyName,PassportNum,PassportExp,CDC,STCW,Notes&$top=20&$filter=substringof('${safe}',Title) or substringof('${safe}',LastName) or substringof('${safe}',FirstName)`)
+        `?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Phone,Email,AgencyName,EnglishLevel,EnglishEvalDate,EnglishEvalNote,Notes&$top=20&$filter=substringof('${safe}',Title) or substringof('${safe}',LastName) or substringof('${safe}',FirstName)`)
         .catch(()=>[]);
       if(!results.length){
         if(res) res.innerHTML='<span class="text-muted" style="font-size:.78rem">No matches in pool.</span>';
@@ -1880,7 +1921,8 @@ function searchPoolLive(term) {
       if(res) res.innerHTML=`<div class="list-group mt-1" style="max-height:180px;overflow-y:auto">${
         results.map(sf=>{
           const name=[sf.FirstName,sf.LastName].filter(Boolean).join(' ')||sf.Title||'—';
-          return `<button type="button" class="list-group-item list-group-item-action py-1 px-2" style="font-size:.83rem" onclick='selectPoolSeafarer(${JSON.stringify({id:sf.Id,fn:sf.FirstName||'',ln:sf.LastName||'',dob:sf.DOB||'',nat:sf.Nationality||'',rank:sf.Rank||'',phone:sf.Phone||'',email:sf.Email||'',agency:sf.AgencyName||'',notes:sf.Notes||'',name:name}).replace(/'/g,"&#39;")})'>
+          const sfData={id:sf.Id,fn:sf.FirstName||'',ln:sf.LastName||'',dob:sf.DOB||'',gender:sf.Gender||'',nat:sf.Nationality||'',rank:sf.Rank||'',phone:sf.Phone||'',email:sf.Email||'',agency:sf.AgencyName||'',english:sf.EnglishLevel||'',evalDate:sf.EnglishEvalDate||'',evalNote:sf.EnglishEvalNote||'',notes:sf.Notes||'',name};
+          return `<button type="button" class="list-group-item list-group-item-action py-1 px-2" style="font-size:.83rem" onclick='selectPoolSeafarer(${JSON.stringify(sfData).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'>
             <strong>${h(name)}</strong>
             ${sf.Rank?`<span class="badge bg-secondary ms-1" style="font-size:.7rem">${h(sf.Rank)}</span>`:''}
             ${sf.Nationality?`<span class="text-muted ms-1">${h(sf.Nationality)}</span>`:''}
@@ -1895,25 +1937,21 @@ function searchPoolLive(term) {
 }
 
 function selectPoolSeafarer(sf) {
-  // Fill form fields from pool entry
   const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
-  set('cm-lastname',sf.ln);
-  set('cm-firstname',sf.fn);
-  set('cm-phone',sf.phone);
-  set('cm-email',sf.email);
-  set('cm-notes',sf.notes);
-  set('cm-dob',sf.dob);
-  // Nationality: try to match existing option
+  set('cm-lastname',sf.ln); set('cm-firstname',sf.fn);
+  set('cm-phone',sf.phone); set('cm-email',sf.email);
+  set('cm-notes',sf.notes); set('cm-dob',sf.dob);
+  set('cm-gender',sf.gender||'');
+  set('cm-english',sf.english||'');
+  set('cm-eval-date',sf.evalDate||''); set('cm-eval-note',sf.evalNote||'');
+  // Nationality
   const natSel=document.getElementById('cm-nat');
-  if(natSel && sf.nat) {
-    const opt=[...natSel.options].find(o=>o.value===sf.nat||o.text===sf.nat);
-    natSel.value=opt?sf.nat:'Other';
-  }
-  // Agency: try to match
+  if(natSel && sf.nat){const opt=[...natSel.options].find(o=>o.value===sf.nat||o.text===sf.nat);natSel.value=opt?sf.nat:'Other';}
+  // Agency dropdown
   const agSel=document.getElementById('cm-agency');
-  if(agSel && sf.agency) {
+  if(agSel && sf.agency){
     const opt=[...agSel.options].find(o=>o.value===sf.agency||o.text===sf.agency);
-    if(!opt){ const no=new Option(sf.agency,sf.agency); agSel.add(no); }
+    if(!opt){const no=new Option(sf.agency,sf.agency);agSel.add(no);}
     agSel.value=sf.agency;
   }
   // Mark as from pool
@@ -1922,9 +1960,8 @@ function selectPoolSeafarer(sf) {
   const selName=document.getElementById('cm-pool-selected-name'); if(selName) selName.textContent=sf.name;
   const res=document.getElementById('cm-pool-results'); if(res) res.innerHTML='';
   const srch=document.getElementById('cm-pool-search'); if(srch) srch.value='';
-  // DOB field: already in pool so suppress required marker; dim the field
-  const dobRow=document.getElementById('cm-dob-row');
-  if(dobRow){dobRow.style.opacity='0.55';}
+  // Suppress DOB required marker (already linked to pool)
+  const dobRow=document.getElementById('cm-dob-row'); if(dobRow) dobRow.style.opacity='0.6';
   const dobStar=document.getElementById('cm-dob-star'); if(dobStar) dobStar.style.display='none';
 }
 
@@ -2044,8 +2081,21 @@ function showPoolDuplicateDialog(sf) {
 
 async function saveCandidateModal() {
   const{vacId,candId}=S.pendingCand;
-  const last=document.getElementById('cm-lastname').value.trim(), first=document.getElementById('cm-firstname').value.trim();
-  if(!last&&!first){toast('First or Last name is required','warning');return;}
+  const last=document.getElementById('cm-lastname').value.trim();
+  const first=document.getElementById('cm-firstname').value.trim();
+  const gender=document.getElementById('cm-gender')?.value||'';
+  const nat=document.getElementById('cm-nat')?.value||'';
+  const agency=document.getElementById('cm-agency')?.value||'';
+  const phone=document.getElementById('cm-phone')?.value?.trim()||'';
+  const email=document.getElementById('cm-email')?.value?.trim()||'';
+  // Mandatory field validation (all except Notes)
+  if(!last){toast('Last name is required','warning');return;}
+  if(!first){toast('First name is required','warning');return;}
+  if(!gender&&!candId){toast('Gender is required','warning');return;}
+  if(!nat){toast('Nationality is required','warning');return;}
+  if(!agency&&!candId){toast('Agency is required','warning');return;}
+  if(!phone){toast('Phone number is required','warning');return;}
+  if(!email){toast('Email is required','warning');return;}
 
   // ── Pool pre-check (new candidates only, before touching SharePoint) ──
   const poolId=document.getElementById('cm-pool-id')?.value||'';
@@ -2111,11 +2161,15 @@ async function saveCandidateModal() {
       try {
         const newPool=await spCreate('SeafarerPool',{
           Title:`${last} ${first}`,FirstName:first,LastName:last,DOB:dob,
+          Gender:document.getElementById('cm-gender')?.value||null,
           Nationality:document.getElementById('cm-nat')?.value||null,
           Rank:rankTitle||null,
           Phone:document.getElementById('cm-phone')?.value?.trim()||null,
           Email:document.getElementById('cm-email')?.value?.trim()||null,
           AgencyName:document.getElementById('cm-agency')?.value||null,
+          EnglishLevel:document.getElementById('cm-english')?.value||null,
+          EnglishEvalDate:document.getElementById('cm-eval-date')?.value?.trim()||null,
+          EnglishEvalNote:document.getElementById('cm-eval-note')?.value?.trim()||null,
           Notes:document.getElementById('cm-notes')?.value?.trim()||null,
           VacancyHistory:JSON.stringify([histEntry]),
         });
@@ -2703,14 +2757,17 @@ async function setupSeafarerPool() {
   results.push(lr.ok||lr.status===400?'✓ SeafarerPool list created':'✗ List may already exist (ok)');
   // 2. Add columns
   const cols=[
-    {name:'FirstName',    type:2,max:100},{name:'LastName',    type:2,max:100},
-    {name:'DOB',          type:2,max:20}, {name:'Nationality', type:2,max:100},
-    {name:'Rank',         type:2,max:100},{name:'Email',       type:2,max:255},
-    {name:'Phone',        type:2,max:100},{name:'PassportNum', type:2,max:50},
-    {name:'PassportExp',  type:2,max:20}, {name:'CDC',         type:2,max:50},
-    {name:'CDCExp',       type:2,max:20}, {name:'STCW',        type:3},
-    {name:'Notes',        type:3},        {name:'VacancyHistory',type:3},
-    {name:'AgencyName',   type:2,max:255},{name:'AgencyEmail',  type:2,max:255},
+    {name:'FirstName',      type:2,max:100},{name:'LastName',      type:2,max:100},
+    {name:'DOB',            type:2,max:20}, {name:'Nationality',   type:2,max:100},
+    {name:'Rank',           type:2,max:100},{name:'Email',         type:2,max:255},
+    {name:'Phone',          type:2,max:100},{name:'PassportNum',   type:2,max:50},
+    {name:'PassportExp',    type:2,max:20}, {name:'CDC',           type:2,max:50},
+    {name:'CDCExp',         type:2,max:20}, {name:'STCW',          type:3},
+    {name:'Notes',          type:3},        {name:'VacancyHistory',type:3},
+    {name:'AgencyName',     type:2,max:255},{name:'AgencyEmail',   type:2,max:255},
+    {name:'Gender',         type:2,max:20}, {name:'CVLink',        type:2,max:500},
+    {name:'EnglishLevel',   type:2,max:10}, {name:'EnglishEvalDate',type:2,max:20},
+    {name:'EnglishEvalNote',type:3},
   ];
   for(const c of cols){
     const b=c.type===3
@@ -2874,6 +2931,11 @@ async function setupCandidateColumns() {
     {name:'Notes',           title:'Notes',            type:3, max:null},
     {name:'VacancyId',       title:'Vacancy ID',       type:1, max:null},
     {name:'CandPoolId',      title:'Pool Seafarer ID', type:1, max:null},
+    {name:'DOB',             title:'Date of Birth',    type:2, max:20},
+    {name:'Gender',          title:'Gender',           type:2, max:20},
+    {name:'EnglishLevel',    title:'English Level',    type:2, max:10},
+    {name:'EnglishEvalDate', title:'English Eval Date',type:2, max:20},
+    {name:'EnglishEvalNote', title:'English Eval Note',type:3, max:null},
   ];
 
   const results=[];
@@ -3025,7 +3087,7 @@ async function renderSeafarers(searchTerm='') {
   const el=document.getElementById('v-seafarers'); spin(el);
   try {
     const filter=searchTerm?`&$filter=substringof('${encodeURIComponent(searchTerm)}',Title) or substringof('${encodeURIComponent(searchTerm)}',LastName) or substringof('${encodeURIComponent(searchTerm)}',FirstName)`:'';
-    const seafarers=await spGet('SeafarerPool',`?$select=Id,Title,FirstName,LastName,DOB,Nationality,Rank,Email,Phone,PassportNum,PassportExp,CDC,CDCExp,Notes,VacancyHistory,AgencyName&$orderby=LastName&$top=500${filter}`).catch(()=>[]);
+    const seafarers=await spGet('SeafarerPool',`?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Email,Phone,PassportNum,PassportExp,CDC,CDCExp,Notes,VacancyHistory,AgencyName,CVLink,EnglishLevel,EnglishEvalDate,EnglishEvalNote&$orderby=LastName&$top=500${filter}`).catch(()=>[]);
     const rankOpts=S.ranks.map(r=>`<option value="${h(r.Title)}">${h(r.Title)}</option>`).join('');
     el.innerHTML=`
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -3068,9 +3130,20 @@ async function renderSeafarers(searchTerm='') {
 
 async function openSeafarerModal(id) {
   let sf=null;
-  if(id) { try { sf=await spGetOne('SeafarerPool',id,'?$select=*'); } catch(e){ toast('Load failed: '+e.message,'danger'); return; } }
+  if(id) {
+    try { sf=await spGetOne('SeafarerPool',id,'?$select=*'); }
+    catch(e){
+      if(e.message&&e.message.includes('404')){
+        toast('SeafarerPool list not set up — go to Admin → Setup Seafarer Pool list','warning'); return;
+      }
+      toast('Load failed: '+e.message,'danger'); return;
+    }
+  }
   const rankOpts=S.ranks.map(r=>`<option value="${h(r.Title)}"${sf?.Rank===r.Title?' selected':''}>${h(r.Title)}</option>`).join('');
   const natOpts=COUNTRIES.map(c=>`<option${sf?.Nationality===c?' selected':''}>${h(c)}</option>`).join('');
+  const agencyOpts=S.agencies.map(a=>`<option value="${h(a.Title)}"${sf?.AgencyName===a.Title?' selected':''}>${h(a.Title)}</option>`).join('');
+  const engVal=sf?.EnglishLevel||'';
+  const engOpts=[['','—'],['1','1 — Very poor'],['2','2'],['3','3'],['4','4'],['5','5 — Intermediate'],['6','6'],['7','7'],['8','8 — Good'],['9','9'],['10','10 — Native']].map(([v,l])=>`<option value="${v}"${engVal==v?' selected':''}>${l}</option>`).join('');
   let history=[]; try{history=JSON.parse(sf?.VacancyHistory||'[]');}catch(_){}
   const sfFullName=[sf?.FirstName,sf?.LastName].filter(Boolean).join(' ')||sf?.Title||'Seafarer';
   const histHtml=history.length?`
@@ -3109,30 +3182,34 @@ async function openSeafarerModal(id) {
     </div>
     <div class="modal-body">
       <input type="hidden" id="sf-id" value="${id||''}">
-      <div class="row g-3 mb-3">
-        <div class="col-md-4"><label class="form-label fw-bold">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-fn" value="${h(sf?.FirstName||'')}" placeholder="First name"></div>
+      <div class="row g-2 mb-2">
         <div class="col-md-4"><label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-ln" value="${h(sf?.LastName||'')}" placeholder="Last name"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-fn" value="${h(sf?.FirstName||'')}" placeholder="First name"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"><div class="form-text">DD.MM.YYYY — auto-formatted</div></div>
       </div>
-      <div class="row g-3 mb-3">
-        <div class="col-md-6"><label class="form-label fw-bold">Rank</label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
-        <div class="col-md-6"><label class="form-label fw-bold">Nationality</label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-3"><label class="form-label fw-bold">Gender <span class="text-danger">*</span></label><select class="form-select" id="sf-gender"><option value="">— select —</option><option value="Male"${sf?.Gender==='Male'?' selected':''}>Male</option><option value="Female"${sf?.Gender==='Female'?' selected':''}>Female</option><option value="Diverse"${sf?.Gender==='Diverse'?' selected':''}>Diverse</option></select></div>
+        <div class="col-md-5"><label class="form-label fw-bold">Nationality <span class="text-danger">*</span></label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Rank</label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
       </div>
-      <div class="row g-3 mb-3">
-        <div class="col-md-6"><label class="form-label fw-bold">Phone / Mobile</label><input type="text" class="form-control" id="sf-phone" value="${h(sf?.Phone||'')}" placeholder="+49 123 456789"></div>
-        <div class="col-md-6"><label class="form-label fw-bold">E-Mail</label><input type="email" class="form-control" id="sf-email" value="${h(sf?.Email||'')}" placeholder="email@example.com"></div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-4"><label class="form-label fw-bold">Agency <span class="text-danger">*</span></label><select class="form-select" id="sf-agency"><option value="">— select —</option>${agencyOpts}</select></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Phone / Mobile <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-phone" value="${h(sf?.Phone||'')}" placeholder="+49 123 456789"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">E-Mail <span class="text-danger">*</span></label><input type="email" class="form-control" id="sf-email" value="${h(sf?.Email||'')}" placeholder="email@example.com"></div>
       </div>
-      <div class="row g-3 mb-3">
+      <div class="row g-2 mb-2">
+        <div class="col-md-2"><label class="form-label fw-bold">English</label><select class="form-select" id="sf-english">${engOpts}</select></div>
+        <div class="col-md-3"><label class="form-label fw-bold">Interview Date</label><input type="text" class="form-control" id="sf-eval-date" value="${h(sf?.EnglishEvalDate||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"></div>
+        <div class="col-md-7"><label class="form-label fw-bold">Interview Remark</label><input type="text" class="form-control" id="sf-eval-note" value="${h(sf?.EnglishEvalNote||'')}" placeholder="e.g. Good command, slight accent…"></div>
+      </div>
+      <div class="row g-2 mb-2">
         <div class="col-md-4"><label class="form-label fw-bold">Passport No.</label><input type="text" class="form-control" id="sf-pnum" value="${h(sf?.PassportNum||'')}"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Passport Exp.</label><input type="text" class="form-control" id="sf-pexp" value="${h(sf?.PassportExp||'')}" placeholder="DD.MM.YYYY"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Passport Exp.</label><input type="text" class="form-control" id="sf-pexp" value="${h(sf?.PassportExp||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"></div>
         <div class="col-md-4"><label class="form-label fw-bold">CDC No.</label><input type="text" class="form-control" id="sf-cdc" value="${h(sf?.CDC||'')}"></div>
       </div>
-      <div class="row g-3 mb-3">
-        <div class="col-md-6"><label class="form-label fw-bold">Agency</label><input type="text" class="form-control" id="sf-agency" value="${h(sf?.AgencyName||'')}" placeholder="Crewing agency name"></div>
-        <div class="col-md-6"><label class="form-label fw-bold">Agency E-Mail</label><input type="email" class="form-control" id="sf-agency-email" value="${h(sf?.AgencyEmail||'')}"></div>
-      </div>
-      <div class="mb-3"><label class="form-label fw-bold">STCW Certificates / Endorsements</label><textarea class="form-control" id="sf-stcw" rows="2" placeholder="e.g. GMDSS, Basic Safety, Advanced Firefighting…">${h(sf?.STCW||'')}</textarea></div>
-      <div class="mb-3"><label class="form-label fw-bold">Notes</label><textarea class="form-control" id="sf-notes" rows="2" placeholder="Remarks, preferences, age limit exceptions…">${h(sf?.Notes||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label fw-bold">CV Link</label><input type="text" class="form-control" id="sf-cvlink" value="${h(sf?.CVLink||'')}" placeholder="https://... or SharePoint path to CV document">${sf?.CVLink?`<div class="form-text"><a href="${h(sf.CVLink)}" target="_blank"><i class="bi bi-box-arrow-up-right me-1"></i>Open CV</a></div>`:''}</div>
+      <div class="mb-2"><label class="form-label fw-bold">STCW Certificates / Endorsements</label><textarea class="form-control" id="sf-stcw" rows="2" placeholder="e.g. GMDSS, Basic Safety, Advanced Firefighting…">${h(sf?.STCW||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label fw-bold">Notes</label><textarea class="form-control" id="sf-notes" rows="2" placeholder="Remarks, preferences, age limit exceptions… (optional)">${h(sf?.Notes||'')}</textarea></div>
       ${histHtml}
     </div>
     <div class="modal-footer d-flex gap-2">
@@ -3266,8 +3343,20 @@ async function saveSeafarer() {
   const fn=document.getElementById('sf-fn')?.value?.trim();
   const ln=document.getElementById('sf-ln')?.value?.trim();
   const dob=document.getElementById('sf-dob')?.value?.trim();
-  if(!fn||!ln){toast('First and last name are required','warning');return;}
-  if(!dob){toast('Date of birth is required (needed for duplicate check)','warning');return;}
+  const gender=document.getElementById('sf-gender')?.value||'';
+  const nat=document.getElementById('sf-nat')?.value||'';
+  const agency=document.getElementById('sf-agency')?.value||'';
+  const phone=document.getElementById('sf-phone')?.value?.trim()||'';
+  const email=document.getElementById('sf-email')?.value?.trim()||'';
+  // Mandatory field validation
+  if(!ln){toast('Last name is required','warning');return;}
+  if(!fn){toast('First name is required','warning');return;}
+  if(!dob){toast('Date of birth is required','warning');return;}
+  if(!gender){toast('Gender is required','warning');return;}
+  if(!nat){toast('Nationality is required','warning');return;}
+  if(!agency){toast('Agency is required','warning');return;}
+  if(!phone){toast('Phone number is required','warning');return;}
+  if(!email){toast('Email is required','warning');return;}
   // Duplicate check for new seafarers
   if(!id) {
     const existing=await spGet('SeafarerPool',`?$select=Id,FirstName,LastName,DOB&$filter=FirstName eq '${fn.replace(/'/g,"''")}' and LastName eq '${ln.replace(/'/g,"''")}' and DOB eq '${dob.replace(/'/g,"''")}' &$top=5`).catch(()=>[]);
@@ -3277,17 +3366,21 @@ async function saveSeafarer() {
     }
   }
   const data={
-    Title:`${fn} ${ln}`,
+    Title:`${ln} ${fn}`,
     FirstName:fn, LastName:ln, DOB:dob,
-    Nationality:document.getElementById('sf-nat')?.value||null,
+    Gender:gender||null,
+    Nationality:nat||null,
     Rank:document.getElementById('sf-rank')?.value||null,
-    Phone:document.getElementById('sf-phone')?.value?.trim()||null,
-    Email:document.getElementById('sf-email')?.value?.trim()||null,
+    Phone:phone||null,
+    Email:email||null,
     PassportNum:document.getElementById('sf-pnum')?.value?.trim()||null,
     PassportExp:document.getElementById('sf-pexp')?.value?.trim()||null,
     CDC:document.getElementById('sf-cdc')?.value?.trim()||null,
-    AgencyName:document.getElementById('sf-agency')?.value?.trim()||null,
-    AgencyEmail:document.getElementById('sf-agency-email')?.value?.trim()||null,
+    AgencyName:agency||null,
+    CVLink:document.getElementById('sf-cvlink')?.value?.trim()||null,
+    EnglishLevel:document.getElementById('sf-english')?.value||null,
+    EnglishEvalDate:document.getElementById('sf-eval-date')?.value?.trim()||null,
+    EnglishEvalNote:document.getElementById('sf-eval-note')?.value?.trim()||null,
     STCW:document.getElementById('sf-stcw')?.value?.trim()||null,
     Notes:document.getElementById('sf-notes')?.value?.trim()||null,
   };
@@ -3296,7 +3389,14 @@ async function saveSeafarer() {
     else { await spCreate('SeafarerPool',data); toast('Seafarer added to pool ✓'); }
     bootstrap.Modal.getInstance(document.getElementById('modalSeafarer'))?.hide();
     renderSeafarers();
-  } catch(e){ toast('Save failed: '+e.message,'danger'); }
+  } catch(e){
+    // Graceful 404 — list not yet set up
+    if(e.message&&(e.message.includes('404')||e.message.includes('does not exist')||e.message.includes('SeafarerPool'))){
+      toast('SeafarerPool list not set up yet — go to Admin → Setup Seafarer Pool list first','warning');
+    } else {
+      toast('Save failed: '+e.message,'danger');
+    }
+  }
 }
 
 async function deleteSeafarer(id) {
