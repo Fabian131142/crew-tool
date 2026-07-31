@@ -3348,110 +3348,184 @@ async function setupCandidateColumns() {
 // ═══════════════════════════════════════════════════════════════════
 async function renderReports() {
   const el=document.getElementById('v-reports'); el.classList.remove('d-none');
-  el.innerHTML=`<h4 class="sec-title"><i class="bi bi-compass me-2" style="opacity:.7"></i>Reporting &amp; Statistics</h4>
-  <div id="reports-body"><div class="text-center py-4"><span class="spinner-border text-primary"></span></div></div>`;
+  el.innerHTML=`<h4 class="sec-title"><i class="bi bi-compass me-2" style="opacity:.7"></i>Reporting &amp; KPIs</h4>
+  <div id="reports-body"><div class="text-center py-4"><span class="spinner-border text-primary"></span><div class="text-muted mt-2" style="font-size:.85rem">Loading live data…</div></div></div>`;
   try {
-    // Pull live data for stats
-    const [openVacs, allVacs, vessels, ranks, clients] = await Promise.all([
-      spGet('Vacancies','?$select=Id,Status,CreatedDate&$filter=Status eq \'Open\' or Status eq \'Offer Made\'&$top=500'),
-      spGet('Vacancies','?$select=Id,Status,CreatedDate&$top=1000'),
-      spGet('VesselMaster','?$select=Id,Title,IsActive,MartraconEntity,ServiceType&$top=500'),
-      spGet('RankList','?$select=Id,Title,IsActive&$top=200'),
-      spGet('ClientMaster','?$select=Id,Title,IsActive&$top=200'),
-    ]).catch(()=>[]);
-    const openCount   = Array.isArray(openVacs)?openVacs.length:0;
-    const totalVacs   = Array.isArray(allVacs)?allVacs.length:0;
-    const activeVess  = Array.isArray(vessels)?vessels.filter(v=>v.IsActive!==false).length:0;
-    const totalVess   = Array.isArray(vessels)?vessels.length:0;
-    const activeRanks = Array.isArray(ranks)?ranks.filter(r=>r.IsActive!==false).length:0;
-    const activeClients=Array.isArray(clients)?clients.filter(c=>c.IsActive!==false).length:0;
-    // Entity breakdown
-    const entityMap={};
-    if(Array.isArray(vessels)) vessels.forEach(v=>{const e=v.MartraconEntity||'Unknown';entityMap[e]=(entityMap[e]||0)+1;});
-    const entityRows=Object.entries(entityMap).sort((a,b)=>b[1]-a[1]).map(([k,n])=>
-      `<tr><td>${h(k)}</td><td class="text-end fw-bold">${n}</td><td><div class="progress mt-1" style="height:8px"><div class="progress-bar bg-primary" style="width:${Math.round(n/totalVess*100)||0}%"></div></div></td></tr>`).join('');
-    // Service type breakdown
-    const svcMap={};
-    if(Array.isArray(vessels)) vessels.forEach(v=>{const s=v.ServiceType||'Unknown';svcMap[s]=(svcMap[s]||0)+1;});
-    const svcRows=Object.entries(svcMap).sort((a,b)=>b[1]-a[1]).map(([k,n])=>
-      `<tr><td>${h(k)}</td><td class="text-end fw-bold">${n}</td></tr>`).join('');
+    const [allVacs,allCands,seafarers,vessels,clients,agencies] = await Promise.all([
+      spGet('Vacancies','?$select=Id,Status,Created,RankId,Rank/Title,ClientId,Client/Title&$expand=Rank,Client&$top=1000').catch(()=>[]),
+      spGet('Candidates','?$select=Id,CandidateStatus,AgencyName,VacancyId&$top=2000').catch(()=>[]),
+      spGet('SeafarerPool','?$select=Id,Rank,Nationality,Status&$top=1000').catch(()=>[]),
+      spGet('VesselMaster','?$select=Id,IsActive&$top=500').catch(()=>[]),
+      spGet('ClientMaster','?$select=Id,IsActive&$top=200').catch(()=>[]),
+      spGet('AgencyList','?$select=Id,IsActive&$top=200').catch(()=>[]),
+    ]);
+
+    // Vacancy metrics
+    const openVacs=allVacs.filter(v=>v.Status==='Open'||v.Status==='Offer Made');
+    const closedVacs=allVacs.filter(v=>v.Status==='Closed');
+    const fillRate=allVacs.length?Math.round(closedVacs.length/allVacs.length*100):0;
+    const vacByStatus={},vacByRank={},vacByClient={};
+    allVacs.forEach(v=>{const s=v.Status||'Unknown';vacByStatus[s]=(vacByStatus[s]||0)+1;});
+    openVacs.forEach(v=>{
+      const r=v.Rank?.Title||'Unknown';vacByRank[r]=(vacByRank[r]||0)+1;
+      const c=v.Client?.Title||'Unknown';vacByClient[c]=(vacByClient[c]||0)+1;
+    });
+    const now=Date.now();
+    const ages=openVacs.map(v=>v.Created?Math.floor((now-new Date(v.Created).getTime())/864e5):null).filter(n=>n!==null);
+    const avgAge=ages.length?Math.round(ages.reduce((a,b)=>a+b,0)/ages.length):null;
+
+    // Candidate metrics
+    const candByStatus={};
+    allCands.forEach(c=>{const s=c.CandidateStatus||'Applied';candByStatus[s]=(candByStatus[s]||0)+1;});
+    const totalCands=allCands.length;
+    const placed=candByStatus['Placed']||0;
+    const rejected=candByStatus['Rejected']||0;
+    const rejRate=totalCands?Math.round(rejected/totalCands*100):0;
+    const candByAgency={},placedByAgency={};
+    allCands.forEach(c=>{const a=c.AgencyName||'Direct/Unknown';candByAgency[a]=(candByAgency[a]||0)+1;});
+    allCands.filter(c=>c.CandidateStatus==='Placed').forEach(c=>{const a=c.AgencyName||'Direct/Unknown';placedByAgency[a]=(placedByAgency[a]||0)+1;});
+
+    // Pool metrics
+    const poolByRank={},poolByNat={};
+    seafarers.forEach(s=>{
+      const r=s.Rank||'Unknown';poolByRank[r]=(poolByRank[r]||0)+1;
+      const n=s.Nationality||'Unknown';poolByNat[n]=(poolByNat[n]||0)+1;
+    });
+
+    // Summary counts
+    const activeVess=vessels.filter(v=>v.IsActive!==false).length;
+    const activeClients=clients.filter(c=>c.IsActive!==false).length;
+    const activeAgencies=agencies.filter(a=>a.IsActive!==false).length;
+
+    // Helpers
+    function bar(val,max,color){
+      const pct=max?Math.round(val/max*100):0;
+      return `<div class="progress mt-1" style="height:6px;border-radius:3px"><div class="progress-bar" style="width:${pct}%;background:${color||'var(--mc-blue)'}"></div></div>`;
+    }
+    function topRows(obj,max,color){
+      const sorted=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,max||8);
+      const mx=sorted[0]?.[1]||1;
+      return sorted.map(([k,n])=>`<tr><td class="text-truncate" style="max-width:155px;font-size:.82rem" title="${h(k)}">${h(k)}</td><td class="text-end fw-bold" style="font-size:.82rem">${n}</td><td style="width:70px">${bar(n,mx,color)}</td></tr>`).join('')||'<tr><td colspan="3" class="text-muted text-center py-2 small">No data yet</td></tr>';
+    }
+    function kpi(val,label,sub,color,icon){
+      return `<div class="col-6 col-md-2"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3 px-2">
+        <i class="bi ${icon} mb-1" style="font-size:1rem;color:${color};opacity:.75"></i>
+        <div style="font-size:1.75rem;font-weight:700;color:${color};line-height:1.1">${val}</div>
+        <div class="text-muted mt-1" style="font-size:.72rem;line-height:1.3">${label}</div>
+        ${sub?`<div style="font-size:.68rem;color:${color};opacity:.8">${sub}</div>`:''}
+      </div></div></div>`;
+    }
+
+    // Funnel
+    const fSteps=[{l:'Applied',k:'Applied',c:'#6c757d'},{l:'Shortlisted',k:'Shortlisted',c:'#0d6efd'},{l:'Offered',k:'Offered',c:'#fd7e14'},{l:'Placed',k:'Placed',c:'#198754'}];
+    const fMax=Math.max(candByStatus['Applied']||0,1);
+    const funnelHtml=fSteps.map(s=>{
+      const n=candByStatus[s.k]||0,pct=Math.round(n/fMax*100);
+      return `<div class="mb-2">
+        <div class="d-flex justify-content-between" style="font-size:.79rem"><span>${s.l}</span><strong>${n}</strong></div>
+        <div class="progress" style="height:16px;border-radius:3px"><div class="progress-bar" style="width:${pct}%;background:${s.c};font-size:.68rem;line-height:16px">${pct>12?pct+'%':''}</div></div>
+      </div>`;
+    }).join('');
+
+    // Vacancy status rows
+    const vsColors={'Open':'#0d6efd','Offer Made':'#fd7e14','Closed':'#198754','Cancelled':'#6c757d'};
+    const vsRows=['Open','Offer Made','Closed','Cancelled'].map(s=>{
+      const n=vacByStatus[s]||0; if(!n) return '';
+      return `<tr><td><span class="badge rounded-pill px-2" style="background:${vsColors[s]};font-size:.72rem">${s}</span></td><td class="text-end fw-bold" style="font-size:.82rem">${n}</td><td style="width:70px">${bar(n,allVacs.length,vsColors[s])}</td></tr>`;
+    }).join('');
+
+    // Agency performance
+    const agRows=Object.entries(candByAgency).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([name,cnt])=>{
+      const pl=placedByAgency[name]||0,rate=cnt?Math.round(pl/cnt*100):0;
+      return `<tr>
+        <td class="text-truncate" style="max-width:160px;font-size:.82rem" title="${h(name)}">${h(name)}</td>
+        <td class="text-center" style="font-size:.82rem">${cnt}</td>
+        <td class="text-center fw-bold text-success" style="font-size:.82rem">${pl}</td>
+        <td class="text-center" style="font-size:.82rem">${rate}%</td>
+        <td style="width:70px">${bar(rate,100,'#198754')}</td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="5" class="text-muted text-center py-2 small">No candidate data yet</td></tr>';
 
     document.getElementById('reports-body').innerHTML=`
-    <!-- KPI cards -->
-    <div class="row g-3 mb-4">
-      <div class="col-6 col-md-3">
-        <div class="card text-center h-100 border-0 shadow-sm">
-          <div class="card-body py-3">
-            <div style="font-size:2rem;font-weight:700;color:#1F3864">${openCount}</div>
-            <div class="text-muted" style="font-size:.82rem">Open Vacancies</div>
-          </div>
+    <div class="row g-2 mb-3">
+      ${kpi(openVacs.length,'Open Vacancies','','#0d6efd','bi-briefcase-fill')}
+      ${kpi(totalCands,'Total Candidates','all time','var(--mc-blue)','bi-people-fill')}
+      ${kpi(seafarers.length,'Pool Size','seafarers','#198754','bi-life-preserver')}
+      ${kpi(placed,'Placed','all time','#198754','bi-check2-circle')}
+      ${kpi(fillRate+'%','Fill Rate','closed / total','#fd7e14','bi-bullseye')}
+      ${kpi(avgAge!==null?avgAge+'d':'--','Avg Days Open','current open',avgAge!==null&&avgAge>60?'#dc3545':avgAge!==null&&avgAge>30?'#fd7e14':'var(--mc-blue)','bi-clock')}
+    </div>
+    <div class="row g-2 mb-4">
+      ${kpi(activeVess,'Active Vessels','','var(--mc-blue)','bi-ship')}
+      ${kpi(activeClients,'Active Clients','','var(--mc-blue)','bi-building')}
+      ${kpi(activeAgencies,'Active Agencies','','var(--mc-blue)','bi-globe')}
+      ${kpi(rejRate+'%','Rejection Rate','of all candidates',rejRate>50?'#dc3545':rejRate>30?'#fd7e14':'#198754','bi-x-circle')}
+      ${kpi(allVacs.length?Math.round(totalCands/allVacs.length*10)/10:'--','Avg Cands / Vac','','var(--mc-blue)','bi-person-lines-fill')}
+      ${kpi(allVacs.length,'Total Vacancies','all time','#6c757d','bi-archive')}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-briefcase me-2" style="color:var(--mc-blue)"></i>Vacancies by Status</div>
+          <div class="card-body p-0"><table class="table table-sm mb-0"><tbody>${vsRows||'<tr><td class="text-muted text-center py-2 small">No data</td></tr>'}</tbody></table></div>
         </div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="card text-center h-100 border-0 shadow-sm">
-          <div class="card-body py-3">
-            <div style="font-size:2rem;font-weight:700;color:#1F3864">${totalVacs}</div>
-            <div class="text-muted" style="font-size:.82rem">Total Vacancies (all time)</div>
-          </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-award me-2" style="color:var(--mc-blue)"></i>Open Vacancies by Rank</div>
+          <div class="card-body p-0"><table class="table table-sm mb-0"><tbody>${topRows(vacByRank,8,'var(--mc-blue)')}</tbody></table></div>
         </div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="card text-center h-100 border-0 shadow-sm">
-          <div class="card-body py-3">
-            <div style="font-size:2rem;font-weight:700;color:#1F3864">${activeVess}<span style="font-size:1rem;color:#aaa"> / ${totalVess}</span></div>
-            <div class="text-muted" style="font-size:.82rem">Active Vessels</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="card text-center h-100 border-0 shadow-sm">
-          <div class="card-body py-3">
-            <div style="font-size:2rem;font-weight:700;color:#1F3864">${activeClients}</div>
-            <div class="text-muted" style="font-size:.82rem">Active Clients</div>
-          </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-building me-2" style="color:var(--mc-blue)"></i>Open Vacancies by Client</div>
+          <div class="card-body p-0"><table class="table table-sm mb-0"><tbody>${topRows(vacByClient,8,'var(--mc-blue)')}</tbody></table></div>
         </div>
       </div>
     </div>
 
-    <!-- Breakdown tables -->
-    <div class="row g-3 mb-4">
-      <div class="col-md-6">
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white fw-bold" style="font-size:.9rem"><i class="bi bi-building me-2 text-primary"></i>Vessels by Entity</div>
-          <div class="card-body p-0">
-            <table class="table table-sm table-hover mb-0">
-              <thead class="table-light"><tr><th>Entity</th><th class="text-end"># Vessels</th><th style="width:100px">Share</th></tr></thead>
-              <tbody>${entityRows||'<tr><td colspan="3" class="text-muted text-center py-3">No data</td></tr>'}</tbody>
-            </table>
+          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-funnel me-2" style="color:var(--mc-blue)"></i>Candidate Funnel</div>
+          <div class="card-body">${funnelHtml}
+            <div class="mt-2 pt-2 border-top d-flex justify-content-between" style="font-size:.75rem">
+              <span class="text-danger"><i class="bi bi-x-circle me-1"></i>Rejected: <strong>${rejected}</strong></span>
+              <span class="text-muted">Shortlisted: <strong>${candByStatus['Shortlisted']||0}</strong></span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-md-6">
+      <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white fw-bold" style="font-size:.9rem"><i class="bi bi-gear me-2 text-primary"></i>Vessels by Service Type</div>
-          <div class="card-body p-0">
-            <table class="table table-sm table-hover mb-0">
-              <thead class="table-light"><tr><th>Service Type</th><th class="text-end"># Vessels</th></tr></thead>
-              <tbody>${svcRows||'<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>'}</tbody>
-            </table>
-          </div>
+          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-life-preserver me-2" style="color:#198754"></i>Pool by Rank</div>
+          <div class="card-body p-0"><table class="table table-sm mb-0"><tbody>${topRows(poolByRank,10,'#198754')}</tbody></table></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-flag me-2" style="color:#198754"></i>Pool by Nationality</div>
+          <div class="card-body p-0"><table class="table table-sm mb-0"><tbody>${topRows(poolByNat,10,'#198754')}</tbody></table></div>
         </div>
       </div>
     </div>
 
-    <!-- Placeholder for future sections -->
-    <div class="alert alert-light border d-flex align-items-start gap-3" style="font-size:.88rem">
-      <i class="bi bi-info-circle text-primary mt-1" style="font-size:1.1rem;flex-shrink:0"></i>
-      <div><strong>Dashboard under development.</strong> Additional sections — recruitment pipeline, placement history, agency performance, and crew nationality breakdowns — will be defined and added here. Use the Admin section to manage reference data.</div>
-    </div>`;
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-globe me-2" style="color:var(--mc-blue)"></i>Agency Performance</div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light"><tr><th style="font-size:.8rem">Agency</th><th class="text-center" style="font-size:.8rem">Candidates</th><th class="text-center" style="font-size:.8rem">Placed</th><th class="text-center" style="font-size:.8rem">Place Rate</th><th style="width:70px"></th></tr></thead>
+          <tbody>${agRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="text-end text-muted" style="font-size:.72rem">Refreshed: ${new Date().toLocaleTimeString()} &nbsp;&middot;&nbsp; <a href="#" onclick="renderReports();return false">Refresh now</a></div>`;
   } catch(e) {
     document.getElementById('reports-body').innerHTML=`<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Could not load report data: ${h(e.message)}</div>`;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// VIEW: SEAFARER POOL
-// ═══════════════════════════════════════════════════════════════════
 async function renderSeafarers() {
   const el=document.getElementById('v-seafarers'); spin(el);
   try {
