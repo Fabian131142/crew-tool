@@ -942,7 +942,7 @@
           <div class="col-md-4"><label class="form-label fw-bold mb-1">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="cm-firstname" placeholder="Oleksiy"></div>
           <div class="col-md-4" id="cm-dob-row">
             <label class="form-label fw-bold mb-1">Date of Birth <span id="cm-dob-star" class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="cm-dob" placeholder="DD.MM.YYYY" maxlength="10" oninput="formatDobInput(this)">
+            <input type="text" class="form-control" id="cm-dob" placeholder="DD.MM.YYYY" maxlength="10" oninput="formatDobInput(this)" onblur="expandDobYear(this)">
             <div class="form-text mt-0" style="font-size:.7rem;color:var(--mc-blue)"><i class="bi bi-person-vcard me-1"></i>Pool duplicate check on save</div>
           </div>
           <!-- Row 2: Gender + Nationality + Agency -->
@@ -1231,6 +1231,23 @@ function enc(s) { return encodeURIComponent(s); }
 // UTILITIES
 // ═══════════════════════════════════════════════════════════════════
 function h(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Persistent filter state (localStorage per section) ──────────────────────
+function saveFilters(section, ids) {
+  try {
+    const state={};
+    ids.forEach(id=>{ const el=document.getElementById(id); if(el) state[id]=el.value; });
+    localStorage.setItem('mct_filters_'+section, JSON.stringify(state));
+  } catch(_){}
+}
+function restoreFilters(section, ids) {
+  try {
+    const raw=localStorage.getItem('mct_filters_'+section);
+    if(!raw) return;
+    const state=JSON.parse(raw);
+    ids.forEach(id=>{ const el=document.getElementById(id); if(el&&state[id]!=null) el.value=state[id]; });
+  } catch(_){}
+}
 function fmtDate(d) { if(!d) return '—'; const m=d.match(/(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}.${m[2]}.${m[1]}`:d; }
 function fmtDateTime(d) { if(!d) return '—'; try { const dt=new Date(d); return dt.toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(_){ return fmtDate(d); } }
 function fmtSalary(min,max,cur) { if(!min&&min!==0) return '—'; const c=cur||'EUR',fmt=n=>Number(n).toLocaleString('de-DE'); return (max&&max!==min)?`${fmt(min)}–${fmt(max)} ${c}`:`${fmt(min)} ${c}`; }
@@ -1320,10 +1337,12 @@ async function renderOpen() {
       <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('op-status').value='';document.getElementById('op-client').value='';document.getElementById('op-search').value='';filterOpen()">Clear</button></div>
     </div></div></div>
     <div id="open-table"></div>`;
+    restoreFilters('open',['op-status','op-client','op-search']);
     filterOpen();
   } catch(e) { el.innerHTML=errBox(e); }
 }
 function filterOpen() {
+  saveFilters('open',['op-status','op-client','op-search']);
   const status=document.getElementById('op-status')?.value||'';
   const client=document.getElementById('op-client')?.value||'';
   const q=(document.getElementById('op-search')?.value||'').toLowerCase();
@@ -1396,10 +1415,12 @@ async function renderAll() {
       <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('f-status').value='';document.getElementById('f-client').value='';document.getElementById('f-search').value='';filterAll()">Clear</button></div>
     </div></div></div>
     <div id="all-table"></div>`;
+    restoreFilters('all',['f-status','f-client','f-search']);
     filterAll();
   } catch(e) { el.innerHTML=errBox(e); }
 }
 function filterAll() {
+  saveFilters('all',['f-status','f-client','f-search']);
   const status=document.getElementById('f-status')?.value||'', client=document.getElementById('f-client')?.value||'', q=(document.getElementById('f-search')?.value||'').toLowerCase();
   let vacs=(window._allVacs||[]).filter(v=>{ if(status&&v.Status!==status) return false; if(client&&v.Client?.Title!==client) return false; if(q&&!((v.Vessel?.Title||'').toLowerCase().includes(q)||(v.Rank?.Title||'').toLowerCase().includes(q))) return false; return true; });
   const key=window._sortKey||'Modified', dir=window._sortDir||'desc';
@@ -2090,6 +2111,16 @@ function formatDobInput(el) {
   if(d.length>=2){ const dd=parseInt(d.slice(0,2)); if(dd>31) el.value=el.value.replace(/^\d{2}/,'31'); }
   if(d.length>=4){ const mm=parseInt(d.slice(2,4)); if(mm>12) el.value=el.value.replace(/^(\d{2}\.)(\d{2})/,(_,a)=>a+'12'); }
 }
+// Expand 2-digit year on blur: 05.05.90 → 05.05.1990
+function expandDobYear(el) {
+  const m=el.value.match(/^(\d{2})\.(\d{2})\.(\d{2})$/);
+  if(!m) return;
+  const yr2=parseInt(m[3]);
+  const curYr2=new Date().getFullYear()%100;
+  // If 2-digit year > current 2-digit year → 1900s, else 2000s
+  const fullYear=yr2>curYr2 ? 1900+yr2 : 2000+yr2;
+  el.value=`${m[1]}.${m[2]}.${fullYear}`;
+}
 // Validate a fully entered DD.MM.YYYY date — returns error string or null
 function validateDob(val, label='Date') {
   if(!val) return null; // empty handled by required-field checks
@@ -2405,7 +2436,9 @@ async function saveCandidateModal() {
   if(!nat){toast('Nationality is required','warning');return;}
   if(!agency&&!candId){toast('Agency is required','warning');return;}
   if(!phone){toast('Phone number is required','warning');return;}
+  if(!phone.startsWith('+')){toast('Phone must start with a country code, e.g. +49 or +380','warning');return;}
   if(!email){toast('Email is required','warning');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Email must be a valid address (e.g. name@example.com)','warning');return;}
 
   // ── Pool pre-check (new candidates only, before touching SharePoint) ──
   const poolId=document.getElementById('cm-pool-id')?.value||'';
@@ -2547,11 +2580,13 @@ async function renderSalary() {
       <div id="salary-table"></div>`;
     const curYear=new Date().getFullYear();
     if(years.includes(curYear)) document.getElementById('sr-year').value=curYear;
+    restoreFilters('salary',['sr-year','sr-client','sr-search']); // override default if user had a saved filter
     filterSalary();
   } catch(e){el.innerHTML=errBox(e);}
 }
 
 function filterSalary() {
+  saveFilters('salary',['sr-year','sr-client','sr-search']);
   const year=document.getElementById('sr-year')?.value||'',client=document.getElementById('sr-client')?.value||'',q=(document.getElementById('sr-search')?.value||'').toLowerCase();
   let rates=(window._salRates||[]).filter(r=>{if(year&&String(r.EffectiveYear)!==year)return false;if(client&&r.Client?.Title!==client)return false;if(q&&!(r.Rank?.Title||'').toLowerCase().includes(q))return false;return true;});
   const key=window._salSortKey||'EffectiveYear', dir=window._salSortDir||'desc';
@@ -3443,11 +3478,13 @@ async function renderSeafarers() {
       <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('sf-f-rank').value='';document.getElementById('sf-f-nat').value='';document.getElementById('sf-f-search').value='';filterSeafarers()">Clear</button></div>
     </div></div></div>
     <div id="sf-table-wrap"></div>`;
+    restoreFilters('seafarers',['sf-f-rank','sf-f-nat','sf-f-search']);
     filterSeafarers();
   } catch(e) { el.innerHTML=errBox(e); }
 }
 
 function filterSeafarers() {
+  saveFilters('seafarers',['sf-f-rank','sf-f-nat','sf-f-search']);
   const rank=document.getElementById('sf-f-rank')?.value||'';
   const nat=document.getElementById('sf-f-nat')?.value||'';
   const q=(document.getElementById('sf-f-search')?.value||'').toLowerCase();
@@ -3576,7 +3613,7 @@ async function openSeafarerModal(id) {
       <div class="row g-2 mb-2">
         <div class="col-md-4"><label class="form-label fw-bold mb-1">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-ln" value="${h(sf?.LastName||'')}" placeholder="Last name"></div>
         <div class="col-md-4"><label class="form-label fw-bold mb-1">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-fn" value="${h(sf?.FirstName||'')}" placeholder="First name"></div>
-        <div class="col-md-4"><label class="form-label fw-bold mb-1">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" maxlength="10"><div class="form-text mt-0" style="font-size:.7rem;color:var(--mc-blue)">DD.MM.YYYY — auto-formatted</div></div>
+        <div class="col-md-4"><label class="form-label fw-bold mb-1">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" onblur="expandDobYear(this)" maxlength="10"><div class="form-text mt-0" style="font-size:.7rem;color:var(--mc-blue)">DD.MM.YYYY — auto-formatted</div></div>
       </div>
       <div class="row g-2 mb-2">
         <div class="col-md-3"><label class="form-label fw-bold mb-1">Gender <span class="text-danger">*</span></label><select class="form-select" id="sf-gender"><option value="">— select —</option><option value="Male"${sf?.Gender==='Male'?' selected':''}>Male</option><option value="Female"${sf?.Gender==='Female'?' selected':''}>Female</option><option value="Diverse"${sf?.Gender==='Diverse'?' selected':''}>Diverse</option></select></div>
@@ -3768,7 +3805,9 @@ async function saveSeafarer() {
   if(!nat){toast('Nationality is required','warning');return;}
   if(!agency){toast('Agency is required','warning');return;}
   if(!phone){toast('Phone number is required','warning');return;}
+  if(!phone.startsWith('+')){toast('Phone must start with a country code, e.g. +49 or +380','warning');return;}
   if(!email){toast('Email is required','warning');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Email must be a valid address (e.g. name@example.com)','warning');return;}
   const rankVal=document.getElementById('sf-rank')?.value||'';
   if(!rankVal){toast('Rank is required','warning');return;}
   // CV mandatory for new seafarers (file pending or link provided)
