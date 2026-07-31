@@ -1097,6 +1097,7 @@ async function handleCallback() {
     try {
       const claims = JSON.parse(atob(t.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
       sessionStorage.setItem('uname', claims.name || claims.preferred_username || '');
+      sessionStorage.setItem('uemail', (claims.preferred_username || claims.email || '').toLowerCase());
     } catch {}
   }
   window.history.replaceState({}, '', window.location.pathname);
@@ -1302,7 +1303,7 @@ function nav(name,param=null) {
   else if(name==='salary') renderSalary();
   else if(name==='seafarers') renderSeafarers();
   else if(name==='reports') renderReports();
-  else if(name==='admin') renderAdmin();
+  else if(name==='admin') { if(S.isAdmin) renderAdmin(); else { toast('Admin access restricted','warning'); nav('open'); } }
 }
 function goDetail(id) { nav('detail',id); }
 function goBack() { nav(S.prevViewName||'open'); }
@@ -4457,8 +4458,13 @@ async function init() {
     }
 
     // Valid token — show the app
-    S.userName = sessionStorage.getItem('uname') || '';
+    S.userName  = sessionStorage.getItem('uname')  || '';
+    S.userEmail = sessionStorage.getItem('uemail') || '';
+    // Admin check — add emails here to grant admin access
+    const ADMIN_EMAILS = ['fabian@boers-crewservices.de'];
+    S.isAdmin = ADMIN_EMAILS.includes(S.userEmail);
     document.getElementById('user-display').textContent = S.userName;
+    if (!S.isAdmin) document.getElementById('nav-admin').closest('li').style.display = 'none';
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-nav').classList.remove('d-none');
     document.getElementById('mc-portband').classList.remove('d-none');
