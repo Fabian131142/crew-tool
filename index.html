@@ -730,7 +730,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <a href="${SP_SITE}/Lists/VesselMaster" target="_blank" class="btn btn-sm btn-outline-secondary me-auto"><i class="bi bi-box-arrow-up-right me-1"></i>Open in SharePoint</a>
+        <a id="vessel-sp-link" href="#" target="_blank" class="btn btn-sm btn-outline-secondary me-auto"><i class="bi bi-box-arrow-up-right me-1"></i>Open in SharePoint</a>
         <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -4162,6 +4162,8 @@ function exportVesselsCsv() {
 
 async function openVesselManager() {
   window._vesselSortKey='Title'; window._vesselSortDir='asc';
+  const spLink=document.getElementById('vessel-sp-link');
+  if(spLink) spLink.href=`${SP_SITE}/Lists/VesselMaster`;
   new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
   try {
     window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
@@ -4776,7 +4778,7 @@ async function generatePositionList() {
 // ═══════════════════════════════════════════════════════════════════
 const REF_CONFIGS = {
   client: {
-    list:'ClientMaster', label:'Client', icon:'bi-building', spLink:'ClientMaster',
+    list:'ClientMaster', label:'Client', icon:'bi-building', spLink:'ClientMaster', canDelete:true,
     query:'?$select=*&$orderby=Title&$top=500',
     cols:['Name','Country','Website','Status'],
     row:(r)=>[
