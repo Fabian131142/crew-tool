@@ -1097,7 +1097,7 @@ async function handleCallback() {
     try {
       const claims = JSON.parse(atob(t.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
       sessionStorage.setItem('uname', claims.name || claims.preferred_username || '');
-      sessionStorage.setItem('uemail', (claims.preferred_username || claims.email || '').toLowerCase());
+      sessionStorage.setItem('uemail', (claims.preferred_username || claims.upn || claims.unique_name || claims.email || '').toLowerCase());
     } catch {}
   }
   window.history.replaceState({}, '', window.location.pathname);
@@ -3968,6 +3968,28 @@ async function addSeafarerVacancyHistory(seafarerId, vacancyInfo) {
 // ═══════════════════════════════════════════════════════════════════
 // VIEW: ADMIN
 // ═══════════════════════════════════════════════════════════════════
+async function saveAdminUsers() {
+  const ta = document.getElementById('admin-emails-ta');
+  const emails = (ta?.value||'').split('\n').map(e=>e.trim().toLowerCase()).filter(Boolean);
+  try {
+    // Get existing items
+    const existing = await spGet('AppAdmins','?$select=Id,Title&$top=200').catch(()=>[]);
+    const existMap = {};
+    existing.forEach(a => existMap[a.Title?.toLowerCase().trim()] = a.Id);
+    // Create missing
+    for (const email of emails) {
+      if (!existMap[email]) await spCreate('AppAdmins',{Title:email}).catch(()=>{});
+    }
+    // Delete removed
+    for (const [email, id] of Object.entries(existMap)) {
+      if (!emails.includes(email)) await spDelete('AppAdmins', id).catch(()=>{});
+    }
+    const msg = document.getElementById('admin-save-msg');
+    if (msg) { msg.style.display='inline'; setTimeout(()=>msg.style.display='none',3000); }
+    toast('Admin list saved — changes take effect on next login','success');
+  } catch(e) { toast('Save failed: '+e.message,'danger'); }
+}
+
 async function renderAdmin() {
   const el=document.getElementById('v-admin');
   el.innerHTML=`<h4 class="sec-title">Admin — Reference Data</h4>
@@ -3986,6 +4008,21 @@ async function renderAdmin() {
     ].map(([type,icon,label,count])=>`<div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="openRefManager('${type}')"><i class="bi ${icon}" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">${label}</div><div class="text-muted" style="font-size:.78rem;min-height:1em">${count}</div></div></div>`).join('')}
     <div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="nav('seafarers')"><i class="bi bi-person-vcard" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">Seafarers</div><div class="text-muted" style="font-size:.78rem;min-height:1em">Pool / Register</div></div></div>
     <div class="col-6 col-md-4 col-lg-3 col-xl-2"><a href="${SP_SITE}/Lists/SalaryRates" target="_blank" class="card text-decoration-none shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2"><i class="bi bi-cash-stack" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">Salary Rates</div><div class="text-muted" style="font-size:.78rem;min-height:1em"></div></a></div>
+  </div>
+  <h5 class="sec-title">User Access Management</h5>
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold" style="font-size:.9rem"><i class="bi bi-shield-lock me-2" style="color:var(--mc-blue)"></i>Admin Users <small class="text-muted fw-normal">(Microsoft account email addresses — one per line)</small></div>
+        <div class="card-body">
+          <p style="font-size:.83rem" class="text-muted mb-2">Users listed here see the Admin tab. Everyone else gets standard access. Leave empty to grant admin to all users.</p>
+          <textarea id="admin-emails-ta" class="form-control font-monospace mb-2" rows="4" placeholder="fabian@boers-crewservices.de&#10;colleague@example.com" style="font-size:.82rem"></textarea>
+          <button class="btn btn-sm btn-primary" onclick="saveAdminUsers()"><i class="bi bi-save me-1"></i>Save Admin List</button>
+          <span id="admin-save-msg" class="ms-2 text-success small" style="display:none">✓ Saved</span>
+          <div class="mt-2 text-muted" style="font-size:.77rem">Your detected email: <code id="my-email-display"></code></div>
+        </div>
+      </div>
+    </div>
   </div>
   <h5 class="sec-title">One-Time Setup</h5>
   <div class="row g-3 mb-4">
@@ -4051,6 +4088,16 @@ async function renderAdmin() {
     </div>
   </div>
   <h5 class="sec-title">Vacancy Stats</h5><div id="admin-stats"><div class="spinner-border spinner-border-sm text-secondary"></div></div>`;
+
+  // Populate admin users textarea
+  try {
+    const admins = await spGet('AppAdmins','?$select=Title&$top=100').catch(()=>[]);
+    const ta = document.getElementById('admin-emails-ta');
+    if (ta) ta.value = admins.map(a=>a.Title||'').filter(Boolean).join('\n');
+  } catch(_) {}
+  const emailEl = document.getElementById('my-email-display');
+  if (emailEl) emailEl.textContent = S.userEmail || '(not detected yet — try logging out and back in)';
+
   try { const all=await loadVacancies(null); const by={}; all.forEach(v=>{by[v.Status]=(by[v.Status]||0)+1;}); document.getElementById('admin-stats').innerHTML=`<div class="row g-2">${Object.entries(by).map(([s,n])=>`<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-blue)">${n}</div><div>${statusBadge(s)}</div></div></div>`).join('')}<div class="col-auto"><div class="card shadow-sm text-center px-4 py-3"><div class="fs-3 fw-bold" style="color:var(--mc-blue)">${all.length}</div><div class="text-muted" style="font-size:.8rem">Total</div></div></div></div>`; }
   catch(e){document.getElementById('admin-stats').innerHTML=`<span class="text-muted small">${e.message}</span>`;}
 }
@@ -4460,10 +4507,26 @@ async function init() {
     // Valid token — show the app
     S.userName  = sessionStorage.getItem('uname')  || '';
     S.userEmail = sessionStorage.getItem('uemail') || '';
-    // Admin check — add emails here to grant admin access
-    const ADMIN_EMAILS = ['fabian@boers-crewservices.de'];
-    S.isAdmin = ADMIN_EMAILS.includes(S.userEmail);
-    document.getElementById('user-display').textContent = S.userName;
+    // If email not in session (e.g. cached token, no fresh login), parse it from the access token JWT
+    if (!S.userEmail) {
+      try {
+        const at = sessionStorage.getItem('at') || '';
+        const claims = JSON.parse(atob(at.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        S.userEmail = (claims.upn || claims.preferred_username || claims.email || '').toLowerCase();
+        if (!S.userName) S.userName = claims.name || S.userEmail;
+        sessionStorage.setItem('uemail', S.userEmail);
+        sessionStorage.setItem('uname',  S.userName);
+      } catch(_) {}
+    }
+    // Admin check — super-admins always get access, then check AppAdmins SP list
+    const SUPER_ADMINS = ['fabian@martracon.eu'];
+    let adminEmails = [];
+    try {
+      const admins = await spGet('AppAdmins','?$select=Title&$top=100');
+      adminEmails = admins.map(a=>(a.Title||'').toLowerCase().trim());
+    } catch(_) {}
+    S.isAdmin = SUPER_ADMINS.includes(S.userEmail) || adminEmails.length===0 || adminEmails.includes(S.userEmail);
+    document.getElementById('user-display').textContent = S.userName + (S.isAdmin?' ★':'');
     if (!S.isAdmin) document.getElementById('nav-admin').closest('li').style.display = 'none';
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-nav').classList.remove('d-none');
