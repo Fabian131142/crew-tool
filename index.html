@@ -331,6 +331,114 @@
       .modal-dialog { max-width: 100% !important; margin: 0; }
       #ws-output table { font-size: .8rem; }
     }
+
+    /* ══════════════════════════════════════════
+       DASHBOARD & MODERN ENHANCEMENTS
+    ══════════════════════════════════════════ */
+
+    /* ── Dashboard KPI tiles ── */
+    .dash-kpi {
+      background: var(--mc-surface);
+      border-radius: 14px;
+      border: 1px solid var(--mc-border);
+      box-shadow: 0 2px 12px rgba(64,90,112,.07);
+      padding: 1.1rem 1.2rem;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .dash-kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .dash-kpi .dk-val { font-size: 2.1rem; font-weight: 800; line-height: 1.1; letter-spacing: -.5px; }
+    .dash-kpi .dk-lbl { font-size: .68rem; color: var(--mc-muted); margin-top: .25rem; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+    .dash-kpi .dk-sub { font-size: .7rem; font-weight: 600; margin-top: .3rem; }
+
+    /* ── Dept columns ── */
+    .dash-dept-col {
+      border-radius: 14px;
+      border: 1px solid var(--mc-border);
+      background: var(--mc-surface);
+      box-shadow: 0 2px 12px rgba(64,90,112,.07);
+      overflow: hidden;
+      height: 100%;
+    }
+    .dash-dept-col .col-hd {
+      padding: .9rem 1rem .75rem;
+      display: flex; align-items: center; gap: .65rem;
+      border-bottom: 1px solid var(--mc-border);
+    }
+    .dash-dept-col .col-title { font-weight: 700; font-size: .9rem; color: var(--mc-text); }
+    .dash-dept-col .col-sub   { font-size: .72rem; color: var(--mc-muted); margin-top: .1rem; }
+    .dash-vac-item {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .65rem 1rem;
+      border-bottom: 1px solid rgba(212,224,236,.5);
+      cursor: pointer;
+      transition: background .14s;
+    }
+    .dash-vac-item:last-child { border-bottom: none; }
+    .dash-vac-item:hover { background: var(--mc-blue-lt); }
+    .dash-vac-item .dvi-rank   { font-weight: 700; font-size: .84rem; color: var(--mc-blue); }
+    .dash-vac-item .dvi-detail { font-size: .75rem; color: var(--mc-muted); margin-top: .05rem; }
+
+    /* ── Urgency pills ── */
+    .urg-pill {
+      display: inline-flex; align-items: center; gap: .3rem;
+      font-size: .67rem; font-weight: 700; padding: .2em .6em;
+      border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+    }
+    .urg-overdue  { background: #fee2e2; color: #b91c1c; }
+    .urg-critical { background: #fee2e2; color: #dc2626; }
+    .urg-urgent   { background: #fef3c7; color: #b45309; }
+    .urg-soon     { background: #f0fdf4; color: #15803d; }
+    .urg-normal   { background: #f1f5f9; color: #64748b; }
+    .urg-nodate   { background: #f3f4f6; color: #9ca3af; }
+
+    /* ── Alert rows ── */
+    .alert-row {
+      display: flex; align-items: center; gap: .65rem;
+      padding: .6rem .8rem; border-radius: 8px; margin-bottom: .4rem;
+      cursor: pointer; transition: filter .15s;
+      font-size: .82rem;
+    }
+    .alert-row:hover { filter: brightness(.97); }
+    .alert-row-danger  { background: #fef2f2; border: 1px solid #fecaca; }
+    .alert-row-warning { background: #fffbeb; border: 1px solid #fde68a; }
+
+    /* ── Admin ref-cards ── */
+    .ref-card {
+      border-radius: 16px !important;
+      border: 1px solid var(--mc-border) !important;
+      background: var(--mc-surface);
+      box-shadow: 0 2px 10px rgba(64,90,112,.07) !important;
+      padding: 1.6rem 1rem 1.3rem !important;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: .4rem;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+      min-height: 130px;
+    }
+    .ref-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 28px rgba(64,90,112,.15) !important;
+      border-color: var(--mc-blue) !important;
+    }
+    .ref-card .rc-icon { font-size: 2.4rem; color: var(--mc-blue); line-height: 1; }
+    .ref-card .rc-name { font-weight: 700; font-size: .9rem; color: var(--mc-text); margin-top: .25rem; }
+    .ref-card .rc-count { font-size: .74rem; color: var(--mc-muted); }
+
+    /* ── Section dividers ── */
+    .dash-section-title {
+      font-size: .72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--mc-muted);
+      display: flex; align-items: center; gap: .5rem;
+      margin-bottom: .75rem;
+    }
+    .dash-section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--mc-border);
+    }
+
+    /* ── General polish ── */
+    .card { transition: box-shadow .2s, transform .2s; }
+    .nav-link { transition: color .15s, background .15s !important; }
+    .btn { transition: all .15s !important; }
   </style>
 </head>
 <body>
@@ -445,6 +553,7 @@
     </button>
     <div class="collapse navbar-collapse" id="navColl">
       <ul class="navbar-nav ms-auto gap-1 align-items-lg-center">
+        <li class="nav-item"><a class="nav-link" id="nav-dashboard" href="javascript:void(0)" onclick="nav('dashboard')"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-open"    href="javascript:void(0)" onclick="nav('open')"><i class="bi bi-anchor me-1"></i>Open Vacancies</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-all"     href="javascript:void(0)" onclick="nav('all')"><i class="bi bi-binoculars me-1"></i>All Vacancies</a></li>
         <li class="nav-item d-none"><a class="nav-link" id="nav-salary"    href="javascript:void(0)" onclick="nav('salary')"><i class="bi bi-cash-coin me-1"></i>Salary</a></li>
@@ -469,6 +578,7 @@
 
 <div id="mc-portband" class="d-none" style="position:fixed;top:64px;left:0;right:0;z-index:99;height:3px;background:linear-gradient(90deg,var(--mc-blue-deep) 0%,var(--mc-blue) 30%,var(--mc-yellow) 60%,var(--mc-blue) 80%,var(--mc-blue-deep) 100%);opacity:.55;pointer-events:none"></div>
 <div id="app-container" class="container-fluid px-3 px-md-4 py-3 d-none">
+  <div id="v-dashboard" class="d-none"></div>
   <div id="v-open" class="d-none"></div>
   <div id="v-all" class="d-none"></div>
   <div id="v-detail" class="d-none"></div>
@@ -1310,7 +1420,7 @@ function nav(name,param=null) {
   // Close mobile navbar if open
   const navColl=document.getElementById('navColl');
   if(navColl?.classList.contains('show')) bootstrap.Collapse.getInstance(navColl)?.hide();
-  ['open','all','detail','salary','seafarers','contacts','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
+  ['dashboard','open','all','detail','salary','seafarers','contacts','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
   document.querySelectorAll('.nav-link[id^="nav-"]').forEach(l=>l.classList.remove('active'));
   const navEl=document.getElementById('nav-'+(name==='detail'?S.prevViewName:name));
   if(navEl) navEl.classList.add('active');
@@ -1319,17 +1429,233 @@ function nav(name,param=null) {
   document.getElementById('v-'+name).classList.remove('d-none');
   // Persist nav state so F5/refresh restores the same page
   try { sessionStorage.setItem('navState',JSON.stringify({name,param:param||null})); } catch(_){}
-  if(name==='open') renderOpen();
+  if(name==='dashboard') renderDashboard();
+  else if(name==='open') renderOpen();
   else if(name==='all') renderAll();
   else if(name==='detail') renderDetail(param);
   else if(name==='salary') renderSalary();
   else if(name==='seafarers') renderSeafarers();
   else if(name==='reports') renderReports();
   else if(name==='contacts') renderContacts();
-  else if(name==='admin') { if(S.isAdmin) renderAdmin(); else { toast('Admin access restricted','warning'); nav('open'); } }
+  else if(name==='admin') { if(S.isAdmin) renderAdmin(); else { toast('Admin access restricted','warning'); nav('dashboard'); } }
 }
 function goDetail(id) { nav('detail',id); }
 function goBack() { nav(S.prevViewName||'open'); }
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED UTILITY — Rank categorisation
+// ═══════════════════════════════════════════════════════════════════
+function rankCatGlobal(title) {
+  if(!title) return {dept:'Unknown',level:'Unknown'};
+  const t=title.toLowerCase();
+  const isEngine=/chief eng|2nd eng|3\/e|4\/e|4th eng|engine off|motorman|wiper|oiler|fitter|electrician|eto|a\/e|refrig|pump man/.test(t);
+  const isDeck=/master|captain|chief off|1st off|2nd off|3\/o|3rd off|deck off|boatswain|bosun|\ba\/b\b|ordinary seam|deck cadet|cadet.*deck/.test(t);
+  const isRating=/boatswain|bosun|\ba\/b\b|\bos\b|ordinary seam|motorman|wiper|oiler|fitter|cook|steward|messman|cadet|rating/.test(t);
+  const isOfficer=/master|captain|chief|officer|engineer|eto|electrician/.test(t);
+  return {
+    dept: isEngine?'Engine (Technical)':isDeck?'Deck (Nautical)':'Other',
+    level: isRating?'Rating':isOfficer?'Officer':'Other',
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VIEW: DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+async function renderDashboard() {
+  const el=document.getElementById('v-dashboard'); spin(el);
+  try {
+    const [allOpenVacs, allCands] = await Promise.all([
+      spGet('Vacancies','?$select=Id,Status,Created,SignOnDate,Rank/Title,RankId,Vessel/Title,VesselId,Client/Title,ClientId&$expand=Rank,Vessel,Client&$top=500').catch(()=>[]),
+      spGet('Candidates','?$select=Id,Title,CandidateStatus,VacancyId,AgencyName,Created&$top=1000').catch(()=>[]),
+    ]);
+
+    // Filter to only open/offer-made vacancies
+    const openVacs = allOpenVacs.filter(v=>v.Status==='Open'||v.Status==='Offer Made');
+
+    // Build vacancy map for candidate lookups
+    const vacMap={}; openVacs.forEach(v=>{vacMap[v.Id]=v;});
+
+    // Urgency helper
+    const todayMs = new Date().setHours(0,0,0,0);
+    function urgency(soDateStr) {
+      if(!soDateStr) return {label:'No date set',cls:'urg-nodate',days:null,icon:'bi-calendar-x'};
+      const d=new Date(soDateStr); d.setHours(0,0,0,0);
+      const days=Math.round((d.getTime()-todayMs)/864e5);
+      if(days<0)  return {label:`${Math.abs(days)}d overdue`,cls:'urg-overdue',days,icon:'bi-exclamation-octagon-fill'};
+      if(days===0)return {label:'Today!',cls:'urg-overdue',days,icon:'bi-alarm-fill'};
+      if(days<=3) return {label:`${days}d`,cls:'urg-critical',days,icon:'bi-alarm-fill'};
+      if(days<=7) return {label:`${days}d`,cls:'urg-urgent',days,icon:'bi-clock-fill'};
+      if(days<=14)return {label:`${days}d`,cls:'urg-soon',days,icon:'bi-clock'};
+      return {label:`${days}d`,cls:'urg-normal',days,icon:'bi-calendar-check'};
+    }
+
+    // Dept split
+    const engineVacs=openVacs.filter(v=>rankCatGlobal(v.Rank?.Title||'').dept==='Engine (Technical)');
+    const deckVacs  =openVacs.filter(v=>rankCatGlobal(v.Rank?.Title||'').dept==='Deck (Nautical)');
+    const otherVacs =openVacs.filter(v=>{ const d=rankCatGlobal(v.Rank?.Title||'').dept; return d!=='Engine (Technical)'&&d!=='Deck (Nautical)'; });
+
+    // Sort by urgency (overdue first, then ascending days, no-date last)
+    function byUrgency(a,b) {
+      const ua=urgency(a.SignOnDate), ub=urgency(b.SignOnDate);
+      if(ua.days===null&&ub.days!==null) return 1;
+      if(ub.days===null&&ua.days!==null) return -1;
+      if(ua.days===null&&ub.days===null) return 0;
+      return ua.days-ub.days;
+    }
+
+    // KPI numbers
+    const nowMs=Date.now();
+    const overdueVacs =openVacs.filter(v=>{if(!v.SignOnDate)return false;const d=new Date(v.SignOnDate);d.setHours(0,0,0,0);return d.getTime()<todayMs;});
+    const within7Vacs =openVacs.filter(v=>{if(!v.SignOnDate)return false;const d=new Date(v.SignOnDate);d.setHours(0,0,0,0);const days=Math.round((d.getTime()-todayMs)/864e5);return days>=0&&days<=7;});
+    const appliedCands=allCands.filter(c=>c.CandidateStatus==='Applied');
+    const veroQueue   =appliedCands.filter(c=>vacMap[c.VacancyId]).map(c=>({c,vac:vacMap[c.VacancyId]}));
+    const staleVacs   =openVacs.filter(v=>v.Created&&Math.floor((nowMs-new Date(v.Created).getTime())/864e5)>60);
+
+    // Vacancy row renderer
+    function vacRow(v) {
+      const u=urgency(v.SignOnDate);
+      return `<div class="dash-vac-item" onclick="goDetail(${v.Id})">
+        <div style="flex:1;min-width:0">
+          <div class="dvi-rank">${h(v.Rank?.Title||'—')}</div>
+          <div class="dvi-detail">${h(v.Vessel?.Title||'—')} &nbsp;·&nbsp; ${h(v.Client?.Title||'—')}</div>
+        </div>
+        <span class="urg-pill ${u.cls}"><i class="bi ${u.icon}"></i>${u.label}</span>
+      </div>`;
+    }
+
+    // Dept column renderer
+    function deptCol(title, icon, color, owner, vacs) {
+      const sorted=[...vacs].sort(byUrgency);
+      const body=sorted.length
+        ? sorted.map(vacRow).join('')
+        : `<div class="text-center text-muted py-4" style="font-size:.82rem"><i class="bi bi-check-circle me-1 text-success"></i>No open vacancies</div>`;
+      return `<div class="dash-dept-col">
+        <div class="col-hd" style="border-top:3px solid ${color}">
+          <i class="bi ${icon}" style="color:${color};font-size:1.4rem;flex-shrink:0"></i>
+          <div>
+            <div class="col-title">${title}</div>
+            <div class="col-sub"><i class="bi bi-person-circle me-1"></i>${owner} &nbsp;·&nbsp; <strong>${vacs.length}</strong> open</div>
+          </div>
+          <span class="ms-auto urg-pill ${overdueVacs.filter(v=>vacs.includes(v)).length?'urg-overdue':'urg-normal'}" style="font-size:.65rem">
+            ${overdueVacs.filter(v=>vacs.includes(v)).length?`<i class="bi bi-exclamation-octagon-fill"></i>${overdueVacs.filter(v=>vacs.includes(v)).length} overdue`:'<i class="bi bi-check"></i>On track'}
+          </span>
+        </div>
+        <div style="max-height:420px;overflow-y:auto">${body}</div>
+      </div>`;
+    }
+
+    // Veronika's queue rows
+    const veroRows=veroQueue.slice(0,40).map(({c,vac})=>{
+      const u=urgency(vac.SignOnDate);
+      const age=c.Created?Math.floor((nowMs-new Date(c.Created).getTime())/864e5):'?';
+      return `<tr style="cursor:pointer" onclick="goDetail(${vac.Id})">
+        <td><strong>${h(c.Title||'—')}</strong></td>
+        <td>${h(vac.Rank?.Title||'—')}</td>
+        <td>${h(vac.Vessel?.Title||'—')}</td>
+        <td class="text-muted" style="font-size:.79rem">${h(c.AgencyName||'Direct')}</td>
+        <td><span class="urg-pill ${u.cls}"><i class="bi ${u.icon}"></i>${u.label}</span></td>
+        <td class="text-muted" style="font-size:.78rem">${age}d ago</td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="6" class="text-center text-muted py-3 small">No candidates awaiting screening</td></tr>';
+
+    // Alerts
+    const alertItems=[];
+    overdueVacs.forEach(v=>{
+      const days=Math.abs(Math.round((new Date(v.SignOnDate).setHours(0,0,0,0)-todayMs)/864e5));
+      alertItems.push(`<div class="alert-row alert-row-danger" onclick="goDetail(${v.Id})">
+        <i class="bi bi-exclamation-octagon-fill text-danger flex-shrink-0"></i>
+        <div><strong>${h(v.Rank?.Title||'—')}</strong> on <strong>${h(v.Vessel?.Title||'—')}</strong> — sign-on was <strong>${days}d ago</strong></div>
+        <span class="ms-auto urg-pill urg-overdue">${h(v.Client?.Title||'—')}</span>
+      </div>`);
+    });
+    staleVacs.filter(v=>!overdueVacs.includes(v)).forEach(v=>{
+      const age=Math.floor((nowMs-new Date(v.Created).getTime())/864e5);
+      alertItems.push(`<div class="alert-row alert-row-warning" onclick="goDetail(${v.Id})">
+        <i class="bi bi-clock-history text-warning flex-shrink-0" style="color:#b45309!important"></i>
+        <div><strong>${h(v.Rank?.Title||'—')}</strong> on <strong>${h(v.Vessel?.Title||'—')}</strong> — open for <strong>${age} days</strong> without placement</div>
+      </div>`);
+    });
+
+    el.innerHTML=`
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+      <h4 class="sec-title mb-0"><i class="bi bi-speedometer2 me-2" style="opacity:.8"></i>Operations Dashboard</h4>
+      <div class="text-muted d-flex align-items-center gap-3" style="font-size:.77rem">
+        <span><i class="bi bi-calendar3 me-1"></i>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>
+        <a href="#" onclick="renderDashboard();return false" class="text-decoration-none" style="color:var(--mc-blue)"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</a>
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="row g-2 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="dash-kpi">
+          <i class="bi bi-briefcase-fill mb-1" style="color:var(--mc-blue);font-size:1.15rem"></i>
+          <div class="dk-val" style="color:var(--mc-blue)">${openVacs.length}</div>
+          <div class="dk-lbl">Open Vacancies</div>
+          <div class="dk-sub" style="color:var(--mc-blue)">${engineVacs.length} Engine &nbsp;·&nbsp; ${deckVacs.length} Deck</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="dash-kpi">
+          <i class="bi bi-alarm-fill mb-1" style="color:#dc2626;font-size:1.15rem"></i>
+          <div class="dk-val" style="color:#dc2626">${overdueVacs.length+within7Vacs.length}</div>
+          <div class="dk-lbl">Need Attention</div>
+          <div class="dk-sub" style="color:#dc2626">${overdueVacs.length} overdue &nbsp;·&nbsp; ${within7Vacs.length} within 7d</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="dash-kpi">
+          <i class="bi bi-telephone-fill mb-1" style="color:#7c3aed;font-size:1.15rem"></i>
+          <div class="dk-val" style="color:#7c3aed">${veroQueue.length}</div>
+          <div class="dk-lbl">Screening Queue</div>
+          <div class="dk-sub" style="color:#7c3aed">Awaiting Veronika's call</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="dash-kpi">
+          <i class="bi bi-exclamation-triangle-fill mb-1" style="color:#b45309;font-size:1.15rem"></i>
+          <div class="dk-val" style="color:#b45309">${alertItems.length}</div>
+          <div class="dk-lbl">Active Alerts</div>
+          <div class="dk-sub" style="color:#b45309">${overdueVacs.length} past date &nbsp;·&nbsp; ${staleVacs.length} stale</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dept columns -->
+    <div class="dash-section-title"><i class="bi bi-diagram-3"></i>By Department</div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">${deptCol('Engine / Technical','bi-gear-fill','#2563eb','Serhii Boshko',engineVacs)}</div>
+      <div class="col-md-6">${deptCol('Deck / Nautical','bi-compass-fill','#16a34a','Vitaliy Stasyuk',deckVacs)}</div>
+    </div>
+    ${otherVacs.length?`<div class="mb-4">${deptCol('Other / Unclassified','bi-question-circle-fill','#9ca3af','Unassigned',otherVacs)}</div>`:''}
+
+    <!-- Veronika queue -->
+    <div class="dash-section-title"><i class="bi bi-telephone-fill"></i>Screening Queue — Veronika</div>
+    <div class="card border-0 shadow-sm mb-4" style="border-top:3px solid #7c3aed !important;border-radius:14px !important">
+      <div class="card-body p-0">
+        ${veroQueue.length
+          ? `<div class="table-responsive"><table class="table table-sm table-hover mb-0">
+              <thead><tr><th>Candidate</th><th>Rank</th><th>Vessel</th><th>Agency</th><th>Sign-On</th><th>Applied</th></tr></thead>
+              <tbody>${veroRows}</tbody>
+             </table></div>`
+          : '<div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-1 fs-5"></i><br><small>No candidates awaiting screening</small></div>'
+        }
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="dash-section-title"><i class="bi bi-exclamation-triangle"></i>Alerts &amp; Data Quality</div>
+    <div class="card border-0 shadow-sm mb-3" style="border-radius:14px !important">
+      <div class="card-body">
+        ${alertItems.length ? alertItems.join('') : '<div class="text-center text-muted py-2"><i class="bi bi-check-circle text-success me-1"></i>No alerts — everything looks good</div>'}
+      </div>
+    </div>
+
+    <div class="text-end text-muted mb-2" style="font-size:.72rem"><i class="bi bi-clock me-1"></i>Loaded at ${new Date().toLocaleTimeString()}</div>`;
+
+  } catch(e) { el.innerHTML=errBox(e); }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // VIEW: OPEN VACANCIES
@@ -4427,20 +4753,54 @@ async function renderAdmin() {
   el.innerHTML=`<h4 class="sec-title">Admin — Reference Data</h4>
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-      <div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="openVesselManager()">
-        <i class="bi bi-anchor" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i>
-        <div class="fw-bold" style="font-size:.9rem">Vessels</div>
-        <div class="text-muted" style="font-size:.78rem;min-height:1em">${S.vessels.length} active</div>
+      <div class="ref-card" onclick="openVesselManager()">
+        <i class="bi bi-anchor rc-icon"></i>
+        <div class="rc-name">Vessels</div>
+        <div class="rc-count">${S.vessels.length} active</div>
       </div>
     </div>
-    ${[
-      ['client','bi-building','Clients',`${S.clients.filter(c=>c.IsActive).length} active`],
-      ['rank','bi-person-badge','Ranks',`${S.ranks.length} active`],
-      ['agency','bi-people','Agencies',`${S.agencies.length} active`],
-    ].map(([type,icon,label,count])=>`<div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="openRefManager('${type}')"><i class="bi ${icon}" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">${label}</div><div class="text-muted" style="font-size:.78rem;min-height:1em">${count}</div></div></div>`).join('')}
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="nav('seafarers')"><i class="bi bi-person-vcard" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">Seafarers</div><div class="text-muted" style="font-size:.78rem;min-height:1em">Pool / Register</div></div></div>
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="nav('salary')"><i class="bi bi-cash-stack" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">Salary Rates</div><div class="text-muted" style="font-size:.78rem;min-height:1em"></div></div></div>
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2"><div class="card shadow-sm h-100 p-3 d-flex flex-column align-items-center justify-content-center text-center gap-2" style="cursor:pointer" onclick="nav('contacts')"><i class="bi bi-person-lines-fill" style="font-size:2rem;color:var(--mc-blue);line-height:1"></i><div class="fw-bold" style="font-size:.9rem">Contacts</div><div class="text-muted" style="font-size:.78rem;min-height:1em">Registry</div></div></div>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="ref-card" onclick="openRefManager('client')">
+        <i class="bi bi-building rc-icon"></i>
+        <div class="rc-name">Clients</div>
+        <div class="rc-count">${S.clients.filter(c=>c.IsActive).length} active</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="ref-card" onclick="openRefManager('agency')">
+        <i class="bi bi-people rc-icon"></i>
+        <div class="rc-name">Agencies</div>
+        <div class="rc-count">${S.agencies.length} active</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="ref-card" onclick="nav('contacts')">
+        <i class="bi bi-person-lines-fill rc-icon"></i>
+        <div class="rc-name">Contacts</div>
+        <div class="rc-count">Registry</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="ref-card" onclick="nav('seafarers')">
+        <i class="bi bi-person-vcard rc-icon"></i>
+        <div class="rc-name">Seafarers</div>
+        <div class="rc-count">Pool / Register</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="ref-card" onclick="nav('salary')">
+        <i class="bi bi-cash-stack rc-icon"></i>
+        <div class="rc-name">Salary Rates</div>
+        <div class="rc-count">&nbsp;</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="ref-card" onclick="openRefManager('rank')">
+        <i class="bi bi-person-badge rc-icon"></i>
+        <div class="rc-name">Ranks</div>
+        <div class="rc-count">${S.ranks.length} active</div>
+      </div>
+    </div>
   </div>
   <h5 class="sec-title">User Access Management</h5>
   <div class="row g-3 mb-4">
@@ -4970,8 +5330,8 @@ async function init() {
 
     await loadRefData();
     // Restore last visited page (survives F5/refresh)
-    try { const s=JSON.parse(sessionStorage.getItem('navState')||'{}'); nav(s.name||'open',s.param||null); }
-    catch(_){ nav('open'); }
+    try { const s=JSON.parse(sessionStorage.getItem('navState')||'{}'); nav(s.name||'dashboard',s.param||null); }
+    catch(_){ nav('dashboard'); }
 
   } catch(e) {
     document.body.style.cssText = 'margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f6f9;font-family:sans-serif';
