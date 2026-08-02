@@ -449,6 +449,7 @@
         <li class="nav-item"><a class="nav-link" id="nav-all"     href="javascript:void(0)" onclick="nav('all')"><i class="bi bi-binoculars me-1"></i>All Vacancies</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-salary"    href="javascript:void(0)" onclick="nav('salary')"><i class="bi bi-cash-coin me-1"></i>Salary</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-seafarers" href="javascript:void(0)" onclick="nav('seafarers')"><i class="bi bi-life-preserver me-1"></i>Seafarers</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-contacts" href="javascript:void(0)" onclick="nav('contacts')"><i class="bi bi-person-lines-fill me-1"></i>Contacts</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-reports"  href="javascript:void(0)" onclick="nav('reports')"><i class="bi bi-compass me-1"></i>Reports</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-admin"    href="javascript:void(0)" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Admin</a></li>
       </ul>
@@ -473,6 +474,7 @@
   <div id="v-detail" class="d-none"></div>
   <div id="v-salary" class="d-none"></div>
   <div id="v-seafarers" class="d-none"></div>
+  <div id="v-contacts" class="d-none"></div>
   <div id="v-reports" class="d-none"></div>
   <div id="v-admin" class="d-none"></div>
 </div>
@@ -1288,7 +1290,7 @@ function nav(name,param=null) {
   // Close mobile navbar if open
   const navColl=document.getElementById('navColl');
   if(navColl?.classList.contains('show')) bootstrap.Collapse.getInstance(navColl)?.hide();
-  ['open','all','detail','salary','seafarers','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
+  ['open','all','detail','salary','seafarers','contacts','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
   document.querySelectorAll('.nav-link[id^="nav-"]').forEach(l=>l.classList.remove('active'));
   const navEl=document.getElementById('nav-'+(name==='detail'?S.prevViewName:name));
   if(navEl) navEl.classList.add('active');
@@ -1303,6 +1305,7 @@ function nav(name,param=null) {
   else if(name==='salary') renderSalary();
   else if(name==='seafarers') renderSeafarers();
   else if(name==='reports') renderReports();
+  else if(name==='contacts') renderContacts();
   else if(name==='admin') { if(S.isAdmin) renderAdmin(); else { toast('Admin access restricted','warning'); nav('open'); } }
 }
 function goDetail(id) { nav('detail',id); }
@@ -1377,12 +1380,13 @@ function filterOpen() {
     <td>${fmtDate(v.ReceivedDate)}</td><td>${fmtDate(v.Modified)}</td><td>${joiningStr(v)}</td>
     <td class="text-nowrap">${fmtSalary(v.SalaryMin,v.SalaryMax,v.SalaryCurrency)}</td>
     <td class="text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h((v.NationalityRequirements||'').substring(0,50))}</td>
-  </tr>`).join(''):`<tr><td colspan="9" class="text-center text-muted py-5">${(window._openVacs||[]).length?'No vacancies match the current filter.':'No open vacancies at this time.'}</td></tr>`;
+    <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-outline-danger py-0 px-2" title="Delete" onclick="deleteVacancy(${v.Id},'${h((v.Vessel?.Title||'?')+' — '+(v.Rank?.Title||'?'))}','open')"><i class="bi bi-trash3"></i></button></td>
+  </tr>`).join(''):`<tr><td colspan="10" class="text-center text-muted py-5">${(window._openVacs||[]).length?'No vacancies match the current filter.':'No open vacancies at this time.'}</td></tr>`;
   const el=document.getElementById('open-table'); if(!el) return;
   el.innerHTML=`<div class="card shadow-sm"><div class="table-responsive" style="max-height:65vh;overflow-y:auto"><table class="table table-hover table-sm mb-0 align-middle">
     <thead style="position:sticky;top:0;z-index:2;background:var(--mc-blue);color:#fff"><tr>
       <th class="ps-3"><span style="cursor:pointer;user-select:none" onclick="sortOpenVacs('Status')">Status ${window._openSortKey==='Status'?(window._openSortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span></th>
-      ${oTh('Vessel','Vessel')}${oTh('Rank','Rank')}${oTh('Client','Client')}${oTh('Received','ReceivedDate')}${oTh('Modified','Modified')}${oTh('Joining','Joining')}${oTh('Salary','SalaryMin')}<th>Nationality</th>
+      ${oTh('Vessel','Vessel')}${oTh('Rank','Rank')}${oTh('Client','Client')}${oTh('Received','ReceivedDate')}${oTh('Modified','Modified')}${oTh('Joining','Joining')}${oTh('Salary','SalaryMin')}<th>Nationality</th><th></th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>
@@ -1392,6 +1396,189 @@ function sortOpenVacs(key) {
   if(window._openSortKey===key){ window._openSortDir=window._openSortDir==='asc'?'desc':'asc'; }
   else { window._openSortKey=key; window._openSortDir=key==='Modified'||key==='ReceivedDate'?'desc':'asc'; }
   filterOpen();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VIEW: CONTACTS REGISTRY
+// ═══════════════════════════════════════════════════════════════════
+async function renderContacts() {
+  const el = document.getElementById('v-contacts'); spin(el);
+  try {
+    const [contacts, clients, agencies] = await Promise.all([
+      spGet('Contacts', '?$select=*&$orderby=LastName,FirstName&$top=2000').catch(()=>[]),
+      spGet('ClientMaster', '?$select=Id,Title&$orderby=Title&$top=500').catch(()=>[]),
+      spGet('AgencyList',   '?$select=Id,Title&$orderby=Title&$top=500').catch(()=>[]),
+    ]);
+    window._allContacts = contacts;
+    window._contactClients = clients;
+    window._contactAgencies = agencies;
+
+    const companyOpts = [
+      ...clients.map(c=>`<option value="Client|${c.Id}|${h(c.Title)}">${h(c.Title)} (Client)</option>`),
+      ...agencies.map(a=>`<option value="Agency|${a.Id}|${h(a.Title)}">${h(a.Title)} (Agency)</option>`),
+    ].join('');
+
+    const uniqueCompanies = [...new Set(contacts.map(c=>c.CompanyName).filter(Boolean))].sort()
+      .map(n=>`<option value="${h(n)}">${h(n)}</option>`).join('');
+
+    el.innerHTML = `
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <h4 class="sec-title mb-0 me-auto"><i class="bi bi-person-lines-fill me-2" style="opacity:.7"></i>Contacts Registry</h4>
+      <button class="btn btn-sm btn-primary" onclick="openContactModal(null)"><i class="bi bi-plus-lg me-1"></i>New Contact</button>
+    </div>
+    <div class="card shadow-sm mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Company</label>
+        <select class="form-select form-select-sm" id="ct-company" onchange="filterContacts()"><option value="">All companies</option>${uniqueCompanies}</select></div>
+      <div class="col-auto"><label class="form-label form-label-sm mb-1">Type</label>
+        <select class="form-select form-select-sm" id="ct-type" onchange="filterContacts()"><option value="">All</option><option value="Client">Client</option><option value="Agency">Agency</option></select></div>
+      <div class="col"><label class="form-label form-label-sm mb-1">Search</label>
+        <input class="form-control form-control-sm" id="ct-search" type="text" placeholder="Name, role, email…" oninput="filterContacts()"></div>
+      <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('ct-company').value='';document.getElementById('ct-type').value='';document.getElementById('ct-search').value='';filterContacts()">Clear</button></div>
+    </div></div></div>
+    <div id="ct-table"></div>
+    ${contacts.length===0?`<div class="alert alert-info mt-3"><i class="bi bi-info-circle me-2"></i>No contacts yet. <strong>Run the setup script first</strong> (Admin → Contacts Setup), then add contacts via <em>New Contact</em> or migrate from client/agency records.</div>`:''}
+    <!-- Contact Modal -->
+    <div class="modal fade" id="modalContact" tabindex="-1"><div class="modal-dialog modal-lg">
+      <div class="modal-content"><div class="modal-header" style="background:var(--mc-blue);color:#fff">
+        <h5 class="modal-title" id="ct-modal-title">Contact</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="ct-modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger me-auto d-none" id="ct-del-btn" onclick="deleteContact()"><i class="bi bi-trash3 me-1"></i>Delete</button>
+        <button type="button" class="btn btn-primary" onclick="saveContact()"><i class="bi bi-floppy me-1"></i>Save</button>
+      </div></div></div></div>`;
+    filterContacts();
+    window._contactCompanyOpts = companyOpts;
+  } catch(e) { el.innerHTML = errBox(e); }
+}
+
+function filterContacts() {
+  const company = document.getElementById('ct-company')?.value||'';
+  const type    = document.getElementById('ct-type')?.value||'';
+  const q       = (document.getElementById('ct-search')?.value||'').toLowerCase();
+  let cts = (window._allContacts||[]).filter(c=>{
+    if(company && c.CompanyName !== company) return false;
+    if(type && c.CompanyType !== type) return false;
+    if(q && ![c.FirstName,c.LastName,c.Role,c.Email,c.CompanyName].filter(Boolean).join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const el = document.getElementById('ct-table'); if(!el) return;
+  if(!cts.length){ el.innerHTML='<div class="text-center text-muted py-5">No contacts match.</div>'; return; }
+  el.innerHTML = `<div class="card shadow-sm"><div class="table-responsive"><table class="table table-hover table-sm mb-0 align-middle">
+    <thead style="background:var(--mc-blue);color:#fff"><tr>
+      <th>Name</th><th>Role</th><th>Company</th><th>Type</th><th>Phone</th><th>Email</th><th>Messaging</th><th></th>
+    </tr></thead>
+    <tbody>${cts.map(c=>{
+      const name = [c.FirstName,c.LastName].filter(Boolean).join(' ')||'—';
+      const apps = [
+        c.WhatsApp?'<span style="color:#25D366" title="WhatsApp"><i class="bi bi-whatsapp"></i></span>':'',
+        c.Viber?'<span style="color:#7360F2" title="Viber">◆</span>':'',
+        c.Telegram?'<span style="color:#2AABEE" title="Telegram"><i class="bi bi-telegram"></i></span>':'',
+      ].filter(Boolean).join(' ');
+      return `<tr style="cursor:pointer" onclick="openContactModal(${c.Id})">
+        <td><strong>${h(name)}</strong></td>
+        <td class="text-muted">${h(c.Role||'—')}</td>
+        <td>${h(c.CompanyName||'—')}</td>
+        <td><span class="badge ${c.CompanyType==='Client'?'bg-primary':'bg-secondary'}" style="font-size:.7rem">${h(c.CompanyType||'—')}</span></td>
+        <td>${c.Mobile?`<a href="tel:${h(c.Mobile)}" onclick="event.stopPropagation()" class="text-decoration-none">${h(c.Mobile)}</a>`:c.Landline?h(c.Landline):'—'}</td>
+        <td>${c.Email?`<a href="mailto:${h(c.Email)}" onclick="event.stopPropagation()" class="text-decoration-none">${h(c.Email)}</a>`:'—'}</td>
+        <td>${apps||'—'}</td>
+        <td><button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="event.stopPropagation();deleteContactById(${c.Id},'${h(name)}')" title="Delete"><i class="bi bi-trash3"></i></button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>
+  <div class="card-footer text-muted" style="font-size:.78rem">${cts.length} contact${cts.length!==1?'s':''}</div></div>`;
+}
+
+function openContactModal(id) {
+  const c = id ? (window._allContacts||[]).find(x=>x.Id===id) : null;
+  window._editingContactId = id||null;
+  document.getElementById('ct-modal-title').textContent = c ? `Edit: ${[c.FirstName,c.LastName].filter(Boolean).join(' ')}` : 'New Contact';
+  const delBtn = document.getElementById('ct-del-btn');
+  if(delBtn) { if(id) delBtn.classList.remove('d-none'); else delBtn.classList.add('d-none'); }
+  // Find the currently selected company option
+  const selVal = c ? `${c.CompanyType}|${c.CompanyId}|${h(c.CompanyName||'')}` : '';
+  document.getElementById('ct-modal-body').innerHTML = `
+    <div class="row g-3 mb-3">
+      <div class="col-md-4"><label class="form-label fw-bold">First Name *</label>
+        <input type="text" class="form-control" id="ct-fn" value="${h(c?.FirstName||'')}"></div>
+      <div class="col-md-4"><label class="form-label fw-bold">Last Name *</label>
+        <input type="text" class="form-control" id="ct-ln" value="${h(c?.LastName||'')}"></div>
+      <div class="col-md-4"><label class="form-label fw-bold">Role / Title</label>
+        <input type="text" class="form-control" id="ct-role" value="${h(c?.Role||'')}"></div>
+    </div>
+    <div class="mb-3"><label class="form-label fw-bold">Company *</label>
+      <select class="form-select" id="ct-company-sel">
+        <option value="">— select company —</option>
+        ${(window._contactCompanyOpts||'').replace(`value="${selVal}"`,`value="${selVal}" selected`)}
+      </select></div>
+    <div class="row g-3 mb-3">
+      <div class="col-md-6"><label class="form-label fw-bold">Landline</label>
+        <input type="text" class="form-control" id="ct-land" value="${h(c?.Landline||'')}"></div>
+      <div class="col-md-6"><label class="form-label fw-bold">Mobile</label>
+        <input type="text" class="form-control" id="ct-mob" value="${h(c?.Mobile||'')}"></div>
+    </div>
+    <div class="mb-3"><label class="form-label fw-bold">Email</label>
+      <input type="email" class="form-control" id="ct-email" value="${h(c?.Email||'')}"></div>
+    <div class="d-flex gap-4 mb-3" style="font-size:.9rem">
+      <label class="d-flex align-items-center gap-2"><input type="checkbox" class="form-check-input mt-0" id="ct-wa"${c?.WhatsApp?' checked':''}><span style="color:#25D366"><i class="bi bi-whatsapp"></i> WhatsApp</span></label>
+      <label class="d-flex align-items-center gap-2"><input type="checkbox" class="form-check-input mt-0" id="ct-vb"${c?.Viber?' checked':''}><span style="color:#7360F2">◆ Viber</span></label>
+      <label class="d-flex align-items-center gap-2"><input type="checkbox" class="form-check-input mt-0" id="ct-tg"${c?.Telegram?' checked':''}><span style="color:#2AABEE"><i class="bi bi-telegram"></i> Telegram</span></label>
+    </div>
+    <div class="mb-2"><label class="form-label fw-bold">Notes</label>
+      <textarea class="form-control" id="ct-notes" rows="2">${h(c?.Notes||'')}</textarea></div>`;
+  new bootstrap.Modal(document.getElementById('modalContact')).show();
+}
+
+async function saveContact() {
+  const fn = document.getElementById('ct-fn')?.value?.trim();
+  const ln = document.getElementById('ct-ln')?.value?.trim();
+  if(!fn||!ln){ toast('First and Last name required','warning'); return; }
+  const compSel = document.getElementById('ct-company-sel')?.value||'';
+  if(!compSel){ toast('Please select a company','warning'); return; }
+  const [compType, compId, compName] = compSel.split('|');
+  const data = {
+    Title: `${fn} ${ln}`,
+    FirstName: fn, LastName: ln,
+    Role:     document.getElementById('ct-role')?.value?.trim()||null,
+    CompanyType: compType, CompanyId: parseInt(compId)||null, CompanyName: compName||null,
+    Landline: document.getElementById('ct-land')?.value?.trim()||null,
+    Mobile:   document.getElementById('ct-mob')?.value?.trim()||null,
+    Email:    document.getElementById('ct-email')?.value?.trim()||null,
+    WhatsApp: document.getElementById('ct-wa')?.checked||false,
+    Viber:    document.getElementById('ct-vb')?.checked||false,
+    Telegram: document.getElementById('ct-tg')?.checked||false,
+    Notes:    document.getElementById('ct-notes')?.value?.trim()||null,
+  };
+  try {
+    if(window._editingContactId) { await spUpdate('Contacts', window._editingContactId, data); toast('Contact updated ✓'); }
+    else { await spCreate('Contacts', data); toast('Contact created ✓'); }
+    bootstrap.Modal.getInstance(document.getElementById('modalContact'))?.hide();
+    renderContacts();
+  } catch(e) { toast('Save failed: '+e.message,'danger'); }
+}
+
+async function deleteContact() {
+  const c = (window._allContacts||[]).find(x=>x.Id===window._editingContactId);
+  const name = c ? [c.FirstName,c.LastName].filter(Boolean).join(' ') : 'this contact';
+  if(!confirm(`Delete "${name}"?`)) return;
+  try {
+    await spDelete('Contacts', window._editingContactId);
+    toast('Contact deleted ✓');
+    bootstrap.Modal.getInstance(document.getElementById('modalContact'))?.hide();
+    renderContacts();
+  } catch(e) { toast('Delete failed: '+e.message,'danger'); }
+}
+
+async function deleteContactById(id, name) {
+  if(!confirm(`Delete "${name}"?`)) return;
+  try {
+    await spDelete('Contacts', id);
+    toast('Contact deleted ✓');
+    renderContacts();
+  } catch(e) { toast('Delete failed: '+e.message,'danger'); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1457,9 +1644,10 @@ function buildVacTable(vacs,emptyMsg='No vacancies found.',showLegacy=false,sort
     <td class="text-nowrap">${fmtSalary(v.SalaryMin,v.SalaryMax,v.SalaryCurrency)}</td>
     <td class="text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h((v.NationalityRequirements||'').substring(0,50))}</td>
     ${showLegacy?`<td>${v.IsLegacyMigrated?'<span class="badge bg-secondary" style="font-size:.65rem">legacy</span>':''}</td>`:''}
-  </tr>`).join(''):`<tr><td colspan="${showLegacy?10:9}" class="text-center text-muted py-5">${emptyMsg}</td></tr>`;
+    <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-outline-danger py-0 px-2" title="Delete" onclick="deleteVacancy(${v.Id},'${h((v.Vessel?.Title||'?')+' — '+(v.Rank?.Title||'?'))}','all')"><i class="bi bi-trash3"></i></button></td>
+  </tr>`).join(''):`<tr><td colspan="${showLegacy?11:10}" class="text-center text-muted py-5">${emptyMsg}</td></tr>`;
   return `<div class="card shadow-sm"><div class="table-responsive" style="max-height:65vh;overflow-y:auto"><table class="table table-hover table-sm mb-0 align-middle">
-    <thead style="position:sticky;top:0;z-index:2;background:var(--mc-blue);color:#fff"><tr><th class="ps-3">${sortable?`<span style="cursor:pointer;user-select:none" onclick="sortAllVacs('Status')">Status ${window._sortKey==='Status'?(window._sortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span>`:'Status'}</th>${th('Vessel','Vessel')}${th('Rank','Rank')}${th('Client','Client')}${th('Received','ReceivedDate')}${th('Modified','Modified')}${th('Joining','Joining')}${th('Salary','SalaryMin')}<th>Nationality</th>${showLegacy?'<th></th>':''}</tr></thead>
+    <thead style="position:sticky;top:0;z-index:2;background:var(--mc-blue);color:#fff"><tr><th class="ps-3">${sortable?`<span style="cursor:pointer;user-select:none" onclick="sortAllVacs('Status')">Status ${window._sortKey==='Status'?(window._sortDir==='asc'?'&#9650;':'&#9660;'):'<span style=\'opacity:.3\'>&#8597;</span>'}</span>`:'Status'}</th>${th('Vessel','Vessel')}${th('Rank','Rank')}${th('Client','Client')}${th('Received','ReceivedDate')}${th('Modified','Modified')}${th('Joining','Joining')}${th('Salary','SalaryMin')}<th>Nationality</th>${showLegacy?'<th></th>':''}<th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <div class="card-footer text-muted" style="font-size:.78rem">${vacs.length} record${vacs.length!==1?'s':''}</div></div>`;
 }
@@ -1467,6 +1655,24 @@ function sortAllVacs(key) {
   if(window._sortKey===key){ window._sortDir=window._sortDir==='asc'?'desc':'asc'; }
   else { window._sortKey=key; window._sortDir=key==='Modified'||key==='ReceivedDate'?'desc':'asc'; }
   filterAll();
+}
+
+async function deleteVacancy(id, label, fromView) {
+  if(!confirm(`Delete vacancy:\n"${label}"?\n\nThis cannot be undone.`)) return;
+  try {
+    await spDelete('Vacancies', id);
+    // Also delete related candidates and status history
+    try {
+      const cands = await spGet('Candidates', `?$filter=VacancyId eq ${id}&$select=Id&$top=200`);
+      for(const c of cands) await spDelete('Candidates', c.Id).catch(()=>{});
+      const hist = await spGet('StatusHistory', `?$filter=VacancyId eq ${id}&$select=Id&$top=500`);
+      for(const h of hist) await spDelete('StatusHistory', h.Id).catch(()=>{});
+    } catch(_) {}
+    toast('Vacancy deleted ✓');
+    if(fromView==='detail') goBack();
+    else if(fromView==='all') renderAll();
+    else renderOpen();
+  } catch(e) { toast('Delete failed: '+e.message,'danger'); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1520,6 +1726,7 @@ function buildDetailHTML(vac,history) {
     <h4 class="sec-title mb-0 me-auto">${title}</h4>
     ${!isNew?statusBadge(status):''}
     <div class="d-flex gap-1 flex-wrap">${isNew?'':buildStatusCtrl(status,vac.Id)}</div>
+    ${!isNew?`<button class="btn btn-sm btn-outline-danger" title="Delete vacancy" onclick="deleteVacancy(${vac.Id},'${h(title)}','detail')"><i class="bi bi-trash3 me-1"></i>Delete</button>`:''}
   </div>
   <div class="row g-3">
     <div class="col-xl-8">
@@ -5233,7 +5440,7 @@ function filterBccDropdown() {
   document.querySelectorAll('#ep-bcc-agency-list .form-check').forEach(el=>{
     el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
   });
-}
+}a
 
 function isEngineRank(rankTitle){return /engineer|eto|electrician|electric|fitter|oiler|wiper|motorman|engine cadet/i.test(rankTitle||'');}
 
