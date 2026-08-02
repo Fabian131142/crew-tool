@@ -1666,7 +1666,7 @@ async function deleteVacancy(id, label, fromView) {
       const cands = await spGet('Candidates', `?$filter=VacancyId eq ${id}&$select=Id&$top=200`);
       for(const c of cands) await spDelete('Candidates', c.Id).catch(()=>{});
       const hist = await spGet('StatusHistory', `?$filter=VacancyId eq ${id}&$select=Id&$top=500`);
-      for(const h of hist) await spDelete('StatusHistory', h.Id).catch(()=>{});
+      for(const hn of hist) await spDelete('StatusHistory', hn.Id).catch(()=>{});
     } catch(_) {}
     toast('Vacancy deleted ✓');
     if(fromView==='detail') goBack();
@@ -1726,7 +1726,7 @@ function buildDetailHTML(vac,history) {
     <h4 class="sec-title mb-0 me-auto">${title}</h4>
     ${!isNew?statusBadge(status):''}
     <div class="d-flex gap-1 flex-wrap">${isNew?'':buildStatusCtrl(status,vac.Id)}</div>
-    ${!isNew?`<button class="btn btn-sm btn-outline-danger" title="Delete vacancy" onclick="deleteVacancy(${vac.Id},'${h(title)}','detail')"><i class="bi bi-trash3 me-1"></i>Delete</button>`:''}
+    ${!isNew?`<button class="btn btn-sm btn-outline-danger" title="Delete vacancy" onclick="deleteVacancy(${vac.Id},'${h((vac.Vessel?.Title||'?')+' — '+(vac.Rank?.Title||'?'))}','detail')"><i class="bi bi-trash3 me-1"></i>Delete</button>`:''}
   </div>
   <div class="row g-3">
     <div class="col-xl-8">
@@ -5440,7 +5440,7 @@ function filterBccDropdown() {
   document.querySelectorAll('#ep-bcc-agency-list .form-check').forEach(el=>{
     el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
   });
-}a
+}
 
 function isEngineRank(rankTitle){return /engineer|eto|electrician|electric|fitter|oiler|wiper|motorman|engine cadet/i.test(rankTitle||'');}
 
