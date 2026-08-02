@@ -4826,17 +4826,24 @@ async function renderAdmin() {
   el.innerHTML=`<h4 class="sec-title">Admin — Reference Data</h4>
   <div class="row g-3 mb-4">
     ${[
-      {icon:'bi-anchor',     label:'Vessels',      count:`${S.vessels.length} active`,                          action:"openVesselManager()"},
-      {icon:'bi-building',   label:'Clients',      count:`${S.clients.filter(c=>c.IsActive).length} active`,   action:"openRefManager('client')"},
-      {icon:'bi-people',     label:'Agencies',     count:`${S.agencies.length} active`,                        action:"openRefManager('agency')"},
-      {icon:'bi-person-lines-fill', label:'Contacts', count:'Registry',                                        action:"nav('contacts')"},
-      {icon:'bi-person-vcard', label:'Seafarers',  count:'Pool / Register',                                    action:"nav('seafarers')"},
-      {icon:'bi-cash-stack', label:'Salary Rates', count:'Rate tables',                                        action:"nav('salary')"},
-      {icon:'bi-person-badge', label:'Ranks',      count:`${S.ranks.length} active`,                          action:"openRefManager('rank')"},
+      {iconHtml:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mc-blue)"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>`,
+                                label:'Vessels',      count:`${S.vessels.length} active`,                          action:"openVesselManager()"},
+      {iconHtml:`<i class="bi bi-building rc-icon"></i>`,
+                                label:'Clients',      count:`${S.clients.filter(c=>c.IsActive).length} active`,   action:"openRefManager('client')"},
+      {iconHtml:`<i class="bi bi-people rc-icon"></i>`,
+                                label:'Agencies',     count:`${S.agencies.length} active`,                        action:"openRefManager('agency')"},
+      {iconHtml:`<i class="bi bi-person-lines-fill rc-icon"></i>`,
+                                label:'Contacts',     count:'Registry',                                            action:"nav('contacts')"},
+      {iconHtml:`<i class="bi bi-person-vcard rc-icon"></i>`,
+                                label:'Seafarers',    count:'Pool / Register',                                     action:"nav('seafarers')"},
+      {iconHtml:`<i class="bi bi-cash-stack rc-icon"></i>`,
+                                label:'Salary Rates', count:'Rate tables',                                         action:"nav('salary')"},
+      {iconHtml:`<i class="bi bi-person-badge rc-icon"></i>`,
+                                label:'Ranks',        count:`${S.ranks.length} active`,                           action:"openRefManager('rank')"},
     ].map(rc=>`
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
       <div class="ref-card" onclick="${rc.action}">
-        <div class="rc-icon-wrap"><i class="bi ${rc.icon} rc-icon"></i></div>
+        <div class="rc-icon-wrap">${rc.iconHtml}</div>
         <div class="rc-name">${rc.label}</div>
         <div class="rc-count">${rc.count}</div>
       </div>
