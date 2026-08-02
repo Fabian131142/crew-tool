@@ -776,6 +776,54 @@
   </div>
 </div>
 
+<!-- ── Email Templates Modal ─────────────────────────────────────────── -->
+<div class="modal fade" id="modalEmailTpl" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title text-white mb-0"><i class="bi bi-envelope-paper me-2"></i>Email Template</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-md-5">
+            <label class="form-label mb-1" style="font-size:.8rem;color:var(--mc-blue);font-weight:600">Template</label>
+            <select class="form-select form-select-sm" id="et-tpl-select" onchange="loadEmailTemplate()">
+              <option value="checkin">1 — Invitation: Check-In Call</option>
+              <option value="interview">2 — Invitation: Interview (Vitaliy / Serhii)</option>
+              <option value="rejection">3 — Rejection (candidate)</option>
+              <option value="acceptance">4 — Acceptance (candidate)</option>
+              <option value="internal">5 — Internal: Crewing Dept Embarkation</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label mb-1" style="font-size:.8rem;color:var(--mc-blue);font-weight:600">To <span class="text-muted fw-normal">(email address)</span></label>
+            <input type="email" class="form-control form-control-sm" id="et-to" placeholder="recipient@example.com">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label mb-1" style="font-size:.8rem;color:var(--mc-blue);font-weight:600">CC <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="email" class="form-control form-control-sm" id="et-cc" placeholder="cc@example.com">
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-1" style="font-size:.8rem;color:var(--mc-blue);font-weight:600">Subject</label>
+          <input type="text" class="form-control form-control-sm" id="et-subject">
+        </div>
+        <div>
+          <label class="form-label mb-1" style="font-size:.8rem;color:var(--mc-blue);font-weight:600">Body <span class="text-muted fw-normal">— edit freely before sending</span></label>
+          <textarea class="form-control font-monospace" id="et-body" rows="18" style="font-size:.81rem;line-height:1.55;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <small class="text-muted me-auto"><i class="bi bi-info-circle me-1"></i>Opens your default email client with the template pre-filled</small>
+        <button class="btn btn-sm btn-outline-secondary" onclick="copyEmailToClipboard()"><i class="bi bi-clipboard me-1"></i>Copy</button>
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-sm btn-primary" onclick="sendEmailTemplate()"><i class="bi bi-envelope-arrow-up me-1"></i>Open in Email Client</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Salary Rate add/edit -->
 <!-- ── Email Preview Modal ───────────────────────────────────────────── -->
 <div class="modal fade" id="modalEmailPreview" tabindex="-1">
@@ -1475,7 +1523,7 @@ function errBox(e) { return `<div class="alert alert-danger"><i class="bi bi-exc
 async function loadRefData() {
   const [vessels,ranks,salaryRates,clients,agencies] = await Promise.all([
     // Triple-fallback: all extended → basic extended → core only (handles any SP setup state)
-    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')
+    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,VesselPhotoUrl,MarineTrafficUrl,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')
       .catch(()=>spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500'))
       .catch(()=>spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')),
     spGet('RankList','?$select=Id,Title,RankCategory,SortOrder,IsActive&$filter=IsActive eq 1&$orderby=SortOrder&$top=200'),
@@ -1590,7 +1638,7 @@ async function renderDashboard() {
       return `<div class="dash-vac-item" onclick="goDetail(${v.Id})">
         <div style="flex:1;min-width:0">
           <div class="dvi-rank">${h(v.Rank?.Title||'—')}</div>
-          <div class="dvi-detail">${h(v.Vessel?.Title||'—')} &nbsp;·&nbsp; ${h(v.Client?.Title||'—')}</div>
+          <div class="dvi-detail">${h(v.Vessel?.Title||'—')} &nbsp;·&nbsp; ${h(vacClientName(v)||'—')}</div>
         </div>
         <span class="urg-pill ${u.cls}"><i class="bi ${u.icon}"></i>${u.label}</span>
       </div>`;
@@ -1617,19 +1665,40 @@ async function renderDashboard() {
       </div>`;
     }
 
-    // Veronika's queue rows
+    // Veronika's queue rows — build email context map too
+    window._etCtx = window._etCtx || {};
     const veroRows=veroQueue.slice(0,40).map(({c,vac})=>{
       const u=urgency(vac.SignOnDate);
       const age=c.Created?Math.floor((nowMs-new Date(c.Created).getTime())/864e5):'?';
-      return `<tr style="cursor:pointer" onclick="goDetail(${vac.Id})">
-        <td><strong>${h(c.Title||'—')}</strong></td>
-        <td>${h(vac.Rank?.Title||'—')}</td>
-        <td>${h(vac.Vessel?.Title||'—')}</td>
-        <td class="text-muted" style="font-size:.79rem">${h(c.AgencyName||'Direct')}</td>
-        <td><span class="urg-pill ${u.cls}"><i class="bi ${u.icon}"></i>${u.label}</span></td>
-        <td class="text-muted" style="font-size:.78rem">${age}d ago</td>
+      const dept=rankCatGlobal(vac.Rank?.Title||'').dept;
+      const ctxKey=`dash_${c.Id}`;
+      window._etCtx[ctxKey]={
+        candidateName:c.Title||'',
+        candidateEmail:c.Email||c.EmailAddress||'',
+        rank:vac.Rank?.Title||'',
+        vessel:vac.Vessel?.Title||'',
+        client:vac.Client?.Title||'',
+        signOnDate:vac.SignOnDate?new Date(vac.SignOnDate).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'',
+        dept,
+        interviewer:dept==='Engine (Technical)'?'Serhii Boshko':'Vitaliy Stasyuk',
+        interviewerEmail:dept==='Engine (Technical)'?'serhii@martracon.eu':'vitaliy@martracon.eu',
+      };
+      return `<tr>
+        <td style="cursor:pointer" onclick="goDetail(${vac.Id})"><strong>${h(c.Title||'—')}</strong></td>
+        <td style="cursor:pointer" onclick="goDetail(${vac.Id})">${h(vac.Rank?.Title||'—')}</td>
+        <td style="cursor:pointer" onclick="goDetail(${vac.Id})">${h(vac.Vessel?.Title||'—')}</td>
+        <td class="text-muted" style="font-size:.79rem;cursor:pointer" onclick="goDetail(${vac.Id})">${h(c.AgencyName||'Direct')}</td>
+        <td style="cursor:pointer" onclick="goDetail(${vac.Id})"><span class="urg-pill ${u.cls}"><i class="bi ${u.icon}"></i>${u.label}</span></td>
+        <td class="text-muted" style="font-size:.78rem;cursor:pointer" onclick="goDetail(${vac.Id})">${age}d ago</td>
+        <td class="text-end" onclick="event.stopPropagation()">
+          <div class="d-flex gap-1 justify-content-end">
+            <button class="btn btn-outline-primary btn-sm py-0 px-2" onclick="openEmailTemplate('checkin','${ctxKey}')" title="Check-In Call Invitation"><i class="bi bi-telephone-outbound" style="font-size:.78rem"></i></button>
+            <button class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="openEmailTemplate('checkin','${ctxKey}');document.getElementById('et-tpl-select').value='interview';loadEmailTemplate()" title="Interview Invitation"><i class="bi bi-camera-video" style="font-size:.78rem"></i></button>
+            <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="openEmailTemplate('rejection','${ctxKey}')" title="Rejection Email"><i class="bi bi-x-circle" style="font-size:.78rem;color:#dc2626"></i></button>
+          </div>
+        </td>
       </tr>`;
-    }).join('')||'<tr><td colspan="6" class="text-center text-muted py-3 small">No candidates awaiting screening</td></tr>';
+    }).join('')||'<tr><td colspan="7" class="text-center text-muted py-3 small">No candidates awaiting screening</td></tr>';
 
     // Alerts
     const alertItems=[];
@@ -1638,7 +1707,7 @@ async function renderDashboard() {
       alertItems.push(`<div class="alert-row alert-row-danger" onclick="goDetail(${v.Id})">
         <i class="bi bi-exclamation-octagon-fill text-danger flex-shrink-0"></i>
         <div><strong>${h(v.Rank?.Title||'—')}</strong> on <strong>${h(v.Vessel?.Title||'—')}</strong> — sign-on was <strong>${days}d ago</strong></div>
-        <span class="ms-auto urg-pill urg-overdue">${h(v.Client?.Title||'—')}</span>
+        <span class="ms-auto urg-pill urg-overdue">${h(vacClientName(v)||'—')}</span>
       </div>`);
     });
     staleVacs.filter(v=>!overdueVacs.includes(v)).forEach(v=>{
@@ -1709,7 +1778,7 @@ async function renderDashboard() {
       <div class="card-body p-0">
         ${veroQueue.length
           ? `<div class="table-responsive"><table class="table table-sm table-hover mb-0">
-              <thead><tr><th>Candidate</th><th>Rank</th><th>Vessel</th><th>Agency</th><th>Sign-On</th><th>Applied</th></tr></thead>
+              <thead><tr><th>Candidate</th><th>Rank</th><th>Vessel</th><th>Agency</th><th>Sign-On</th><th>Applied</th><th class="text-end pe-2">Quick Email</th></tr></thead>
               <tbody>${veroRows}</tbody>
              </table></div>`
           : '<div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-1 fs-5"></i><br><small>No candidates awaiting screening</small></div>'
@@ -1740,7 +1809,7 @@ async function renderOpen() {
     window._openVacs=vacs;
     window._openSortKey='Modified'; window._openSortDir='desc';
     const openCt=vacs.filter(v=>v.Status==='Open').length, offerCt=vacs.filter(v=>v.Status==='Offer Made').length;
-    const clientOpts=[...new Set(vacs.map(v=>v.Client?.Title).filter(Boolean))].sort().map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
+    const clientOpts=[...new Set(vacs.map(v=>vacClientName(v)).filter(Boolean))].sort().map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
     el.innerHTML=`<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
       <h4 class="sec-title mb-0 me-auto"><i class="bi bi-anchor me-2" style="opacity:.7"></i>Open Positions</h4>
       <span class="badge bg-primary px-3 py-2">${openCt} Open</span>
@@ -1771,7 +1840,7 @@ function filterOpen() {
   const q=(document.getElementById('op-search')?.value||'').toLowerCase();
   let vacs=(window._openVacs||[]).filter(v=>{
     if(status&&v.Status!==status) return false;
-    if(client&&v.Client?.Title!==client) return false;
+    if(client&&vacClientName(v)!==client) return false;
     if(q&&!((v.Vessel?.Title||'').toLowerCase().includes(q)||(v.Rank?.Title||'').toLowerCase().includes(q))) return false;
     return true;
   });
@@ -1780,7 +1849,7 @@ function filterOpen() {
     let va,vb;
     if(key==='Vessel'){va=(a.Vessel?.Title||'').toLowerCase();vb=(b.Vessel?.Title||'').toLowerCase();}
     else if(key==='Rank'){va=(a.Rank?.Title||'').toLowerCase();vb=(b.Rank?.Title||'').toLowerCase();}
-    else if(key==='Client'){va=(a.Client?.Title||'').toLowerCase();vb=(b.Client?.Title||'').toLowerCase();}
+    else if(key==='Client'){va=(vacClientName(a)||'').toLowerCase();vb=(vacClientName(b)||'').toLowerCase();}
     else if(key==='Status'){va=a.Status||'';vb=b.Status||'';}
     else if(key==='ReceivedDate'){va=a.ReceivedDate||'';vb=b.ReceivedDate||'';}
     else if(key==='SalaryMin'){va=a.SalaryMin||0;vb=b.SalaryMin||0;}
@@ -1795,7 +1864,7 @@ function filterOpen() {
   }
   const rows=vacs.length?vacs.map(v=>`<tr class="vac-row" onclick="goDetail(${v.Id})">
     <td class="ps-3">${statusBadge(v.Status)}</td><td><strong>${h(v.Vessel?.Title||'—')}</strong></td>
-    <td>${h(v.Rank?.Title||'—')}</td><td class="text-muted">${h(v.Client?.Title||'—')}</td>
+    <td>${h(v.Rank?.Title||'—')}</td><td class="text-muted">${h(vacClientName(v)||'—')}</td>
     <td>${fmtDate(v.ReceivedDate)}</td><td>${fmtDate(v.Modified)}</td><td>${joiningStr(v)}</td>
     <td class="text-nowrap">${fmtSalary(v.SalaryMin,v.SalaryMax,v.SalaryCurrency)}</td>
     <td class="text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h((v.NationalityRequirements||'').substring(0,50))}</td>
@@ -1873,6 +1942,14 @@ async function renderContacts() {
   } catch(e) { el.innerHTML = errBox(e); }
 }
 
+window._ctSort = window._ctSort || {key:'LastName', dir:'asc'};
+
+function sortContacts(key) {
+  if(window._ctSort.key===key) window._ctSort.dir = window._ctSort.dir==='asc'?'desc':'asc';
+  else { window._ctSort.key=key; window._ctSort.dir='asc'; }
+  filterContacts();
+}
+
 function filterContacts() {
   const company = document.getElementById('ct-company')?.value||'';
   const type    = document.getElementById('ct-type')?.value||'';
@@ -1883,29 +1960,53 @@ function filterContacts() {
     if(q && ![c.FirstName,c.LastName,c.Role,c.Email,c.CompanyName].filter(Boolean).join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
+  // Sort
+  const sk=window._ctSort.key, sd=window._ctSort.dir;
+  cts.sort((a,b)=>{
+    let av='', bv='';
+    if(sk==='LastName')   { av=[a.LastName,a.FirstName].filter(Boolean).join(' '); bv=[b.LastName,b.FirstName].filter(Boolean).join(' '); }
+    else if(sk==='Role')  { av=a.Role||''; bv=b.Role||''; }
+    else if(sk==='Company'){av=a.CompanyName||''; bv=b.CompanyName||'';}
+    else if(sk==='Type')  { av=a.CompanyType||''; bv=b.CompanyType||'';}
+    return sd==='asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
+
   const el = document.getElementById('ct-table'); if(!el) return;
   if(!cts.length){ el.innerHTML='<div class="text-center text-muted py-5">No contacts match.</div>'; return; }
+
+  function thSort(label, key) {
+    const active = window._ctSort.key===key;
+    const arrow  = active ? (window._ctSort.dir==='asc'?'▲':'▼') : '<span style="opacity:.3">⇅</span>';
+    return `<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortContacts('${key}')">${label} ${arrow}</th>`;
+  }
+
   el.innerHTML = `<div class="card shadow-sm"><div class="table-responsive"><table class="table table-hover table-sm mb-0 align-middle">
-    <thead style="background:var(--mc-blue);color:#fff"><tr>
-      <th>Name</th><th>Role</th><th>Company</th><th>Type</th><th>Phone</th><th>Email</th><th>Messaging</th><th></th>
+    <thead><tr>
+      ${thSort('Name','LastName')}${thSort('Role','Role')}${thSort('Company','Company')}${thSort('Type','Type')}
+      <th>Phone</th><th>Email</th><th>Messaging</th><th></th>
     </tr></thead>
     <tbody>${cts.map(c=>{
       const name = [c.FirstName,c.LastName].filter(Boolean).join(' ')||'—';
-      const ph = (c.Mobile||c.Landline||'').replace(/[^\d]/g,'');
+      const ph = (c.Mobile||c.Landline||'').replace(/[^\d+]/g,'').replace(/^\+/,'');
       const apps = [
-        c.WhatsApp ? (ph?`<a href="https://wa.me/${ph}" target="_blank" onclick="event.stopPropagation()" style="color:#25D366;text-decoration:none" title="Open WhatsApp chat"><i class="bi bi-whatsapp"></i></a>`:'<span style="color:#25D366" title="WhatsApp"><i class="bi bi-whatsapp"></i></span>') : '',
-        c.Viber    ? (ph?`<a href="viber://chat?number=%2B${ph}" onclick="event.stopPropagation()" style="color:#7360F2;text-decoration:none" title="Open Viber chat">◆</a>`:'<span style="color:#7360F2" title="Viber">◆</span>') : '',
-        c.Telegram ? (ph?`<a href="https://t.me/+${ph}" target="_blank" onclick="event.stopPropagation()" style="color:#2AABEE;text-decoration:none" title="Open Telegram chat"><i class="bi bi-telegram"></i></a>`:'<span style="color:#2AABEE" title="Telegram"><i class="bi bi-telegram"></i></span>') : '',
+        c.WhatsApp ? (ph?`<a href="https://web.whatsapp.com/send?phone=${ph}" target="_blank" onclick="event.stopPropagation()" class="badge text-decoration-none" style="background:#25D366;font-size:.68rem" title="Open WhatsApp Web"><i class="bi bi-whatsapp"></i> WA</a>`:'<span class="badge" style="background:#25D366;font-size:.68rem" title="WhatsApp"><i class="bi bi-whatsapp"></i> WA</span>') : '',
+        c.Viber    ? (ph?`<a href="viber://chat?number=%2B${ph}" onclick="event.stopPropagation()" style="color:#7360F2;text-decoration:none;font-size:.82rem" title="Viber">◆ Viber</a>`:'<span style="color:#7360F2;font-size:.8rem" title="Viber">◆</span>') : '',
+        c.Telegram ? (ph?`<a href="https://t.me/+${ph}" target="_blank" onclick="event.stopPropagation()" style="color:#2AABEE;text-decoration:none;font-size:.82rem" title="Telegram"><i class="bi bi-telegram"></i></a>`:'<span style="color:#2AABEE;font-size:.8rem" title="Telegram"><i class="bi bi-telegram"></i></span>') : '',
       ].filter(Boolean).join(' ');
-      return `<tr style="cursor:pointer" onclick="openContactModal(${c.Id})">
-        <td><strong>${h(name)}</strong></td>
-        <td class="text-muted">${h(c.Role||'—')}</td>
-        <td>${h(c.CompanyName||'—')}</td>
-        <td><span class="badge ${c.CompanyType==='Client'?'bg-primary':'bg-secondary'}" style="font-size:.7rem">${h(c.CompanyType||'—')}</span></td>
+      return `<tr>
+        <td style="cursor:pointer" onclick="openContactModal(${c.Id})"><strong>${h(name)}</strong></td>
+        <td class="text-muted" style="cursor:pointer" onclick="openContactModal(${c.Id})">${h(c.Role||'—')}</td>
+        <td style="cursor:pointer" onclick="openContactModal(${c.Id})">${h(c.CompanyName||'—')}</td>
+        <td style="cursor:pointer" onclick="openContactModal(${c.Id})"><span class="badge ${c.CompanyType==='Client'?'bg-primary':'bg-secondary'}" style="font-size:.7rem">${h(c.CompanyType||'—')}</span></td>
         <td>${c.Mobile?`<a href="tel:${h(c.Mobile)}" onclick="event.stopPropagation()" class="text-decoration-none">${h(c.Mobile)}</a>`:c.Landline?h(c.Landline):'—'}</td>
         <td>${c.Email?`<a href="mailto:${h(c.Email)}" onclick="event.stopPropagation()" class="text-decoration-none">${h(c.Email)}</a>`:'—'}</td>
         <td>${apps||'—'}</td>
-        <td><button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="event.stopPropagation();deleteContactById(${c.Id},'${h(name)}')" title="Delete"><i class="bi bi-trash3"></i></button></td>
+        <td onclick="event.stopPropagation()">
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="openContactModal(${c.Id})" title="Edit"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteContactById(${c.Id},'${h(name)}')" title="Delete"><i class="bi bi-trash3"></i></button>
+          </div>
+        </td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>
@@ -2016,7 +2117,7 @@ async function renderAll() {
   const el=document.getElementById('v-all'); spin(el);
   try {
     const vacs=await loadVacancies(null); window._allVacs=vacs; window._sortKey='Modified'; window._sortDir='desc';
-    const clientOpts=[...new Set(vacs.map(v=>v.Client?.Title).filter(Boolean))].sort().map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
+    const clientOpts=[...new Set(vacs.map(v=>vacClientName(v)).filter(Boolean))].sort().map(c=>`<option value="${h(c)}">${h(c)}</option>`).join('');
     el.innerHTML=`<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
       <h4 class="sec-title mb-0 me-auto"><i class="bi bi-binoculars me-2" style="opacity:.7"></i>All Vacancies</h4>
       <button class="btn btn-sm btn-primary" onclick="goDetail(null)"><i class="bi bi-plus-lg me-1"></i>New Vacancy</button>
@@ -2038,13 +2139,13 @@ async function renderAll() {
 function filterAll() {
   saveFilters('all',['f-status','f-client','f-search']);
   const status=document.getElementById('f-status')?.value||'', client=document.getElementById('f-client')?.value||'', q=(document.getElementById('f-search')?.value||'').toLowerCase();
-  let vacs=(window._allVacs||[]).filter(v=>{ if(status&&v.Status!==status) return false; if(client&&v.Client?.Title!==client) return false; if(q&&!((v.Vessel?.Title||'').toLowerCase().includes(q)||(v.Rank?.Title||'').toLowerCase().includes(q))) return false; return true; });
+  let vacs=(window._allVacs||[]).filter(v=>{ if(status&&v.Status!==status) return false; if(client&&vacClientName(v)!==client) return false; if(q&&!((v.Vessel?.Title||'').toLowerCase().includes(q)||(v.Rank?.Title||'').toLowerCase().includes(q))) return false; return true; });
   const key=window._sortKey||'Modified', dir=window._sortDir||'desc';
   vacs=[...vacs].sort((a,b)=>{
     let va,vb;
     if(key==='Vessel'){va=(a.Vessel?.Title||'').toLowerCase();vb=(b.Vessel?.Title||'').toLowerCase();}
     else if(key==='Rank'){va=(a.Rank?.Title||'').toLowerCase();vb=(b.Rank?.Title||'').toLowerCase();}
-    else if(key==='Client'){va=(a.Client?.Title||'').toLowerCase();vb=(b.Client?.Title||'').toLowerCase();}
+    else if(key==='Client'){va=(vacClientName(a)||'').toLowerCase();vb=(vacClientName(b)||'').toLowerCase();}
     else if(key==='Status'){va=a.Status||'';vb=b.Status||'';}
     else if(key==='ReceivedDate'){va=a.ReceivedDate||'';vb=b.ReceivedDate||'';}
     else if(key==='SalaryMin'){va=a.SalaryMin||0;vb=b.SalaryMin||0;}
@@ -2058,6 +2159,10 @@ function loadVacancies(filter) {
   const fq=filter?`?$filter=${encodeURIComponent(filter)}&`:'?';
   return spGet('Vacancies',`${fq}$select=Id,Title,Status,ReceivedDate,Modified,JoiningWeek,JoiningYear,JoiningDateOverride,ContractDurationValue,ContractDurationUnit,ContractTolerance,SalaryMin,SalaryMax,SalaryCurrency,NationalityRequirements,Remarks,IsLegacyMigrated,VesselId,Vessel/Title,ClientId,Client/Title,RankId,Rank/Title&$expand=Vessel,Client,Rank&$orderby=Modified desc&$top=2000`);
 }
+// Resolve client name for a vacancy: tries SP expand first, falls back to S.clients lookup by ClientId
+function vacClientName(v) {
+  return v.Client?.Title || S.clients.find(c=>c.Id==v.ClientId)?.Title || null;
+}
 function buildVacTable(vacs,emptyMsg='No vacancies found.',showLegacy=false,sortable=false) {
   function th(label,key){
     if(!sortable) return `<th>${label}</th>`;
@@ -2067,7 +2172,7 @@ function buildVacTable(vacs,emptyMsg='No vacancies found.',showLegacy=false,sort
   }
   const rows=vacs.length?vacs.map(v=>`<tr class="vac-row" onclick="goDetail(${v.Id})">
     <td class="ps-3">${statusBadge(v.Status)}</td><td><strong>${h(v.Vessel?.Title||'—')}</strong></td>
-    <td>${h(v.Rank?.Title||'—')}</td><td class="text-muted">${h(v.Client?.Title||'—')}</td>
+    <td>${h(v.Rank?.Title||'—')}</td><td class="text-muted">${h(vacClientName(v)||'—')}</td>
     <td>${fmtDate(v.ReceivedDate)}</td><td>${fmtDate(v.Modified)}</td><td>${joiningStr(v)}</td>
     <td class="text-nowrap">${fmtSalary(v.SalaryMin,v.SalaryMax,v.SalaryCurrency)}</td>
     <td class="text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h((v.NationalityRequirements||'').substring(0,50))}</td>
@@ -2118,6 +2223,7 @@ async function renderDetail(id) {
     // Set global vacancy status and rank for read-only enforcement and candidate modal pre-fill
     window._currentVacStatus = vac?.Status || 'Open';
     window._currentVacRank = vac?.Rank?.Title || '';
+    window._currentVacData = vac || null;
     // Populate vessel-derived fields (Entity, Service Type, Client) from live vessel data
     const vSel=document.getElementById('f-vessel');
     if(vSel&&vSel.value) onVesselChange(vSel);
@@ -2342,6 +2448,8 @@ function refreshVesselSidebar(vesselId) {
   }
   if(v.FlagReq) html+=`<div class="mt-1 p-1 rounded" style="background:#fff3cd;font-size:.8rem"><i class="bi bi-flag me-1 text-warning"></i>${h(v.FlagReq)}</div>`;
   if(v.VesselEmail||v.VesselPhone) html+=`<div class="mt-2 text-muted" style="font-size:.78rem">${v.VesselEmail?`<div><i class="bi bi-envelope me-1"></i>${h(v.VesselEmail)}</div>`:''}${v.VesselPhone?`<div><i class="bi bi-telephone me-1"></i>${h(v.VesselPhone)}</div>`:''}</div>`;
+  if(v.VesselPhotoUrl) html+=`<div class="mt-2"><img src="${h(v.VesselPhotoUrl)}" alt="Vessel photo" class="img-fluid rounded" style="max-height:140px;object-fit:cover;width:100%"></div>`;
+  if(v.MarineTrafficUrl) html+=`<div class="mt-2"><a href="${h(v.MarineTrafficUrl)}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-map me-1"></i>View on MarineTraffic</a></div>`;
   body.innerHTML=html;
 }
 
@@ -2647,6 +2755,181 @@ function filterCandidates() {
   <div class="text-muted px-2 py-1" style="font-size:.78rem">${list.length} candidate${list.length!==1?'s':''}</div>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// EMAIL TEMPLATES
+// ═══════════════════════════════════════════════════════════════════
+const EMAIL_TEMPLATES = {
+  checkin: {
+    label: '1 — Invitation: Check-In Call',
+    subject: c=>`Invitation — Availability & Interest Check | ${c.rank}${c.vessel?' | '+c.vessel:''}`,
+    body: c=>`Dear ${c.candidateName||'[Name]'},
+
+I hope this message finds you well.
+
+We are reaching out in connection with an open position for a ${c.rank||'[Rank]'}${c.vessel?' aboard the '+c.vessel:''}.${c.client?' The vessel is operated by '+c.client+'.':''}
+
+Before we proceed further, we would like to schedule a brief introductory call with you to discuss the following points:
+
+  • Your current availability and earliest possible sign-on date${c.signOnDate?' (target: '+c.signOnDate+')':''}
+  • Your interest in this position and general expectations
+  • Salary and contract conditions
+  • English language proficiency and communication
+
+Please let us know your availability for a short call — we are happy to accommodate your schedule. We look forward to speaking with you.
+
+Kind regards,
+Veronika
+Martracon GmbH — Crew Management
+`
+  },
+
+  interview: {
+    label: '2 — Invitation: Interview',
+    subject: c=>`Interview Invitation — ${c.rank||'[Rank]'}${c.vessel?' | '+c.vessel:''}`,
+    body: c=>`Dear ${c.candidateName||'[Name]'},
+
+Thank you for your time during our initial screening call and for your continued interest in the ${c.rank||'[Rank]'} position${c.vessel?' aboard the '+c.vessel:''}.
+
+We are pleased to invite you for a technical interview. Your interview will be conducted by:
+
+  ${c.interviewer||'[Interviewer]'} (${c.interviewerEmail||'[email]'})
+  ${c.dept==='Engine (Technical)'?'Technical Superintendent — Engine / Technical Department':'Nautical Superintendent — Deck / Nautical Department'}
+
+The interview will take place via video call (Microsoft Teams or Zoom). Please confirm your availability and suggest two or three time slots that suit you. We will aim to schedule the interview as soon as possible.
+
+Please ensure you have the following ready for the interview:
+  • Valid STCW certificates and flag state endorsements
+  • Seaman's book / CDC
+  • Last three sea service records
+  • Any relevant engine/deck experience documentation
+
+We look forward to speaking with you in detail.
+
+Kind regards,
+Veronika
+Martracon GmbH — Crew Management
+`
+  },
+
+  rejection: {
+    label: '3 — Rejection (Candidate)',
+    subject: c=>`Application Update — ${c.rank||'[Rank]'}${c.vessel?' | '+c.vessel:''}`,
+    body: c=>`Dear ${c.candidateName||'[Name]'},
+
+Thank you very much for your interest in the ${c.rank||'[Rank]'} position${c.vessel?' aboard the '+c.vessel:''} and for the time you invested in our selection process.
+
+After careful consideration, we regret to inform you that we are unable to proceed with your application for this particular vacancy at this time.
+
+Please know that this decision does not reflect negatively on your professional background. We will be keeping your profile on file and will be happy to reach out should a suitable opportunity arise in the future.
+
+We appreciate your understanding and wish you all the best in your career.
+
+Kind regards,
+Martracon GmbH — Crew Management
+`
+  },
+
+  acceptance: {
+    label: '4 — Acceptance (Candidate)',
+    subject: c=>`Congratulations — Approved for ${c.rank||'[Rank]'}${c.vessel?' | '+c.vessel:''}`,
+    body: c=>`Dear ${c.candidateName||'[Name]'},
+
+We are delighted to inform you that following our selection and interview process, you have been approved for the ${c.rank||'[Rank]'} position${c.vessel?' aboard the '+c.vessel:''}.${c.client?'\nThe vessel is operated by '+c.client+'.':''}
+
+${c.signOnDate?'Your expected sign-on date is: '+c.signOnDate+'\n\n':''}Our crewing department will be in touch with you very shortly regarding the following next steps:
+
+  ✓ Pre-joining documentation checklist
+  ✓ Medical examination (if required)
+  ✓ Visa / flag state endorsement requirements
+  ✓ Travel and embarkation arrangements
+  ✓ Contract preparation and allotment setup
+
+Please ensure all your certificates and travel documents are valid and up to date. Should you have any questions in the meantime, please do not hesitate to contact us.
+
+Congratulations — we look forward to welcoming you on board!
+
+Kind regards,
+Martracon GmbH — Crew Management
+`
+  },
+
+  internal: {
+    label: '5 — Internal: Crewing Dept Embarkation',
+    subject: c=>`[INTERNAL] Embarkation Arrangements — ${c.candidateName||'[Seafarer]'} | ${c.rank||'[Rank]'}${c.vessel?' | '+c.vessel:''}`,
+    body: c=>`Dear Crewing Department,
+
+Please be informed that the following seafarer has been approved for joining. Kindly proceed with all regular pre-joining and embarkation arrangements at your earliest convenience.
+
+══════════════════════════════════════════
+SEAFARER DETAILS
+══════════════════════════════════════════
+  Name:          ${c.candidateName||'[Name]'}
+  Rank:          ${c.rank||'[Rank]'}
+  Vessel:        ${c.vessel||'[Vessel]'}${c.client?'\n  Operated by:   '+c.client:''}${c.signOnDate?'\n  Sign-On Date:  '+c.signOnDate:''}
+══════════════════════════════════════════
+
+ACTION REQUIRED — please proceed with:
+
+  □  Pre-joining medical examination confirmation
+  □  STCW & flag state certificate validity check
+  □  Visa / flag state endorsement (if applicable)
+  □  Travel booking & embarkation arrangements
+  □  Employment contract preparation & signing
+  □  Allotment / payroll setup
+  □  Pre-joining checklist completion & sign-off
+  □  Handover briefing with outgoing crew (if applicable)
+
+Please confirm receipt of this message and keep the crewing management system updated accordingly. Do not hesitate to reach out if further information or documentation is required.
+
+Best regards,
+[Your Name]
+Martracon GmbH
+`,
+  },
+};
+
+window._etCtx = window._etCtx || {};
+
+function openEmailTemplate(tplId, ctxIdOrObj) {
+  const ctx = typeof ctxIdOrObj === 'object'
+    ? ctxIdOrObj
+    : (window._etCtx?.[ctxIdOrObj] || {});
+  S._emailCtx = ctx;
+  const sel = document.getElementById('et-tpl-select');
+  if(sel) sel.value = tplId;
+  document.getElementById('et-to').value = ctx.candidateEmail || '';
+  document.getElementById('et-cc').value = ctx.ccEmail || '';
+  loadEmailTemplate();
+  new bootstrap.Modal(document.getElementById('modalEmailTpl')).show();
+}
+
+function loadEmailTemplate() {
+  const tplId = document.getElementById('et-tpl-select')?.value;
+  const tpl = EMAIL_TEMPLATES[tplId];
+  if(!tpl || !S._emailCtx) return;
+  document.getElementById('et-subject').value = tpl.subject(S._emailCtx);
+  document.getElementById('et-body').value    = tpl.body(S._emailCtx);
+}
+
+function sendEmailTemplate() {
+  const to      = encodeURIComponent(document.getElementById('et-to')?.value||'');
+  const cc      = encodeURIComponent(document.getElementById('et-cc')?.value||'');
+  const subject = encodeURIComponent(document.getElementById('et-subject')?.value||'');
+  const body    = encodeURIComponent(document.getElementById('et-body')?.value||'');
+  let href=`mailto:${to}?subject=${subject}&body=${body}`;
+  if(cc) href+=`&cc=${cc}`;
+  window.open(href,'_self');
+}
+
+async function copyEmailToClipboard() {
+  const subj = document.getElementById('et-subject')?.value||'';
+  const body = document.getElementById('et-body')?.value||'';
+  try {
+    await navigator.clipboard.writeText(`Subject: ${subj}\n\n${body}`);
+    toast('Copied to clipboard ✓');
+  } catch(_) { toast('Copy not supported in this browser','warning'); }
+}
+
 function sortCandidates(key) {
   if(window._candSortKey===key){ window._candSortDir=window._candSortDir==='asc'?'desc':'asc'; }
   else { window._candSortKey=key; window._candSortDir='asc'; }
@@ -2663,6 +2946,23 @@ function buildCandidateActions(c,vacId,status) {
     if(status!=='Placed'&&status!=='Rejected') btns.push(`<button class="btn btn-outline-danger btn-sm py-0" style="font-size:.75rem" onclick="event.stopPropagation();setCandidateStatus(${id},'Rejected',${vacId})">Reject</button>`);
   }
   btns.push(`<button class="btn btn-outline-secondary btn-sm py-0 px-1" onclick="event.stopPropagation();openCandidateModal(${vacId},${id})" title="Edit"><i class="bi bi-pencil"></i></button>`);
+  // Email template button — smart default based on status
+  const tplDefault={Applied:'checkin',Shortlisted:'interview',Offered:'acceptance',Placed:'internal',Rejected:'rejection'}[status]||'checkin';
+  const vac=window._currentVacData||{};
+  const dept=rankCatGlobal(vac.Rank?.Title||'').dept;
+  window._etCtx=window._etCtx||{};
+  window._etCtx[id]={
+    candidateName:c.Title||'',
+    candidateEmail:c.Email||c.EmailAddress||'',
+    rank:vac.Rank?.Title||'',
+    vessel:vac.Vessel?.Title||'',
+    client:vac.Client?.Title||'',
+    signOnDate:vac.SignOnDate?new Date(vac.SignOnDate).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'',
+    dept,
+    interviewer:dept==='Engine (Technical)'?'Serhii Boshko':'Vitaliy Stasyuk',
+    interviewerEmail:dept==='Engine (Technical)'?'serhii@martracon.eu':'vitaliy@martracon.eu',
+  };
+  btns.push(`<button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="event.stopPropagation();openEmailTemplate('${tplDefault}',${id})" title="Email template"><i class="bi bi-envelope"></i></button>`);
   return btns.join('');
 }
 
@@ -3717,12 +4017,15 @@ async function setupCrmColumns() {
   };
   const tasks=[
     // ClientMaster CRM fields
-    {list:'ClientMaster',name:'Website',  type:2},{list:'ClientMaster',name:'Address', type:2},
-    {list:'ClientMaster',name:'City',     type:2},{list:'ClientMaster',name:'PostCode',type:2},
-    {list:'ClientMaster',name:'Country',  type:2},
+    {list:'ClientMaster',name:'Website',   type:2},{list:'ClientMaster',name:'Address',  type:2},
+    {list:'ClientMaster',name:'City',      type:2},{list:'ClientMaster',name:'PostCode', type:2},
+    {list:'ClientMaster',name:'Country',   type:2},
+    {list:'ClientMaster',name:'Email',     type:2},{list:'ClientMaster',name:'EmailList',type:2},
+    {list:'ClientMaster',name:'LogoUrl',   type:2},
     {list:'ClientMaster',name:'Notes',    type:3},{list:'ClientMaster',name:'ContactsJson',type:3},
     // AgencyList PIC field
-    {list:'AgencyList',  name:'ContactsJson',type:3}
+    {list:'AgencyList',  name:'ContactsJson',type:3},
+    {list:'AgencyList',  name:'Email',     type:2},{list:'AgencyList',  name:'EmailList',type:2}
   ];
   for(const t of tasks){
     const r=await addCol(t.list,t.name,t.type).catch(e=>({ok:false,status:e.message}));
@@ -3757,6 +4060,8 @@ async function setupVesselExtendedColumns() {
     {name:'DeckCrew',     type:2, max:255},
     {name:'EngineCrew',   type:2, max:255},
     {name:'FlagReq',      type:3},  // multiline
+    {name:'VesselPhotoUrl',  type:2, max:500},
+    {name:'MarineTrafficUrl',type:2, max:500},
   ];
   const results=[];
   for(const f of fields){
@@ -4046,7 +4351,7 @@ async function renderReports() {
     });
     openVacs.forEach(v=>{
       const r=v.Rank?.Title||'Unknown'; vacByRank[r]=(vacByRank[r]||0)+1;
-      const c=v.Client?.Title||'Unknown'; vacByClient[c]=(vacByClient[c]||0)+1;
+      const c=vacClientName(v)||'Unknown'; vacByClient[c]=(vacByClient[c]||0)+1;
     });
     const now=Date.now();
     const ages=openVacs.map(v=>v.Created?Math.floor((now-new Date(v.Created).getTime())/864e5):null).filter(n=>n!==null);
@@ -4490,17 +4795,21 @@ async function openSeafarerModal(id) {
       <div class="table-responsive">
         <table class="table table-sm table-hover mb-0" style="font-size:.82rem">
           <thead style="background:#f0f4f8"><tr>
-            <th>Vessel</th><th>Rank</th><th>Status</th><th>Date</th>
+            <th>Vessel</th><th>Rank</th><th>Status</th><th>Date</th><th>Rejection Reason</th>
           </tr></thead>
           <tbody>
             ${history.map(h2=>{
-              if(typeof h2==='string') return `<tr><td colspan="4">${h(h2)}</td></tr>`;
+              if(typeof h2==='string') return `<tr><td colspan="5">${h(h2)}</td></tr>`;
               const vacUrl=h2.vacancyId?`onclick="bootstrap.Modal.getInstance(document.getElementById('modalSeafarer'))?.hide();nav('detail',${h2.vacancyId})" href='javascript:void(0)' style='color:var(--mc-blue);text-decoration:none'`:'';
+              const isRejected=h2.status==='Rejected';
+              const rejReason=h2.rejectedReason||'';
+              const rejBy=h2.rejectedBy||'';
               return `<tr>
                 <td>${h2.vacancyId?`<a ${vacUrl}>${h(h2.vessel||'—')}</a>`:h(h2.vessel||'—')}</td>
                 <td>${h(h2.rank||'—')}</td>
                 <td>${candidateBadge(h2.status||'Applied')}</td>
                 <td class="text-muted text-nowrap">${h(h2.date||'—')}</td>
+                <td>${isRejected&&rejReason?`<span class="text-danger" title="${h(rejBy?'By '+rejBy:'')}">${h(rejReason)}</span>`:isRejected?'<span class="text-muted">—</span>':''}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -4926,6 +5235,16 @@ async function renderAdmin() {
         <button class="btn btn-primary btn-sm ms-2 text-nowrap flex-shrink-0" onclick="importVesselData()" id="btn-import-vessels"><i class="bi bi-upload me-1"></i>Run Import</button>
       </div>
     </div>
+    <div class="col-12">
+      <div class="alert alert-secondary d-flex align-items-center gap-3 mb-0 h-100">
+        <i class="bi bi-people-fill fs-4 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Migrate Contacts from Clients &amp; Agencies → Contact Registry</strong><br>
+          <span style="font-size:.85rem">Reads all ContactsJson fields stored in ClientMaster and AgencyList and copies them to the Contacts SP list. Safe to run multiple times — will not duplicate by name. Requires Contacts list to exist first.</span>
+        </div>
+        <button class="btn btn-secondary btn-sm ms-2 text-nowrap flex-shrink-0" onclick="migrateContactsFromJson()" id="btn-migrate-contacts"><i class="bi bi-arrow-repeat me-1"></i>Run Migration</button>
+      </div>
+    </div>
   </div>
   <h5 class="sec-title">Vacancy Stats</h5><div id="admin-stats"><div class="spinner-border spinner-border-sm text-secondary"></div></div>`;
 
@@ -5199,6 +5518,18 @@ function editVessel(id) {
     <div class="col-md-6"><label class="form-label fw-bold">Vessel Phone / Sat</label>
       <input type="text" class="form-control" id="vf-phone" value="${h(v?.VesselPhone||'')}" placeholder="e.g. Sat: +4723679769"></div>
   </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label fw-bold">Vessel Photo <span class="text-muted fw-normal" style="font-size:.78rem">URL</span></label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-image"></i></span>
+        <input type="text" class="form-control" id="vf-photo" value="${h(v?.VesselPhotoUrl||'')}" placeholder="https://…/vessel.jpg">
+      </div></div>
+    <div class="col-md-6"><label class="form-label fw-bold">MarineTraffic Link</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-map"></i></span>
+        <input type="text" class="form-control" id="vf-marinetraffic" value="${h(v?.MarineTrafficUrl||'')}" placeholder="https://www.marinetraffic.com/…">
+      </div></div>
+  </div>
   <hr class="my-2">
   <div class="mb-3">
     <label class="form-label fw-bold">Trading Areas (select all that apply)</label>
@@ -5301,10 +5632,12 @@ async function saveVessel() {
   const vfFlagReq=document.getElementById('vf-flagreq')?.value?.trim(); if(vfFlagReq) data.FlagReq=vfFlagReq;
   const vfEmail=document.getElementById('vf-email')?.value?.trim(); if(vfEmail) data.VesselEmail=vfEmail;
   const vfPhone=document.getElementById('vf-phone')?.value?.trim(); if(vfPhone) data.VesselPhone=vfPhone;
+  const vfPhoto=document.getElementById('vf-photo')?.value?.trim(); if(vfPhoto) data.VesselPhotoUrl=vfPhoto;
+  const vfMarineTraffic=document.getElementById('vf-marinetraffic')?.value?.trim(); if(vfMarineTraffic) data.MarineTrafficUrl=vfMarineTraffic;
   const btn=document.getElementById('btn-vessel-save');
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
   // Extended SP columns that may not exist yet (require Setup Vessel Columns to be run first)
-  const EXTENDED_COLS=['EngineSpecs','TradingArea','DWT','GRT','IMONumber','FuelType','AuxEngine','Scrubber','BWTS','ECDIS','PMS','Gear','Thrusters','LoadingProgram','TEU','BridgeCrew','DeckCrew','EngineCrew','FlagReq','VesselEmail','VesselPhone'];
+  const EXTENDED_COLS=['EngineSpecs','TradingArea','DWT','GRT','IMONumber','FuelType','AuxEngine','Scrubber','BWTS','ECDIS','PMS','Gear','Thrusters','LoadingProgram','TEU','BridgeCrew','DeckCrew','EngineCrew','FlagReq','VesselEmail','VesselPhone','VesselPhotoUrl','MarineTrafficUrl'];
   try {
     const id=S._editingVesselId;
     try {
@@ -5638,21 +5971,43 @@ const REF_CONFIGS = {
           <div class="form-check"><input class="form-check-input" type="checkbox" id="rf-active"${r?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="rf-active">Active</label></div>
         </div>
       </div>
-      <div class="mb-3">
-        <label class="form-label fw-bold">Website <span class="text-danger">*</span></label>
-        <div class="input-group">
-          <span class="input-group-text"><i class="bi bi-globe"></i></span>
-          <input type="text" class="form-control" id="rf-website" value="${h(r?.Website||'')}" placeholder="https://www.example.com">
+      <div class="row g-3 mb-3">
+        <div class="col-md-7">
+          <label class="form-label fw-bold">Website</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-globe"></i></span>
+            <input type="text" class="form-control" id="rf-website" value="${h(r?.Website||'')}" placeholder="https://www.example.com">
+          </div>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label fw-bold">Company Logo <span class="text-muted fw-normal" style="font-size:.78rem">URL</span></label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-image"></i></span>
+            <input type="text" class="form-control" id="rf-logo" value="${h(r?.LogoUrl||'')}" placeholder="https://…/logo.png">
+          </div>
         </div>
       </div>
       <div class="row g-3 mb-3">
-        <div class="col-12"><label class="form-label fw-bold">Street Address <span class="text-danger">*</span></label>
+        <div class="col-md-7">
+          <label class="form-label fw-bold">Primary Email</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
+            <input type="email" class="form-control" id="rf-email" value="${h(r?.Email||'')}" placeholder="info@client.com">
+          </div>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label fw-bold">Additional Emails <span class="text-muted fw-normal" style="font-size:.78rem">(comma-separated)</span></label>
+          <input type="text" class="form-control" id="rf-emails-extra" value="${h(r?.EmailList||'')}" placeholder="ops@client.com, crewing@client.com">
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-12"><label class="form-label fw-bold">Street Address</label>
           <input type="text" class="form-control" id="rf-address" value="${h(r?.Address||'')}" placeholder="Street and house number"></div>
-        <div class="col-md-5"><label class="form-label fw-bold">City <span class="text-danger">*</span></label>
+        <div class="col-md-5"><label class="form-label fw-bold">City</label>
           <input type="text" class="form-control" id="rf-city" value="${h(r?.City||'')}" placeholder="City"></div>
-        <div class="col-md-3"><label class="form-label fw-bold">ZIP / Post Code <span class="text-danger">*</span></label>
+        <div class="col-md-3"><label class="form-label fw-bold">ZIP / Post Code</label>
           <input type="text" class="form-control" id="rf-postcode" value="${h(r?.PostCode||'')}" placeholder="e.g. 20457"></div>
-        <div class="col-md-4"><label class="form-label fw-bold">Country <span class="text-danger">*</span></label>
+        <div class="col-md-4"><label class="form-label fw-bold">Country</label>
           <select class="form-select" id="rf-country"><option value="">— select —</option>${countryOpts}</select></div>
       </div>
       <div class="mb-3"><label class="form-label fw-bold">Notes</label>
@@ -5665,18 +6020,15 @@ const REF_CONFIGS = {
     getData:()=>{
       const t=document.getElementById('rf-title')?.value?.trim();
       if(!t){toast('Company name is required','warning');return null;}
-      const website=document.getElementById('rf-website')?.value?.trim();
-      if(!website){toast('Website is required','warning');return null;}
-      const address=document.getElementById('rf-address')?.value?.trim();
-      if(!address){toast('Street address is required','warning');return null;}
-      const city=document.getElementById('rf-city')?.value?.trim();
-      if(!city){toast('City is required','warning');return null;}
-      const postcode=document.getElementById('rf-postcode')?.value?.trim();
-      if(!postcode){toast('ZIP / Post Code is required','warning');return null;}
-      const country=document.getElementById('rf-country')?.value;
-      if(!country){toast('Country is required','warning');return null;}
       return {Title:t,IsActive:document.getElementById('rf-active')?.checked??true,
-        Website:website,Address:address,City:city,PostCode:postcode,Country:country,
+        Website:document.getElementById('rf-website')?.value?.trim()||null,
+        LogoUrl:document.getElementById('rf-logo')?.value?.trim()||null,
+        Email:document.getElementById('rf-email')?.value?.trim()||null,
+        EmailList:document.getElementById('rf-emails-extra')?.value?.trim()||null,
+        Address:document.getElementById('rf-address')?.value?.trim()||null,
+        City:document.getElementById('rf-city')?.value?.trim()||null,
+        PostCode:document.getElementById('rf-postcode')?.value?.trim()||null,
+        Country:document.getElementById('rf-country')?.value||null,
         Notes:document.getElementById('rf-notes')?.value?.trim()||null,
         ContactsJson:JSON.stringify(window._formContacts_cl||[])};
     }
@@ -5860,14 +6212,19 @@ function renderFormContacts(prefix){
       c.viber?`<span class="badge ms-1" style="background:#7360F2;font-size:.65rem">◆ Viber</span>`:'',
       c.telegram?`<span class="badge ms-1" style="background:#2AABEE;font-size:.65rem"><i class="bi bi-telegram"></i> TG</span>`:''
     ].filter(Boolean).join('');
+    const mob = (c.mobile||'').replace(/[^\d+]/g,'').replace(/^\+/,'');
+    const waLink = c.whatsapp && mob ? `<a href="https://web.whatsapp.com/send?phone=${mob}" target="_blank" class="badge text-decoration-none ms-1" style="background:#25D366;font-size:.62rem" title="WhatsApp Web"><i class="bi bi-whatsapp"></i> WA</a>` : '';
     return `<div class="d-flex align-items-start gap-2 mb-2 p-2 border rounded bg-white" style="font-size:.84rem">
       <div class="flex-grow-1">
-        <strong>${h(fullName)}</strong>${c.role?` <span class="text-muted fw-normal">(${h(c.role)})</span>`:''}${apps}
+        <strong>${h(fullName)}</strong>${c.role?` <span class="text-muted fw-normal">(${h(c.role)})</span>`:''}${waLink}${apps.replace(/<span.*?WA.*?<\/span>/,'')}
         ${c.landline?`<div class="mt-1"><i class="bi bi-telephone-fill text-muted me-1"></i>${h(c.landline)}</div>`:''}
         ${c.mobile?`<div><i class="bi bi-phone-fill text-muted me-1"></i>${h(c.mobile)}</div>`:''}
         ${c.email?`<div><i class="bi bi-envelope-fill text-muted me-1"></i><a href="mailto:${h(c.email)}" class="text-decoration-none">${h(c.email)}</a></div>`:''}
       </div>
-      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 flex-shrink-0" onclick="removeFormContact(${i},'${prefix}')" title="Remove">×</button>
+      <div class="d-flex gap-1 flex-shrink-0">
+        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="editFormContact(${i},'${prefix}')" title="Edit"><i class="bi bi-pencil"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeFormContact(${i},'${prefix}')" title="Remove">×</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -5895,6 +6252,31 @@ function addFormContact(prefix){
 function removeFormContact(idx, prefix){
   if(window['_formContacts_'+prefix]) window['_formContacts_'+prefix].splice(idx,1);
   renderFormContacts(prefix);
+}
+
+function editFormContact(idx, prefix) {
+  const contacts = window['_formContacts_'+prefix]||[];
+  const c = contacts[idx];
+  if(!c) return;
+  // Pre-fill the add form with this contact's data
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
+  const chk = (id, val) => { const el=document.getElementById(id); if(el) el.checked=Boolean(val); };
+  set(`fc-fn-${prefix}`,  c.firstName||c.name||'');
+  set(`fc-ln-${prefix}`,  c.lastName||'');
+  set(`fc-role-${prefix}`,c.role||'');
+  set(`fc-land-${prefix}`,c.landline||'');
+  set(`fc-mob-${prefix}`, c.mobile||'');
+  set(`fc-email-${prefix}`,c.email||'');
+  chk(`fc-wa-${prefix}`,  c.whatsapp);
+  chk(`fc-vb-${prefix}`,  c.viber);
+  chk(`fc-tg-${prefix}`,  c.telegram);
+  // Remove from list (will be re-added when user clicks Add Contact)
+  contacts.splice(idx,1);
+  renderFormContacts(prefix);
+  // Scroll add form into view and focus first field
+  const fn=document.getElementById(`fc-fn-${prefix}`);
+  if(fn){ fn.scrollIntoView({behavior:'smooth',block:'nearest'}); fn.focus(); }
+  toast('Edit the fields and click "Add Contact" to save changes','info');
 }
 
 // ── Agency favorite helpers (stored in localStorage) ────────────────
@@ -5955,7 +6337,92 @@ function editRefItem(id) {
 }
 
 // Extended columns that may not exist until CRM setup is run
-const CRM_EXTENDED_COLS=['ContactsJson','Website','Address','City','PostCode','Country','Notes'];
+const CRM_EXTENDED_COLS=['ContactsJson','Website','Address','City','PostCode','Country','Notes','Email','EmailList','LogoUrl'];
+
+// ── One-time migration: ContactsJson → Contacts SP list ─────────────────────
+async function migrateContactsFromJson() {
+  const btn=document.getElementById('btn-migrate-contacts');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Migrating…';}
+  let created=0, updated=0, skipped=0;
+  try {
+    const [clients,agencies]=await Promise.all([
+      spGet('ClientMaster','?$select=Id,Title,ContactsJson&$top=500').catch(()=>[]),
+      spGet('AgencyList','?$select=Id,Title,ContactsJson&$top=500').catch(()=>[])
+    ]);
+    const sources=[
+      ...clients.map(c=>({id:c.Id,name:c.Title,type:'Client',json:c.ContactsJson})),
+      ...agencies.map(a=>({id:a.Id,name:a.Title,type:'Agency',json:a.ContactsJson}))
+    ];
+    for(const src of sources) {
+      let contacts=[];
+      try { contacts=JSON.parse(src.json||'[]'); } catch(_){ continue; }
+      if(!Array.isArray(contacts)||!contacts.length) continue;
+      let existing=[];
+      try { existing=await spGet('Contacts',`?$select=Id,FirstName,LastName&$filter=CompanyId eq ${src.id} and CompanyType eq '${src.type}'&$top=500`); } catch(_){}
+      for(const c of contacts) {
+        const fn=(c.firstName||c.name||'').trim();
+        const ln=(c.lastName||'').trim();
+        const payload={
+          Title:[fn,ln].filter(Boolean).join(' ')||'Contact',
+          FirstName:fn||null, LastName:ln||null, Role:c.role||null,
+          CompanyType:src.type, CompanyId:src.id, CompanyName:src.name,
+          Landline:c.landline||null, Mobile:c.mobile||null, Email:c.email||null,
+          WhatsApp:c.whatsapp?'Yes':null, Viber:c.viber?'Yes':null, Telegram:c.telegram?'Yes':null,
+          Notes:c.notes||null
+        };
+        const match=existing.find(e=>(e.FirstName||'').toLowerCase()===fn.toLowerCase()&&(e.LastName||'').toLowerCase()===ln.toLowerCase());
+        try {
+          if(match){ await spUpdate('Contacts',match.Id,payload); updated++; }
+          else { await spCreate('Contacts',payload); created++; }
+        } catch(_){ skipped++; }
+      }
+    }
+    toast(`Migration complete — ${created} created, ${updated} updated${skipped?`, ${skipped} skipped`:''}`,'success');
+  } catch(e){ toast('Migration failed: '+e.message,'danger'); }
+  finally { if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-arrow-repeat me-1"></i>Run Migration';} }
+}
+
+// ── Sync contacts from client/agency forms → Contacts SP list ───────────────
+// Safe: creates new or updates existing by name match; never deletes.
+async function syncContactsToRegistry(contacts, companyId, companyName, companyType) {
+  if(!contacts||!contacts.length) return;
+  // Fetch existing contacts for this company to detect duplicates
+  let existing=[];
+  try {
+    existing=await spGet('Contacts',`?$select=Id,FirstName,LastName,Email&$filter=CompanyId eq ${companyId} and CompanyType eq '${companyType}'&$top=500`);
+  } catch(e){ /* Contacts list may not exist yet — will be caught below */ }
+  for(const c of contacts) {
+    const fn=(c.firstName||c.name||'').trim();
+    const ln=(c.lastName||'').trim();
+    const payload={
+      Title: [fn,ln].filter(Boolean).join(' ')||'Contact',
+      FirstName: fn||null,
+      LastName: ln||null,
+      Role: c.role||null,
+      CompanyType: companyType,
+      CompanyId: companyId,
+      CompanyName: companyName,
+      Landline: c.landline||null,
+      Mobile: c.mobile||null,
+      Email: c.email||null,
+      WhatsApp: c.whatsapp?'Yes':null,
+      Viber: c.viber?'Yes':null,
+      Telegram: c.telegram?'Yes':null,
+      Notes: c.notes||null
+    };
+    // Match by name to update instead of duplicate
+    const match=existing.find(e=>
+      (e.FirstName||'').toLowerCase()===fn.toLowerCase()&&
+      (e.LastName||'').toLowerCase()===ln.toLowerCase()
+    );
+    try {
+      if(match){ await spUpdate('Contacts',match.Id,payload); }
+      else { await spCreate('Contacts',payload); }
+    } catch(syncErr){
+      console.warn('Contact sync failed for',fn,ln,syncErr.message);
+    }
+  }
+}
 
 async function saveRefItem() {
   const cfg=REF_CONFIGS[window._refManagerType]; if(!cfg) return;
@@ -5965,20 +6432,29 @@ async function saveRefItem() {
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
   try {
     const id=S._editingRefId;
+    let savedId=id;
     try {
       if(id){ await spUpdate(cfg.list,id,data); }
-      else { await spCreate(cfg.list,data); }
+      else { const res=await spCreate(cfg.list,data); savedId=res?.Id||res?.d?.Id||id; }
     } catch(e400) {
       // If SP rejects because CRM columns don't exist yet, retry with core fields only
       if(e400.message?.includes('does not exist on type')||e400.message?.includes('400')) {
         const coreData={...data};
         CRM_EXTENDED_COLS.forEach(k=>delete coreData[k]);
         if(S._editingRefId){ await spUpdate(cfg.list,S._editingRefId,coreData); }
-        else { await spCreate(cfg.list,coreData); }
+        else { const res=await spCreate(cfg.list,coreData); savedId=res?.Id||res?.d?.Id||id; }
         toast(`${cfg.label} saved — run Admin → Add Client CRM & Agency PIC columns to enable address/contact fields`,'warning');
       } else { throw e400; }
     }
     toast(`${cfg.label} ${S._editingRefId?'updated':'created'} ✓`);
+    // Sync contacts to Contacts registry for client/agency types
+    if((window._refManagerType==='client'||window._refManagerType==='agency') && savedId) {
+      const contacts=window['_formContacts_'+(window._refManagerType==='client'?'cl':'ag')]||[];
+      const companyType=window._refManagerType==='client'?'Client':'Agency';
+      syncContactsToRegistry(contacts, savedId, data.Title, companyType).catch(e=>{
+        console.warn('Contact sync error:',e.message);
+      });
+    }
     // Reload items immediately so manager table shows the new/updated record
     window._refManagerItems=await spGet(cfg.list,cfg.query).catch(()=>window._refManagerItems||[]);
     renderRefTable(); // update table NOW, before the modal transition
