@@ -755,6 +755,24 @@
   </div>
 </div>
 
+<!-- Contact Registry modal — lives here permanently so renderContacts() can't destroy it -->
+<div class="modal fade" id="modalContact" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
+        <h5 class="modal-title" id="ct-modal-title">Contact</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="ct-modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger me-auto d-none" id="ct-del-btn" onclick="deleteContact()"><i class="bi bi-trash3 me-1"></i>Delete</button>
+        <button type="button" class="btn btn-primary" onclick="saveContact()"><i class="bi bi-floppy me-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Placed → Close Vacancy? prompt -->
 <div class="modal fade" id="modalPlacedClose" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -1586,7 +1604,7 @@ async function renderDashboard() {
   const el=document.getElementById('v-dashboard'); spin(el);
   try {
     const [allOpenVacs, allCands] = await Promise.all([
-      spGet('Vacancies','?$select=Id,Status,Created,SignOnDate,Rank/Title,RankId,Vessel/Title,VesselId,Client/Title,ClientId&$expand=Rank,Vessel,Client&$top=500').catch(()=>[]),
+      spGet('Vacancies','?$select=Id,Status,Created,JoiningDateOverride,JoiningWeek,JoiningYear,Rank/Title,RankId,Vessel/Title,VesselId,Client/Title,ClientId&$expand=Rank,Vessel,Client&$top=500').catch(()=>[]),
       spGet('Candidates','?$select=Id,Title,CandidateStatus,VacancyId,AgencyName,Created&$top=1000').catch(()=>[]),
     ]);
 
@@ -1677,8 +1695,8 @@ async function renderDashboard() {
         candidateEmail:c.Email||c.EmailAddress||'',
         rank:vac.Rank?.Title||'',
         vessel:vac.Vessel?.Title||'',
-        client:vac.Client?.Title||'',
-        signOnDate:vac.SignOnDate?new Date(vac.SignOnDate).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'',
+        client:vacClientName(vac)||'',
+        signOnDate:vac.JoiningDateOverride?new Date(vac.JoiningDateOverride).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):vac.JoiningWeek&&vac.JoiningYear?`Week ${vac.JoiningWeek}/${vac.JoiningYear}`:'',
         dept,
         interviewer:dept==='Engine (Technical)'?'Serhii Boshko':'Vitaliy Stasyuk',
         interviewerEmail:dept==='Engine (Technical)'?'serhii@martracon.eu':'vitaliy@martracon.eu',
@@ -1692,9 +1710,11 @@ async function renderDashboard() {
         <td class="text-muted" style="font-size:.78rem;cursor:pointer" onclick="goDetail(${vac.Id})">${age}d ago</td>
         <td class="text-end" onclick="event.stopPropagation()">
           <div class="d-flex gap-1 justify-content-end">
-            <button class="btn btn-outline-primary btn-sm py-0 px-2" onclick="openEmailTemplate('checkin','${ctxKey}')" title="Check-In Call Invitation"><i class="bi bi-telephone-outbound" style="font-size:.78rem"></i></button>
-            <button class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="openEmailTemplate('checkin','${ctxKey}');document.getElementById('et-tpl-select').value='interview';loadEmailTemplate()" title="Interview Invitation"><i class="bi bi-camera-video" style="font-size:.78rem"></i></button>
-            <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="openEmailTemplate('rejection','${ctxKey}')" title="Rejection Email"><i class="bi bi-x-circle" style="font-size:.78rem;color:#dc2626"></i></button>
+            <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="openEmailTemplate('checkin','${ctxKey}')" title="1 — Invitation: Check-In Call"><i class="bi bi-telephone-outbound" style="font-size:.78rem"></i></button>
+            <button class="btn btn-outline-info btn-sm py-0 px-1" onclick="openEmailTemplate('interview','${ctxKey}')" title="2 — Invitation: Interview"><i class="bi bi-camera-video" style="font-size:.78rem"></i></button>
+            <button class="btn btn-outline-success btn-sm py-0 px-1" onclick="openEmailTemplate('acceptance','${ctxKey}')" title="3 — Acceptance Email"><i class="bi bi-check-circle" style="font-size:.78rem"></i></button>
+            <button class="btn btn-outline-secondary btn-sm py-0 px-1" onclick="openEmailTemplate('internal','${ctxKey}')" title="4 — Internal: Crewing Dept Embarkation"><i class="bi bi-building" style="font-size:.78rem"></i></button>
+            <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="openEmailTemplate('rejection','${ctxKey}')" title="5 — Rejection Email"><i class="bi bi-x-circle" style="font-size:.78rem"></i></button>
           </div>
         </td>
       </tr>`;
@@ -1924,19 +1944,8 @@ async function renderContacts() {
       <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('ct-company').value='';document.getElementById('ct-type').value='';document.getElementById('ct-search').value='';filterContacts()">Clear</button></div>
     </div></div></div>
     <div id="ct-table"></div>
-    ${contacts.length===0?`<div class="alert alert-info mt-3"><i class="bi bi-info-circle me-2"></i>No contacts yet. <strong>Run the setup script first</strong> (Admin → Contacts Setup), then add contacts via <em>New Contact</em> or migrate from client/agency records.</div>`:''}
-    <!-- Contact Modal -->
-    <div class="modal fade" id="modalContact" tabindex="-1"><div class="modal-dialog modal-lg">
-      <div class="modal-content"><div class="modal-header" style="background:var(--mc-blue);color:#fff">
-        <h5 class="modal-title" id="ct-modal-title">Contact</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="ct-modal-body"></div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-danger me-auto d-none" id="ct-del-btn" onclick="deleteContact()"><i class="bi bi-trash3 me-1"></i>Delete</button>
-        <button type="button" class="btn btn-primary" onclick="saveContact()"><i class="bi bi-floppy me-1"></i>Save</button>
-      </div></div></div></div>`;
+    ${contacts.length===0?`<div class="alert alert-info mt-3"><i class="bi bi-info-circle me-2"></i>No contacts yet. Add contacts via <em>New Contact</em> or run Admin → Migrate Contacts to import from client/agency records.</div>`:''}`;
+    // Note: #modalContact is in the static page HTML — do NOT add it here
     filterContacts();
     window._contactCompanyOpts = companyOpts;
   } catch(e) { el.innerHTML = errBox(e); }
@@ -2050,7 +2059,7 @@ function openContactModal(id) {
     </div>
     <div class="mb-2"><label class="form-label fw-bold">Notes</label>
       <textarea class="form-control" id="ct-notes" rows="2">${h(c?.Notes||'')}</textarea></div>`;
-  new bootstrap.Modal(document.getElementById('modalContact')).show();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalContact')).show();
 }
 
 async function saveContact() {
@@ -2084,8 +2093,11 @@ async function saveContact() {
   try {
     if(window._editingContactId) { await spUpdate('Contacts', window._editingContactId, data); toast('Contact updated ✓'); }
     else { await spCreate('Contacts', data); toast('Contact created ✓'); }
-    bootstrap.Modal.getInstance(document.getElementById('modalContact'))?.hide();
-    renderContacts();
+    const m = bootstrap.Modal.getInstance(document.getElementById('modalContact'));
+    if(m) {
+      document.getElementById('modalContact').addEventListener('hidden.bs.modal', ()=>renderContacts(), {once:true});
+      m.hide();
+    } else { renderContacts(); }
   } catch(e) { toast('Save failed: '+e.message,'danger'); }
 }
 
@@ -2096,8 +2108,11 @@ async function deleteContact() {
   try {
     await spDelete('Contacts', window._editingContactId);
     toast('Contact deleted ✓');
-    bootstrap.Modal.getInstance(document.getElementById('modalContact'))?.hide();
-    renderContacts();
+    const m = bootstrap.Modal.getInstance(document.getElementById('modalContact'));
+    if(m) {
+      document.getElementById('modalContact').addEventListener('hidden.bs.modal', ()=>renderContacts(), {once:true});
+      m.hide();
+    } else { renderContacts(); }
   } catch(e) { toast('Delete failed: '+e.message,'danger'); }
 }
 
@@ -2900,7 +2915,7 @@ function openEmailTemplate(tplId, ctxIdOrObj) {
   document.getElementById('et-to').value = ctx.candidateEmail || '';
   document.getElementById('et-cc').value = ctx.ccEmail || '';
   loadEmailTemplate();
-  new bootstrap.Modal(document.getElementById('modalEmailTpl')).show();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEmailTpl')).show();
 }
 
 function loadEmailTemplate() {
@@ -2946,8 +2961,7 @@ function buildCandidateActions(c,vacId,status) {
     if(status!=='Placed'&&status!=='Rejected') btns.push(`<button class="btn btn-outline-danger btn-sm py-0" style="font-size:.75rem" onclick="event.stopPropagation();setCandidateStatus(${id},'Rejected',${vacId})">Reject</button>`);
   }
   btns.push(`<button class="btn btn-outline-secondary btn-sm py-0 px-1" onclick="event.stopPropagation();openCandidateModal(${vacId},${id})" title="Edit"><i class="bi bi-pencil"></i></button>`);
-  // Email template button — smart default based on status
-  const tplDefault={Applied:'checkin',Shortlisted:'interview',Offered:'acceptance',Placed:'internal',Rejected:'rejection'}[status]||'checkin';
+  // Build email context for this candidate
   const vac=window._currentVacData||{};
   const dept=rankCatGlobal(vac.Rank?.Title||'').dept;
   window._etCtx=window._etCtx||{};
@@ -2956,13 +2970,21 @@ function buildCandidateActions(c,vacId,status) {
     candidateEmail:c.Email||c.EmailAddress||'',
     rank:vac.Rank?.Title||'',
     vessel:vac.Vessel?.Title||'',
-    client:vac.Client?.Title||'',
-    signOnDate:vac.SignOnDate?new Date(vac.SignOnDate).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'',
+    client:vacClientName(vac)||'',
+    signOnDate:vac.JoiningDateOverride?new Date(vac.JoiningDateOverride).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'',
     dept,
     interviewer:dept==='Engine (Technical)'?'Serhii Boshko':'Vitaliy Stasyuk',
     interviewerEmail:dept==='Engine (Technical)'?'serhii@martracon.eu':'vitaliy@martracon.eu',
   };
-  btns.push(`<button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="event.stopPropagation();openEmailTemplate('${tplDefault}',${id})" title="Email template"><i class="bi bi-envelope"></i></button>`);
+  // Email template buttons — all 5 templates as icon buttons
+  // Highlight the status-appropriate one; others available in a compact dropdown group
+  const sep = `<span style="border-left:1px solid #dee2e6;height:20px;display:inline-block;margin:0 2px;vertical-align:middle"></span>`;
+  btns.push(sep);
+  btns.push(`<button class="btn btn-sm py-0 px-1 ${status==='Applied'||status==='Shortlisted'?'btn-outline-primary':'btn-outline-secondary'}" onclick="event.stopPropagation();openEmailTemplate('checkin',${id})" title="1 — Invitation: Check-In Call"><i class="bi bi-telephone-outbound" style="font-size:.8rem"></i></button>`);
+  btns.push(`<button class="btn btn-sm py-0 px-1 ${status==='Shortlisted'||status==='Applied'?'btn-outline-info':'btn-outline-secondary'}" onclick="event.stopPropagation();openEmailTemplate('interview',${id})" title="2 — Invitation: Interview"><i class="bi bi-camera-video" style="font-size:.8rem"></i></button>`);
+  btns.push(`<button class="btn btn-sm py-0 px-1 ${status==='Offered'?'btn-outline-success':'btn-outline-secondary'}" onclick="event.stopPropagation();openEmailTemplate('acceptance',${id})" title="3 — Acceptance Email"><i class="bi bi-check-circle" style="font-size:.8rem"></i></button>`);
+  btns.push(`<button class="btn btn-sm py-0 px-1 ${status==='Placed'?'btn-outline-success':'btn-outline-secondary'}" onclick="event.stopPropagation();openEmailTemplate('internal',${id})" title="4 — Internal: Crewing Dept Embarkation"><i class="bi bi-building" style="font-size:.8rem"></i></button>`);
+  btns.push(`<button class="btn btn-sm py-0 px-1 ${status==='Rejected'?'btn-danger':'btn-outline-danger'}" onclick="event.stopPropagation();openEmailTemplate('rejection',${id})" title="5 — Rejection Email"><i class="bi bi-x-circle" style="font-size:.8rem"></i></button>`);
   return btns.join('');
 }
 
@@ -4474,8 +4496,12 @@ async function renderReports() {
       return sorted.map(([k,n])=>`<tr><td class="text-truncate" style="max-width:155px;font-size:.82rem" title="${h(k)}">${h(k)}</td><td class="text-end fw-bold" style="font-size:.82rem">${n}</td><td style="width:70px">${bar(n,mx,color)}</td></tr>`).join('')||'<tr><td colspan="3" class="text-muted text-center py-2 small">No data yet</td></tr>';
     }
     function kpi(val,label,sub,color,icon){
-      return `<div class="col-6 col-md-2"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3 px-2">
-        <i class="bi ${icon} mb-1" style="font-size:1rem;color:${color};opacity:.75"></i>
+      // icon can be a BI class name (e.g. 'bi-ship') or raw SVG/HTML string
+      const iconHtml = icon.startsWith('<')
+        ? `<div class="mb-1" style="color:${color};opacity:.75;display:flex;justify-content:center">${icon}</div>`
+        : `<i class="bi ${icon} mb-1" style="font-size:1rem;color:${color};opacity:.75"></i>`;
+      return `<div class="col-6 col-md-2"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3 px-2 d-flex flex-column align-items-center justify-content-center">
+        ${iconHtml}
         <div style="font-size:1.75rem;font-weight:700;color:${color};line-height:1.1">${val}</div>
         <div class="text-muted mt-1" style="font-size:.72rem;line-height:1.3">${label}</div>
         ${sub?`<div style="font-size:.68rem;color:${color};opacity:.8">${sub}</div>`:''}
@@ -4536,7 +4562,7 @@ async function renderReports() {
       ${kpi(avgAge!==null?avgAge+'d':'—','Avg Days Open','current open',avgAge!==null&&avgAge>60?'#dc3545':avgAge!==null&&avgAge>30?'#fd7e14':'var(--mc-blue)','bi-clock')}
     </div>
     <div class="row g-2 mb-4">
-      ${kpi(activeVess,'Active Vessels','','var(--mc-blue)','bi-ship')}
+      ${kpi(activeVess,'Active Vessels','','var(--mc-blue)','<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>')}
       ${kpi(activeClients,'Active Clients','','var(--mc-blue)','bi-building')}
       ${kpi(activeAgencies,'Active Agencies','','var(--mc-blue)','bi-globe')}
       ${kpi(rejRate+'%','Rejection Rate','of all candidates',rejRate>50?'#dc3545':rejRate>30?'#fd7e14':'#198754','bi-x-circle')}
