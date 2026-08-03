@@ -3314,6 +3314,101 @@ async function uploadCvFile(file, vacId) {
   return `https://martraconeu.sharepoint.com${rel}`;
 }
 
+// ── Generic image drop-zone helpers (logo / vessel photo upload to SiteAssets) ──
+function imgDragOver(e,fieldId){e.preventDefault();const z=document.getElementById(fieldId+'-zone');if(z){z.style.borderColor='var(--mc-blue)';z.style.background='#EBF3FB';}}
+function imgDragLeave(e,fieldId){const z=document.getElementById(fieldId+'-zone');if(z){z.style.borderColor='#ccc';z.style.background='#fafafa';}}
+function imgDrop(e,fieldId,subdir){e.preventDefault();imgDragLeave(e,fieldId);const f=e.dataTransfer.files[0];if(f)handleImgFile(f,fieldId,subdir);}
+function imgFileSelected(inp,fieldId,subdir){const f=inp.files[0];if(f)handleImgFile(f,fieldId,subdir);}
+function handleImgFile(file,fieldId,subdir){
+  const ok=/^image\//i.test(file.type)||/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(file.name);
+  if(!ok){toast('Only image files (PNG, JPG, GIF, WebP, SVG) are supported','warning');return;}
+  if(!window._pendingImgFiles) window._pendingImgFiles={};
+  window._pendingImgFiles[fieldId]={file,subdir};
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const prev=document.getElementById(fieldId+'-prev');
+    if(prev) prev.innerHTML=`<img src="${ev.target.result}" style="max-height:64px;max-width:130px;object-fit:contain;border-radius:4px">`;
+    const lbl=document.getElementById(fieldId+'-lbl');
+    if(lbl) lbl.innerHTML=`<i class="bi bi-check-circle text-success me-1"></i>${h(file.name)} (${(file.size/1024).toFixed(0)} KB) — uploads on save`;
+    const z=document.getElementById(fieldId+'-zone');if(z)z.style.borderColor='var(--mc-blue)';
+    const inp=document.getElementById(fieldId);if(inp)inp.value='';
+  };
+  reader.readAsDataURL(file);
+}
+function imgUrlChanged(fieldId){
+  const url=(document.getElementById(fieldId)?.value||'').trim();
+  if(url){if(window._pendingImgFiles)delete window._pendingImgFiles[fieldId];}
+  const prev=document.getElementById(fieldId+'-prev');
+  if(prev) prev.innerHTML=url?`<img src="${url}" style="max-height:64px;max-width:130px;object-fit:contain;border-radius:4px" onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'bi bi-broken-image',style:'font-size:1.4rem;color:#bbb'}))">`:`<i class="bi bi-image" style="font-size:1.4rem;color:#bbb"></i>`;
+}
+async function uploadImgToSiteAssets(file,subdir){
+  const token=await getToken();
+  const siteRel=SP_SITE.replace('https://martraconeu.sharepoint.com','');
+  await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(siteRel+'/SiteAssets')}')/Folders/add('${encodeURIComponent(subdir)}')`,
+    {method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','X-RequestDigest':'nodigest'}}).catch(()=>{});
+  const safe=file.name.replace(/[^a-zA-Z0-9._()-]/g,'_');
+  const fileName=`${Date.now()}_${safe}`;
+  const up=await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(siteRel+'/SiteAssets/'+subdir)}')/Files/add(url='${encodeURIComponent(fileName)}',overwrite=true)`,
+    {method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose'},body:await file.arrayBuffer()});
+  if(!up.ok) throw new Error(`Image upload: ${up.status}`);
+  const j=await up.json();
+  return `https://martraconeu.sharepoint.com${j.d.ServerRelativeUrl}`;
+}
+// Helper: auto-create ALL vessel extended SP columns silently (called on first 400 error)
+async function ensureAllVesselExtCols(){
+  const token=await getToken();
+  const fields=[
+    {n:'EngineSpecs',t:3},{n:'TradingArea',t:2,m:500},{n:'DWT',t:2,m:50},{n:'GRT',t:2,m:50},
+    {n:'IMONumber',t:2,m:50},{n:'FuelType',t:2,m:100},{n:'AuxEngine',t:2,m:255},{n:'Scrubber',t:2,m:255},
+    {n:'BWTS',t:2,m:255},{n:'ECDIS',t:2,m:255},{n:'PMS',t:2,m:255},{n:'Gear',t:2,m:255},
+    {n:'Thrusters',t:2,m:255},{n:'LoadingProgram',t:2,m:255},{n:'TEU',t:2,m:100},
+    {n:'BridgeCrew',t:2,m:255},{n:'DeckCrew',t:2,m:255},{n:'EngineCrew',t:2,m:255},
+    {n:'FlagReq',t:3},{n:'VesselEmail',t:2,m:255},{n:'VesselPhone',t:2,m:100},
+    {n:'VesselPhotoUrl',t:2,m:500},{n:'MarineTrafficUrl',t:2,m:500}
+  ];
+  await Promise.allSettled(fields.map(f=>{
+    const body=f.t===3
+      ?JSON.stringify({__metadata:{type:'SP.FieldMultiLineText'},Title:f.n,InternalName:f.n,FieldTypeKind:3,Required:false,NumberOfLines:4})
+      :JSON.stringify({__metadata:{type:'SP.FieldText'},Title:f.n,InternalName:f.n,FieldTypeKind:2,Required:false,MaxLength:f.m||255});
+    return fetch(`${API}/lists/getbytitle('VesselMaster')/fields`,{method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':'nodigest'},body});
+  }));
+}
+// Helper: auto-create ALL CRM columns silently (called on first 400 error for client/agency)
+async function ensureAllCrmCols(){
+  const token=await getToken();
+  const tasks=[
+    {l:'ClientMaster',n:'Website',t:2},{l:'ClientMaster',n:'Address',t:2},{l:'ClientMaster',n:'City',t:2},
+    {l:'ClientMaster',n:'PostCode',t:2},{l:'ClientMaster',n:'Country',t:2},
+    {l:'ClientMaster',n:'Email',t:2},{l:'ClientMaster',n:'EmailList',t:2},{l:'ClientMaster',n:'LogoUrl',t:2,m:500},
+    {l:'ClientMaster',n:'Notes',t:3},{l:'ClientMaster',n:'ContactsJson',t:3},
+    {l:'AgencyList',n:'ContactsJson',t:3},{l:'AgencyList',n:'Email',t:2},{l:'AgencyList',n:'EmailList',t:2},
+    {l:'AgencyList',n:'Phone',t:2,m:100},{l:'AgencyList',n:'AgencyType',t:2,m:100}
+  ];
+  await Promise.allSettled(tasks.map(f=>{
+    const body=f.t===3
+      ?JSON.stringify({__metadata:{type:'SP.FieldMultiLineText'},Title:f.n,InternalName:f.n,FieldTypeKind:3,Required:false,NumberOfLines:4})
+      :JSON.stringify({__metadata:{type:'SP.FieldText'},Title:f.n,InternalName:f.n,FieldTypeKind:2,Required:false,MaxLength:f.m||255});
+    return fetch(`${SP_SITE}/_api/web/lists/getbytitle('${f.l}')/fields`,{method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':'nodigest'},body});
+  }));
+}
+// Helper: build an image drop zone (returns HTML string; fieldId is also the URL <input> id)
+function buildImgDropZone(fieldId,currentUrl,subdir,label=''){
+  const prev=currentUrl?`<img src="${h(currentUrl)}" style="max-height:64px;max-width:130px;object-fit:contain;border-radius:4px" onerror="this.style.display='none'">`:
+    `<i class="bi bi-image" style="font-size:1.4rem;color:#bbb"></i>`;
+  return `<div style="border:2px dashed #ccc;border-radius:8px;cursor:pointer;text-align:center;padding:10px 8px;background:#fafafa;transition:all .2s;display:flex;align-items:center;gap:10px"
+    id="${fieldId}-zone"
+    ondragover="imgDragOver(event,'${fieldId}')" ondragleave="imgDragLeave(event,'${fieldId}')" ondrop="imgDrop(event,'${fieldId}','${subdir}')"
+    onclick="document.getElementById('${fieldId}-file').click()">
+    <div id="${fieldId}-prev" style="flex-shrink:0">${prev}</div>
+    <div style="text-align:left">
+      <div style="font-size:.79rem;color:#555;font-weight:600">${label}</div>
+      <div id="${fieldId}-lbl" style="font-size:.76rem;color:#999">${currentUrl?'Click or drag to replace':'Drag &amp; drop image or <u>click to browse</u>'}</div>
+    </div>
+  </div>
+  <input type="file" id="${fieldId}-file" accept="image/*" style="display:none" onchange="imgFileSelected(this,'${fieldId}','${subdir}')">
+  <input type="text" class="form-control form-control-sm mt-1" id="${fieldId}" value="${h(currentUrl||'')}" placeholder="Or paste image URL…" oninput="imgUrlChanged('${fieldId}')">`;
+}
+
 // ── Seafarer Pool CV upload helpers (sf-cv-* IDs, uploads to SeafarerPool/CVs) ──
 function sfCvDragOver(e) { e.preventDefault(); const z=document.getElementById('sf-cv-drop-zone'); if(z){z.style.borderColor='#2E74B5';z.style.background='#EBF3FB';} }
 function sfCvDragLeave(e) { const z=document.getElementById('sf-cv-drop-zone'); if(z){z.style.borderColor='#ccc';z.style.background='#fafafa';} }
@@ -4045,9 +4140,10 @@ async function setupCrmColumns() {
     {list:'ClientMaster',name:'Email',     type:2},{list:'ClientMaster',name:'EmailList',type:2},
     {list:'ClientMaster',name:'LogoUrl',   type:2},
     {list:'ClientMaster',name:'Notes',    type:3},{list:'ClientMaster',name:'ContactsJson',type:3},
-    // AgencyList PIC field
+    // AgencyList fields
     {list:'AgencyList',  name:'ContactsJson',type:3},
-    {list:'AgencyList',  name:'Email',     type:2},{list:'AgencyList',  name:'EmailList',type:2}
+    {list:'AgencyList',  name:'Email',     type:2},{list:'AgencyList',  name:'EmailList',type:2},
+    {list:'AgencyList',  name:'Phone',     type:2},{list:'AgencyList',  name:'AgencyType',type:2}
   ];
   for(const t of tasks){
     const r=await addCol(t.list,t.name,t.type).catch(e=>({ok:false,status:e.message}));
@@ -4692,7 +4788,27 @@ async function renderReports() {
 async function renderSeafarers() {
   const el=document.getElementById('v-seafarers'); spin(el);
   try {
-    const seafarers=await spGet('SeafarerPool',`?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Email,Phone,Notes,VacancyHistory,AgencyName,CVLink,EnglishLevel,EnglishEvalDate,EnglishEvalNote,Status&$orderby=LastName&$top=500`).catch(()=>[]);
+    let seafarers=[], poolReady=true;
+    try {
+      seafarers=await spGet('SeafarerPool',`?$select=Id,Title,FirstName,LastName,DOB,Gender,Nationality,Rank,Email,Phone,Notes,VacancyHistory,AgencyName,CVLink,EnglishLevel,EnglishEvalDate,EnglishEvalNote,Status&$orderby=LastName&$top=500`);
+      window._sfPoolReady=true;
+    } catch(e) {
+      if(e.message?.includes('404')||e.message?.includes('does not exist')) {
+        poolReady=false; window._sfPoolReady=false;
+      } else { throw e; }
+    }
+    if(!poolReady){
+      el.innerHTML=`<div class="d-flex flex-wrap align-items-center gap-2 mb-3"><h4 class="sec-title mb-0 me-auto"><i class="bi bi-life-preserver me-2" style="opacity:.7"></i>Seafarer Pool</h4></div>
+      <div class="alert alert-warning d-flex align-items-start gap-3" style="border-left:4px solid #f0a500">
+        <i class="bi bi-exclamation-triangle-fill mt-1" style="font-size:1.3rem;flex-shrink:0"></i>
+        <div>
+          <strong>Seafarer Pool list not set up yet.</strong><br>
+          <span style="font-size:.9rem">The SeafarerPool SharePoint list needs to be created once before you can add seafarers. This is a one-time setup per site.</span><br>
+          <button class="btn btn-warning btn-sm mt-2" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Go to Admin → Setup Seafarer Pool</button>
+        </div>
+      </div>`;
+      return;
+    }
     window._allSeafarers=seafarers;
     window._sfSortKey='LastName'; window._sfSortDir='asc';
     // Build filter options from data
@@ -4793,6 +4909,11 @@ function sortSeafarers(key) {
 }
 
 async function openSeafarerModal(id) {
+  // Guard: if pool list not set up and we're creating new, block immediately
+  if(!id && window._sfPoolReady===false) {
+    toast('SeafarerPool list not set up yet — go to Admin → Setup Seafarer Pool','warning');
+    return;
+  }
   let sf=null;
   if(id) {
     try { sf=await spGetOne('SeafarerPool',id,'?$select=*'); }
@@ -5351,7 +5472,7 @@ async function openVesselManager() {
   if(spLink) spLink.href=`${SP_SITE}/Lists/VesselMaster`;
   new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
   try {
-    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
+    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,VesselPhotoUrl,MarineTrafficUrl,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
       spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500'));
   } catch(e){ window._allVessels=S.vessels; toast('Could not load all vessels: '+e.message,'warning'); }
   renderVesselTable();
@@ -5389,7 +5510,7 @@ function renderVesselTable() {
       ${th('Vessel','Title')}${th('Type','VesselType')}${th('Flag','Flag')}${th('Built','BuiltYear')}${th('DWT','DWT')}${th('Client','Client')}${th('Entity','MartraconEntity')}${th('Service','ServiceType')}<th>Trading Area</th>${th('Status','IsActive')}<th></th>
     </tr></thead><tbody>
     ${vessels.map(v=>`<tr style="cursor:pointer" onclick="editVessel(${v.Id})">
-      <td class="fw-bold"><i class="bi bi-anchor me-1 text-muted" style="font-size:.75rem;opacity:.55"></i>${h(v.Title)}</td>
+      <td class="fw-bold"><div class="d-flex align-items-center gap-2">${v.VesselPhotoUrl?`<img src="${h(v.VesselPhotoUrl)}" style="height:28px;width:44px;object-fit:cover;border-radius:3px;border:1px solid #dee2e6;flex-shrink:0" onerror="this.style.display='none'">`:'<span style="display:inline-block;width:44px;height:28px;background:#f0f0f0;border-radius:3px;border:1px solid #dee2e6;flex-shrink:0"></span>'}<span>${h(v.Title)}</span></div></td>
       <td>${h(v.VesselType||'—')}</td>
       <td>${h(v.Flag||'—')}</td>
       <td>${v.BuiltYear||'—'}</td>
@@ -5545,11 +5666,9 @@ function editVessel(id) {
       <input type="text" class="form-control" id="vf-phone" value="${h(v?.VesselPhone||'')}" placeholder="e.g. Sat: +4723679769"></div>
   </div>
   <div class="row g-3 mb-3">
-    <div class="col-md-6"><label class="form-label fw-bold">Vessel Photo <span class="text-muted fw-normal" style="font-size:.78rem">URL</span></label>
-      <div class="input-group">
-        <span class="input-group-text"><i class="bi bi-image"></i></span>
-        <input type="text" class="form-control" id="vf-photo" value="${h(v?.VesselPhotoUrl||'')}" placeholder="https://…/vessel.jpg">
-      </div></div>
+    <div class="col-md-6"><label class="form-label fw-bold">Vessel Photo</label>
+      ${buildImgDropZone('vf-photo', v?.VesselPhotoUrl||'', 'vessels', 'Vessel photo')}
+    </div>
     <div class="col-md-6"><label class="form-label fw-bold">MarineTraffic Link</label>
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-map"></i></span>
@@ -5658,6 +5777,16 @@ async function saveVessel() {
   const vfFlagReq=document.getElementById('vf-flagreq')?.value?.trim(); if(vfFlagReq) data.FlagReq=vfFlagReq;
   const vfEmail=document.getElementById('vf-email')?.value?.trim(); if(vfEmail) data.VesselEmail=vfEmail;
   const vfPhone=document.getElementById('vf-phone')?.value?.trim(); if(vfPhone) data.VesselPhone=vfPhone;
+  // Upload pending vessel photo if any
+  if(window._pendingImgFiles?.['vf-photo']) {
+    const {file,subdir}=window._pendingImgFiles['vf-photo'];
+    try {
+      toast('Uploading vessel photo…','info');
+      const url=await uploadImgToSiteAssets(file,subdir);
+      const inp=document.getElementById('vf-photo');if(inp)inp.value=url;
+      delete window._pendingImgFiles['vf-photo'];
+    } catch(upErr){ toast('Photo upload failed: '+upErr.message,'danger'); return; }
+  }
   const vfPhoto=document.getElementById('vf-photo')?.value?.trim(); if(vfPhoto) data.VesselPhotoUrl=vfPhoto;
   const vfMarineTraffic=document.getElementById('vf-marinetraffic')?.value?.trim(); if(vfMarineTraffic) data.MarineTrafficUrl=vfMarineTraffic;
   const btn=document.getElementById('btn-vessel-save');
@@ -5670,18 +5799,31 @@ async function saveVessel() {
       if(id){ await spUpdate('VesselMaster',id,data); }
       else { await spCreate('VesselMaster',data); }
     } catch(e400) {
-      // If SP rejects because an extended column doesn't exist yet, retry without them
+      // If SP rejects because extended columns don't exist yet, auto-create them then retry
       if(e400.message?.includes('does not exist on type')||e400.message?.includes('400')) {
-        const coreData={...data};
-        EXTENDED_COLS.forEach(k=>delete coreData[k]);
-        if(S._editingVesselId){ await spUpdate('VesselMaster',S._editingVesselId,coreData); }
-        else { await spCreate('VesselMaster',coreData); }
-        toast('Vessel saved — run Admin → Setup Vessel Columns to enable engine & trading area fields','warning');
+        toast('Creating missing SharePoint columns…','info');
+        await ensureAllVesselExtCols().catch(()=>{});
+        try {
+          if(id){ await spUpdate('VesselMaster',id,data); }
+          else { await spCreate('VesselMaster',data); }
+        } catch(_retry) {
+          // Still failing — fall back to core fields only
+          const coreData={...data};
+          EXTENDED_COLS.forEach(k=>delete coreData[k]);
+          if(S._editingVesselId){ await spUpdate('VesselMaster',S._editingVesselId,coreData); }
+          else { await spCreate('VesselMaster',coreData); }
+          toast('Vessel saved (core fields only) — go to Admin → Setup Vessel Extended Columns then re-save','warning');
+        }
       } else { throw e400; }
     }
     toast(S._editingVesselId?'Vessel updated ✓':'Vessel created ✓');
     bootstrap.Modal.getInstance(document.getElementById('modalVesselForm'))?.hide();
     await loadRefData();
+    // Refresh the vessel manager list if it is currently open
+    try {
+      window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,VesselPhotoUrl,MarineTrafficUrl,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500');
+      renderVesselTable();
+    } catch(_){}
   } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
   finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save'; }
 }
@@ -5981,7 +6123,7 @@ const REF_CONFIGS = {
     query:'?$select=*&$orderby=Title&$top=500',
     cols:['Name','Country','Website','Status'],
     row:(r)=>[
-      h(r.Title),
+      `<div class="d-flex align-items-center gap-2">${r.LogoUrl?`<img src="${h(r.LogoUrl)}" style="height:24px;width:36px;object-fit:contain;border-radius:3px;border:1px solid #eee;background:#fff;padding:1px" onerror="this.style.display='none'">`:'<span style="display:inline-block;width:36px;height:24px;border:1px solid #eee;border-radius:3px;background:#f8f9fa"></span>'}<span class="fw-semibold">${h(r.Title)}</span></div>`,
       h(r.Country||'—'),
       r.Website?`<a href="${h(r.Website.startsWith('http')?r.Website:'https://'+r.Website)}" target="_blank" onclick="event.stopPropagation()" class="text-decoration-none" style="font-size:.82rem"><i class="bi bi-globe me-1"></i>${h(r.Website.replace(/^https?:\/\//,''))}</a>`:'—',
       r.IsActive!==false?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>'
@@ -6006,11 +6148,8 @@ const REF_CONFIGS = {
           </div>
         </div>
         <div class="col-md-5">
-          <label class="form-label fw-bold">Company Logo <span class="text-muted fw-normal" style="font-size:.78rem">URL</span></label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-image"></i></span>
-            <input type="text" class="form-control" id="rf-logo" value="${h(r?.LogoUrl||'')}" placeholder="https://…/logo.png">
-          </div>
+          <label class="form-label fw-bold">Company Logo</label>
+          ${buildImgDropZone('rf-logo', r?.LogoUrl||'', 'logos', 'Company logo')}
         </div>
       </div>
       <div class="row g-3 mb-3">
@@ -6362,8 +6501,8 @@ function editRefItem(id) {
   },{once:true});
 }
 
-// Extended columns that may not exist until CRM setup is run
-const CRM_EXTENDED_COLS=['ContactsJson','Website','Address','City','PostCode','Country','Notes','Email','EmailList','LogoUrl'];
+// Extended columns that may not exist until CRM setup is run (includes Agency-specific fields)
+const CRM_EXTENDED_COLS=['ContactsJson','Website','Address','City','PostCode','Country','Notes','Email','EmailList','LogoUrl','Phone','AgencyType'];
 
 // ── One-time migration: ContactsJson → Contacts SP list ─────────────────────
 async function migrateContactsFromJson() {
@@ -6452,6 +6591,16 @@ async function syncContactsToRegistry(contacts, companyId, companyName, companyT
 
 async function saveRefItem() {
   const cfg=REF_CONFIGS[window._refManagerType]; if(!cfg) return;
+  // Upload pending logo if any (client form uses rf-logo)
+  if(window._pendingImgFiles?.['rf-logo']) {
+    const {file,subdir}=window._pendingImgFiles['rf-logo'];
+    try {
+      toast('Uploading logo…','info');
+      const url=await uploadImgToSiteAssets(file,subdir);
+      const inp=document.getElementById('rf-logo');if(inp)inp.value=url;
+      delete window._pendingImgFiles['rf-logo'];
+    } catch(upErr){ toast('Logo upload failed: '+upErr.message,'danger'); return; }
+  }
   const data=cfg.getData();
   if(!data) return; // getData() already shows toast on validation fail
   const btn=document.getElementById('btn-ref-save');
@@ -6463,13 +6612,20 @@ async function saveRefItem() {
       if(id){ await spUpdate(cfg.list,id,data); }
       else { const res=await spCreate(cfg.list,data); savedId=res?.Id||res?.d?.Id||id; }
     } catch(e400) {
-      // If SP rejects because CRM columns don't exist yet, retry with core fields only
+      // If SP rejects because CRM columns don't exist yet, auto-create them then retry
       if(e400.message?.includes('does not exist on type')||e400.message?.includes('400')) {
-        const coreData={...data};
-        CRM_EXTENDED_COLS.forEach(k=>delete coreData[k]);
-        if(S._editingRefId){ await spUpdate(cfg.list,S._editingRefId,coreData); }
-        else { const res=await spCreate(cfg.list,coreData); savedId=res?.Id||res?.d?.Id||id; }
-        toast(`${cfg.label} saved — run Admin → Add Client CRM & Agency PIC columns to enable address/contact fields`,'warning');
+        toast('Creating missing SharePoint columns…','info');
+        await ensureAllCrmCols().catch(()=>{});
+        try {
+          if(S._editingRefId){ await spUpdate(cfg.list,S._editingRefId,data); }
+          else { const res=await spCreate(cfg.list,data); savedId=res?.Id||res?.d?.Id||id; }
+        } catch(_retry) {
+          const coreData={...data};
+          CRM_EXTENDED_COLS.forEach(k=>delete coreData[k]);
+          if(S._editingRefId){ await spUpdate(cfg.list,S._editingRefId,coreData); }
+          else { const res=await spCreate(cfg.list,coreData); savedId=res?.Id||res?.d?.Id||id; }
+          toast(`${cfg.label} saved (core only) — go to Admin → Add Client CRM columns then re-save`,'warning');
+        }
       } else { throw e400; }
     }
     toast(`${cfg.label} ${S._editingRefId?'updated':'created'} ✓`);
