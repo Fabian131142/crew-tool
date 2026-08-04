@@ -4283,7 +4283,7 @@ async function openActivityLog() {
   const wrap=document.getElementById('activity-log-wrap');
   if(wrap) wrap.innerHTML='<div class="p-4 text-center text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>';
   try {
-    const rows=await spGet('ActivityLog','?$select=Id,Title,EntityType,EntityId,EntityTitle,ActionType,ActionDetails,UserName,UserEmail,Created,Author/Title,Author/EMail&$expand=Author&$orderby=Created desc&$top=500');
+    const rows=await spGet('ActivityLog','?$select=Id,Title,EntityType,EntityId,EntityTitle,ActionType,ActionDetails,UserName,UserEmail,Created&$orderby=Created desc&$top=500');
     window._activityLogData=rows;
     renderActivityLogTable();
   } catch(e) {
@@ -4308,7 +4308,7 @@ function renderActivityLogTable() {
   if(actionF) rows=rows.filter(r=>(r.ActionType||'').toLowerCase()===actionF);
   if(fromF) rows=rows.filter(r=>r.Created&&r.Created.slice(0,10)>=fromF);
   if(toF) rows=rows.filter(r=>r.Created&&r.Created.slice(0,10)<=toF);
-  if(q) rows=rows.filter(r=>(r.EntityTitle||'').toLowerCase().includes(q)||(r.UserName||'').toLowerCase().includes(q)||(r.Author?.Title||'').toLowerCase().includes(q)||(r.ActionDetails||'').toLowerCase().includes(q));
+  if(q) rows=rows.filter(r=>(r.EntityTitle||'').toLowerCase().includes(q)||(r.UserName||'').toLowerCase().includes(q)||(r.UserEmail||'').toLowerCase().includes(q)||(r.ActionDetails||'').toLowerCase().includes(q));
   const countEl=document.getElementById('al-count');
   if(countEl) countEl.textContent=`${rows.length} entr${rows.length===1?'y':'ies'}`;
   if(!rows.length){wrap.innerHTML='<p class="text-muted text-center p-4">No log entries match the current filters.</p>';return;}
@@ -4326,7 +4326,7 @@ function renderActivityLogTable() {
     <tbody>${rows.map(r=>{
       const dt=r.Created?new Date(r.Created):null;
       const dtStr=dt?dt.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
-      const user=r.Author?.Title||r.UserName||r.UserEmail||'—';
+      const user=r.UserName||r.UserEmail||'—';
       const actionColor=ACTION_COLORS[r.ActionType]||'secondary';
       const det=(r.ActionDetails||'').trim();
       let detHtml='';
