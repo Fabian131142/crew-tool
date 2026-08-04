@@ -4214,8 +4214,7 @@ async function runSalaryImport() {
 // ═══════════════════════════════════════════════════════════════════
 async function ensureActivityLogList() {
   const token=await getToken();
-  const dig=await getDigest(token);
-  const hdr={'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','Authorization':'Bearer '+token,'X-RequestDigest':dig};
+  const hdr={'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','Authorization':'Bearer '+token,'X-RequestDigest':'nodigest'};
   // Create list (ignore if already exists)
   await fetch(`${API}/lists`,{method:'POST',headers:hdr,body:JSON.stringify({__metadata:{type:'SP.List'},Title:'ActivityLog',BaseTemplate:100,AllowContentTypes:false,ContentTypesEnabled:false,Description:'Audit log of changes in the Martracon Crew Tool'})}).catch(()=>{});
   // Create columns
@@ -4224,9 +4223,9 @@ async function ensureActivityLogList() {
     {n:'ActionType',t:2,m:100},{n:'ActionDetails',t:3},{n:'UserName',t:2,m:200},{n:'UserEmail',t:2,m:200}
   ];
   await Promise.allSettled(fields.map(f=>{
-    const body=f.t===9?JSON.stringify({__metadata:{type:'SP.Field'},FieldTypeKind:9,Title:f.n,StaticName:f.n,InternalName:f.n}):
-      f.t===3?JSON.stringify({__metadata:{type:'SP.Field'},FieldTypeKind:3,Title:f.n,StaticName:f.n,InternalName:f.n}):
-      JSON.stringify({__metadata:{type:'SP.Field'},FieldTypeKind:2,Title:f.n,StaticName:f.n,InternalName:f.n,MaxLength:f.m||255});
+    const body=f.t===9?JSON.stringify({__metadata:{type:'SP.FieldNumber'},FieldTypeKind:9,Title:f.n,StaticName:f.n,InternalName:f.n}):
+      f.t===3?JSON.stringify({__metadata:{type:'SP.FieldMultiLineText'},FieldTypeKind:3,Title:f.n,StaticName:f.n,InternalName:f.n,NumberOfLines:4}):
+      JSON.stringify({__metadata:{type:'SP.FieldText'},FieldTypeKind:2,Title:f.n,StaticName:f.n,InternalName:f.n,MaxLength:f.m||255});
     return fetch(`${API}/lists/getbytitle('ActivityLog')/fields`,{method:'POST',headers:hdr,body});
   }));
 }
