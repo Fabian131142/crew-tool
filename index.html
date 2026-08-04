@@ -1184,6 +1184,71 @@
   </div>
 </div>
 
+<!-- ── Activity Log Modal ─────────────────────────────────────────── -->
+<div class="modal fade" id="modalActivityLog" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
+        <h6 class="modal-title mb-0"><i class="bi bi-clock-history me-2"></i>Activity Log</h6>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <!-- Filter bar -->
+        <div class="p-3 border-bottom bg-light">
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-auto">
+              <label class="form-label form-label-sm mb-1">Entity Type</label>
+              <select class="form-select form-select-sm" id="al-type" onchange="renderActivityLogTable()" style="min-width:130px">
+                <option value="">All types</option>
+                <option>Vacancy</option>
+                <option>Candidate</option>
+                <option>Vessel</option>
+                <option>Client</option>
+                <option>Agency</option>
+                <option>Rank</option>
+                <option>Seafarer</option>
+              </select>
+            </div>
+            <div class="col-sm-auto">
+              <label class="form-label form-label-sm mb-1">Action</label>
+              <select class="form-select form-select-sm" id="al-action" onchange="renderActivityLogTable()" style="min-width:130px">
+                <option value="">All actions</option>
+                <option>Created</option>
+                <option>Updated</option>
+                <option>Status Changed</option>
+                <option>Closed</option>
+                <option>Deactivated</option>
+                <option>Deleted</option>
+              </select>
+            </div>
+            <div class="col-sm-auto">
+              <label class="form-label form-label-sm mb-1">From</label>
+              <input type="date" class="form-control form-control-sm" id="al-from" onchange="renderActivityLogTable()" style="min-width:130px">
+            </div>
+            <div class="col-sm-auto">
+              <label class="form-label form-label-sm mb-1">To</label>
+              <input type="date" class="form-control form-control-sm" id="al-to" onchange="renderActivityLogTable()" style="min-width:130px">
+            </div>
+            <div class="col">
+              <label class="form-label form-label-sm mb-1">Search</label>
+              <input type="text" class="form-control form-control-sm" id="al-search" oninput="renderActivityLogTable()" placeholder="Entity name, user…">
+            </div>
+            <div class="col-auto pt-3">
+              <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('al-type').value='';document.getElementById('al-action').value='';document.getElementById('al-from').value='';document.getElementById('al-to').value='';document.getElementById('al-search').value='';renderActivityLogTable()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <!-- Log table -->
+        <div id="activity-log-wrap" style="min-height:200px"></div>
+      </div>
+      <div class="modal-footer py-2">
+        <small class="text-muted me-auto" id="al-count"></small>
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="modalCandidate" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -1541,7 +1606,7 @@ function errBox(e) { return `<div class="alert alert-danger"><i class="bi bi-exc
 async function loadRefData() {
   const [vessels,ranks,salaryRates,clients,agencies] = await Promise.all([
     // Triple-fallback: all extended → basic extended → core only (handles any SP setup state)
-    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,VesselPhotoUrl,MarineTrafficUrl,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')
+    spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,EntityOfficers,EntityRatings,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,TradingAreaDesc,VesselEmail,VesselPhone,VesselSatPhone,VesselMobile,VesselPhotoUrl,MarineTrafficUrl,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,EngineRemarks,DeckRemarks,LastInspectionDate,NextInspectionDate,InspectionsJson,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')
       .catch(()=>spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500'))
       .catch(()=>spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$filter=IsActive eq 1&$orderby=Title&$top=500')),
     spGet('RankList','?$select=Id,Title,RankCategory,SortOrder,IsActive&$filter=IsActive eq 1&$orderby=SortOrder&$top=200'),
@@ -1736,6 +1801,27 @@ async function renderDashboard() {
         <i class="bi bi-clock-history text-warning flex-shrink-0" style="color:#b45309!important"></i>
         <div><strong>${h(v.Rank?.Title||'—')}</strong> on <strong>${h(v.Vessel?.Title||'—')}</strong> — open for <strong>${age} days</strong> without placement</div>
       </div>`);
+    });
+    // Inspection alerts (overdue + due within 30 days)
+    const today=new Date(); today.setHours(0,0,0,0);
+    const in30=new Date(today); in30.setDate(in30.getDate()+30);
+    function parseDashDate(s){if(!s)return null;const p=s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);return p?new Date(+p[3],+p[2]-1,+p[1]):new Date(s);}
+    S.vessels.filter(v=>v.IsActive!==false&&v.NextInspectionDate).forEach(v=>{
+      const d=parseDashDate(v.NextInspectionDate);
+      if(!d) return;
+      if(d<today){
+        alertItems.push(`<div class="alert-row alert-row-danger" onclick="openVesselManager()">
+          <i class="bi bi-clipboard-x text-danger flex-shrink-0"></i>
+          <div><strong>${h(v.Title)}</strong> — crewing inspection <strong>overdue</strong> (was ${h(v.NextInspectionDate)})</div>
+          <span class="ms-auto badge bg-danger">Overdue</span>
+        </div>`);
+      } else if(d<=in30){
+        alertItems.push(`<div class="alert-row alert-row-warning" onclick="openVesselManager()">
+          <i class="bi bi-clipboard-check text-warning flex-shrink-0" style="color:#b45309!important"></i>
+          <div><strong>${h(v.Title)}</strong> — inspection due <strong>${h(v.NextInspectionDate)}</strong></div>
+          <span class="ms-auto badge bg-warning text-dark">Due Soon</span>
+        </div>`);
+      }
     });
 
     el.innerHTML=`
@@ -2519,8 +2605,8 @@ async function saveVacancy(id) {
   const crewVal=document.getElementById('f-crew')?.value||''; if(crewVal) data.CrewOnboard=crewVal;
   const btn=document.getElementById('btn-save'); if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';}
   try {
-    if(id&&id!=='null') { await spUpdate('Vacancies',id,data); toast('Changes saved'); renderDetail(id); }
-    else { data.Status='Open'; data.IsLegacyMigrated=false; const created=await spCreate('Vacancies',data); await spCreate('StatusHistory',{Title:`${titleStr} — (New)→Open`,VacancyId:created.Id,FromStatus:'(New)',ToStatus:'Open',ChangedBy:S.userName,ChangedAt:nowIso()}); toast('Vacancy created'); nav('detail',created.Id); }
+    if(id&&id!=='null') { await spUpdate('Vacancies',id,data); toast('Changes saved'); logActivity('Updated','Vacancy',id,titleStr); renderDetail(id); }
+    else { data.Status='Open'; data.IsLegacyMigrated=false; const created=await spCreate('Vacancies',data); await spCreate('StatusHistory',{Title:`${titleStr} — (New)→Open`,VacancyId:created.Id,FromStatus:'(New)',ToStatus:'Open',ChangedBy:S.userName,ChangedAt:nowIso()}); toast('Vacancy created'); logActivity('Created','Vacancy',created.Id,titleStr); nav('detail',created.Id); }
   } catch(e) { toast(`Save failed: ${e.message}`,'danger'); if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save Changes';} }
 }
 
@@ -2537,7 +2623,7 @@ function triggerStatus(vacId,from,to) {
 async function confirmStatus() {
   const{vacId,from,to}=S.pendingStatus, reason=document.getElementById('status-reason')?.value||'';
   bootstrap.Modal.getInstance(document.getElementById('modalStatus'))?.hide();
-  try { await spUpdate('Vacancies',vacId,{Status:to}); await spCreate('StatusHistory',{Title:`Status ${from} → ${to}`,VacancyId:vacId,FromStatus:from,ToStatus:to,ChangedBy:S.userName,ChangedAt:nowIso(),Reason:reason||null}); toast(`Status → ${to}`); renderDetail(vacId); }
+  try { await spUpdate('Vacancies',vacId,{Status:to}); await spCreate('StatusHistory',{Title:`Status ${from} → ${to}`,VacancyId:vacId,FromStatus:from,ToStatus:to,ChangedBy:S.userName,ChangedAt:nowIso(),Reason:reason||null}); toast(`Status → ${to}`); logActivity('Status Changed','Vacancy',vacId,`Vacancy #${vacId}`,{from,to,reason:reason||''}); renderDetail(vacId); }
   catch(e) { toast(`Status change failed: ${e.message}`,'danger'); }
 }
 
@@ -2585,7 +2671,7 @@ async function confirmClose() {
     }
     await spUpdate('Vacancies',vacId,update);
     await spCreate('StatusHistory',{Title:`Status → Closed`,VacancyId:vacId,FromStatus:fromStatus,ToStatus:'Closed',ChangedBy:S.userName,ChangedAt:nowIso(),Reason:outcome});
-    toast('Vacancy closed ✓'); renderDetail(vacId);
+    toast('Vacancy closed ✓'); logActivity('Closed','Vacancy',vacId,`Vacancy #${vacId}`,{outcome,seafarer:update.PlacedSeafarerName||''}); renderDetail(vacId);
   } catch(e){toast(`Close failed: ${e.message}`,'danger');}
 }
 
@@ -3364,7 +3450,11 @@ async function ensureAllVesselExtCols(){
     {n:'Thrusters',t:2,m:255},{n:'LoadingProgram',t:2,m:255},{n:'TEU',t:2,m:100},
     {n:'BridgeCrew',t:2,m:255},{n:'DeckCrew',t:2,m:255},{n:'EngineCrew',t:2,m:255},
     {n:'FlagReq',t:3},{n:'VesselEmail',t:2,m:255},{n:'VesselPhone',t:2,m:100},
-    {n:'VesselPhotoUrl',t:2,m:500},{n:'MarineTrafficUrl',t:2,m:500}
+    {n:'VesselSatPhone',t:2,m:100},{n:'VesselMobile',t:2,m:100},
+    {n:'VesselPhotoUrl',t:2,m:500},{n:'MarineTrafficUrl',t:2,m:500},
+    {n:'EntityOfficers',t:2,m:50},{n:'EntityRatings',t:2,m:50},
+    {n:'EngineRemarks',t:3},{n:'DeckRemarks',t:3},{n:'TradingAreaDesc',t:3},
+    {n:'LastInspectionDate',t:2,m:50},{n:'NextInspectionDate',t:2,m:50},{n:'InspectionsJson',t:3}
   ];
   await Promise.allSettled(fields.map(f=>{
     const body=f.t===3
@@ -3601,8 +3691,9 @@ async function saveCandidateModal() {
     // ── Save candidate (include CandPoolId in the same write) ──
     const data=buildCandData(f,vacId,cvUrl);
     if(resolvedPoolId) candSafeSet(data,f.allFields,'CandPoolId',resolvedPoolId);
-    if(candId){ await spUpdate('Candidates',candId,data); toast('Candidate updated'); }
-    else { await spCreate('Candidates',data); }
+    const candName=`${first} ${last}`;
+    if(candId){ await spUpdate('Candidates',candId,data); toast('Candidate updated'); logActivity('Updated','Candidate',candId,candName,{vacancyId:vacId}); }
+    else { const newCand=await spCreate('Candidates',data); logActivity('Created','Candidate',newCand?.Id||null,candName,{vacancyId:vacId}); }
 
     // ── If linking to existing pool record: upsert vacancy into their history ──
     if(poolAction==='link_existing' && resolvedPoolId && !candId) {
@@ -4118,6 +4209,146 @@ async function runSalaryImport() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// ACTIVITY LOG
+// ═══════════════════════════════════════════════════════════════════
+async function ensureActivityLogList() {
+  const token=await getToken();
+  const dig=await getDigest(token);
+  const hdr={'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','Authorization':'Bearer '+token,'X-RequestDigest':dig};
+  // Create list (ignore if already exists)
+  await fetch(`${API}/lists`,{method:'POST',headers:hdr,body:JSON.stringify({__metadata:{type:'SP.List'},Title:'ActivityLog',BaseTemplate:100,AllowContentTypes:false,ContentTypesEnabled:false,Description:'Audit log of changes in the Martracon Crew Tool'})}).catch(()=>{});
+  // Create columns
+  const fields=[
+    {n:'EntityType',t:2,m:100},{n:'EntityId',t:9},{n:'EntityTitle',t:2,m:255},
+    {n:'ActionType',t:2,m:100},{n:'ActionDetails',t:3},{n:'UserName',t:2,m:200},{n:'UserEmail',t:2,m:200}
+  ];
+  await Promise.allSettled(fields.map(f=>{
+    const body=f.t===9?JSON.stringify({__metadata:{type:'SP.Field'},FieldTypeKind:9,Title:f.n,StaticName:f.n,InternalName:f.n}):
+      f.t===3?JSON.stringify({__metadata:{type:'SP.Field'},FieldTypeKind:3,Title:f.n,StaticName:f.n,InternalName:f.n}):
+      JSON.stringify({__metadata:{type:'SP.Field'},FieldTypeKind:2,Title:f.n,StaticName:f.n,InternalName:f.n,MaxLength:f.m||255});
+    return fetch(`${API}/lists/getbytitle('ActivityLog')/fields`,{method:'POST',headers:hdr,body});
+  }));
+}
+
+// Fire-and-forget — never blocks the main workflow
+async function logActivity(actionType, entityType, entityId, entityTitle, details='') {
+  try {
+    const payload={
+      Title:`${entityType}: ${h(entityTitle||'—')}`.substring(0,255),
+      EntityType:entityType||'',
+      EntityId:entityId?Number(entityId):null,
+      EntityTitle:(entityTitle||'').substring(0,255),
+      ActionType:actionType||'',
+      ActionDetails:typeof details==='object'?JSON.stringify(details):(details||''),
+      UserName:S.userName||'',
+      UserEmail:S.userEmail||''
+    };
+    await spCreate('ActivityLog',payload);
+  } catch(e) {
+    // If list doesn't exist yet, silently create it and retry once
+    if(e.message?.includes('404')||e.message?.includes('does not exist')) {
+      try {
+        await ensureActivityLogList();
+        const payload={
+          Title:`${entityType}: ${h(entityTitle||'—')}`.substring(0,255),
+          EntityType:entityType||'',EntityId:entityId?Number(entityId):null,
+          EntityTitle:(entityTitle||'').substring(0,255),ActionType:actionType||'',
+          ActionDetails:typeof details==='object'?JSON.stringify(details):(details||''),
+          UserName:S.userName||'',UserEmail:S.userEmail||''
+        };
+        await spCreate('ActivityLog',payload);
+      } catch(_) { /* fail silently */ }
+    }
+    // Any other error: fail silently
+  }
+}
+
+async function setupActivityLog() {
+  const btn=document.getElementById('btn-setup-actlog');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Running…';}
+  try {
+    await ensureActivityLogList();
+    toast('Activity Log list ready ✓','success');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-check-circle me-1"></i>Done';}
+  } catch(e) {
+    toast('Setup failed: '+e.message,'danger');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-database-add me-1"></i>Run Setup';}
+  }
+}
+
+async function openActivityLog() {
+  window._activityLogData=null;
+  const modal=bootstrap.Modal.getOrCreateInstance(document.getElementById('modalActivityLog'));
+  modal.show();
+  const wrap=document.getElementById('activity-log-wrap');
+  if(wrap) wrap.innerHTML='<div class="p-4 text-center text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>';
+  try {
+    const rows=await spGet('ActivityLog','?$select=Id,Title,EntityType,EntityId,EntityTitle,ActionType,ActionDetails,UserName,UserEmail,Created,Author/Title,Author/EMail&$expand=Author&$orderby=Created desc&$top=500');
+    window._activityLogData=rows;
+    renderActivityLogTable();
+  } catch(e) {
+    if(wrap) wrap.innerHTML=`<div class="alert alert-warning m-3"><strong>Activity Log list not set up yet.</strong><br>Go to <strong>Admin → One-Time Setup → Setup Activity Log</strong> and run it once.<br><small class="text-muted">${h(e.message)}</small></div>`;
+  }
+}
+
+function renderActivityLogTable() {
+  const wrap=document.getElementById('activity-log-wrap');
+  if(!wrap||!window._activityLogData) return;
+  const typeF=(document.getElementById('al-type')?.value||'').toLowerCase();
+  const actionF=(document.getElementById('al-action')?.value||'').toLowerCase();
+  const fromF=document.getElementById('al-from')?.value||'';
+  const toF=document.getElementById('al-to')?.value||'';
+  const q=(document.getElementById('al-search')?.value||'').toLowerCase().trim();
+  const ACTION_COLORS={
+    'Created':'success','Updated':'primary','Status Changed':'warning','Closed':'secondary',
+    'Deactivated':'dark','Deleted':'danger'
+  };
+  let rows=window._activityLogData||[];
+  if(typeF) rows=rows.filter(r=>(r.EntityType||'').toLowerCase()===typeF);
+  if(actionF) rows=rows.filter(r=>(r.ActionType||'').toLowerCase()===actionF);
+  if(fromF) rows=rows.filter(r=>r.Created&&r.Created.slice(0,10)>=fromF);
+  if(toF) rows=rows.filter(r=>r.Created&&r.Created.slice(0,10)<=toF);
+  if(q) rows=rows.filter(r=>(r.EntityTitle||'').toLowerCase().includes(q)||(r.UserName||'').toLowerCase().includes(q)||(r.Author?.Title||'').toLowerCase().includes(q)||(r.ActionDetails||'').toLowerCase().includes(q));
+  const countEl=document.getElementById('al-count');
+  if(countEl) countEl.textContent=`${rows.length} entr${rows.length===1?'y':'ies'}`;
+  if(!rows.length){wrap.innerHTML='<p class="text-muted text-center p-4">No log entries match the current filters.</p>';return;}
+  wrap.innerHTML=`<div style="overflow-x:auto"><table class="table table-sm table-hover mb-0" style="font-size:.82rem">
+    <thead class="table-light sticky-top">
+      <tr>
+        <th style="white-space:nowrap;min-width:130px">Date / Time</th>
+        <th style="white-space:nowrap;min-width:120px">User</th>
+        <th style="white-space:nowrap;min-width:110px">Action</th>
+        <th style="white-space:nowrap;min-width:90px">Type</th>
+        <th style="min-width:160px">Entity</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>${rows.map(r=>{
+      const dt=r.Created?new Date(r.Created):null;
+      const dtStr=dt?dt.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+      const user=r.Author?.Title||r.UserName||r.UserEmail||'—';
+      const actionColor=ACTION_COLORS[r.ActionType]||'secondary';
+      const det=(r.ActionDetails||'').trim();
+      let detHtml='';
+      if(det){
+        try{
+          const obj=JSON.parse(det);
+          detHtml=`<span class="text-muted" style="font-size:.78rem">${h(Object.entries(obj).map(([k,v])=>`${k}: ${v}`).join(' · '))}</span>`;
+        } catch(_){detHtml=`<span class="text-muted" style="font-size:.78rem">${h(det)}</span>`;}
+      }
+      return `<tr>
+        <td class="text-nowrap text-muted" style="font-size:.78rem">${dtStr}</td>
+        <td style="font-size:.8rem">${h(user)}</td>
+        <td><span class="badge bg-${actionColor}" style="font-size:.72rem">${h(r.ActionType||'—')}</span></td>
+        <td><span class="badge rounded-pill bg-light text-dark border" style="font-size:.72rem">${h(r.EntityType||'—')}</span></td>
+        <td style="font-size:.82rem">${h(r.EntityTitle||r.Title||'—')}</td>
+        <td>${detHtml}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
 // ADMIN — ONE-TIME SETUP
 // ═══════════════════════════════════════════════════════════════════
 async function setupCrmColumns() {
@@ -4180,6 +4411,16 @@ async function setupVesselExtendedColumns() {
     {name:'FlagReq',      type:3},  // multiline
     {name:'VesselPhotoUrl',  type:2, max:500},
     {name:'MarineTrafficUrl',type:2, max:500},
+    {name:'VesselSatPhone',  type:2, max:100},
+    {name:'VesselMobile',    type:2, max:100},
+    {name:'EntityOfficers',  type:2, max:50},
+    {name:'EntityRatings',   type:2, max:50},
+    {name:'EngineRemarks',   type:3},
+    {name:'DeckRemarks',     type:3},
+    {name:'TradingAreaDesc', type:3},
+    {name:'LastInspectionDate', type:2, max:50},
+    {name:'NextInspectionDate', type:2, max:50},
+    {name:'InspectionsJson', type:3},
   ];
   const results=[];
   for(const f of fields){
@@ -4516,6 +4757,13 @@ async function renderReports() {
     const activeVess=vessels.filter(v=>v.IsActive!==false).length;
     const activeClients=clients.filter(c=>c.IsActive!==false).length;
     const activeAgencies=agencies.filter(a=>a.IsActive!==false).length;
+    // Inspection KPIs
+    const now=new Date(); const in90=new Date(now); in90.setDate(in90.getDate()+90);
+    function parseDate(s){if(!s)return null;const p=s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);return p?new Date(+p[3],+p[2]-1,+p[1]):new Date(s);}
+    const activeVessels=vessels.filter(v=>v.IsActive!==false);
+    const upcomingInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d>=now&&d<=in90;});
+    const overdueInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d<now;});
+    const noInspectionSet=activeVessels.filter(v=>!v.NextInspectionDate&&!v.LastInspectionDate).length;
 
     // ── Monthly performance ────────────────────────────────────────
     const PERF_USERS=[
@@ -4661,10 +4909,31 @@ async function renderReports() {
       ${kpi(activeVess,'Active Vessels','','var(--mc-blue)','<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>')}
       ${kpi(activeClients,'Active Clients','','var(--mc-blue)','bi-building')}
       ${kpi(activeAgencies,'Active Agencies','','var(--mc-blue)','bi-globe')}
+      ${kpi(upcomingInspections.length,'Inspections Due','next 90 days',upcomingInspections.length>0?'#fd7e14':'#198754','bi-clipboard-check')}
+      ${kpi(overdueInspections.length,'Overdue Inspections','past due date',overdueInspections.length>0?'#dc3545':'#198754','bi-exclamation-triangle')}
       ${kpi(rejRate+'%','Rejection Rate','of all candidates',rejRate>50?'#dc3545':rejRate>30?'#fd7e14':'#198754','bi-x-circle')}
       ${kpi(allVacs.length?Math.round(totalCands/allVacs.length*10)/10:'—','Avg Cands / Vac','','var(--mc-blue)','bi-person-lines-fill')}
       ${kpi(allVacs.length,'Total Vacancies','all time','#6c757d','bi-archive')}
     </div>
+
+    <!-- ── Inspection Overview ── -->
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="fw-bold" style="font-size:.82rem;color:var(--mc-blue);text-transform:uppercase;letter-spacing:.04em"><i class="bi bi-clipboard-check me-1"></i>Crewing Inspection Overview</span>
+    </div>
+    <div class="card shadow-sm mb-4"><div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0" style="font-size:.83rem">
+      <thead style="background:#f0f4f8"><tr><th>Vessel</th><th>Last Inspection</th><th>Next Planned</th><th>Status</th></tr></thead>
+      <tbody>${activeVessels.length?activeVessels.map(v=>{
+        const last=v.LastInspectionDate||'—';
+        const next=v.NextInspectionDate||'—';
+        const nextD=v.NextInspectionDate?parseDate(v.NextInspectionDate):null;
+        const isOverdue=nextD&&nextD<now;
+        const isDue=nextD&&nextD>=now&&nextD<=in90;
+        const badge=isOverdue?'<span class="badge bg-danger ms-1">Overdue</span>':isDue?'<span class="badge bg-warning text-dark ms-1">Due Soon</span>':nextD?'<span class="badge bg-success ms-1">OK</span>':'<span class="badge bg-secondary ms-1">Not Set</span>';
+        return `<tr><td class="fw-semibold">${h(v.Title)}</td><td>${h(last)}</td><td>${h(next)}</td><td>${badge}</td></tr>`;
+      }).join(''):'<tr><td colspan="4" class="text-muted text-center py-2">No vessel data — run Admin → Setup Vessel Extended Columns first</td></tr>'}
+      </tbody>
+    </table></div></div>
 
     <!-- ── Time to Close ── -->
     <div class="d-flex align-items-center gap-2 mb-2">
@@ -5296,6 +5565,8 @@ async function renderAdmin() {
                                 label:'Salary Rates', count:'Rate tables',                                         action:"nav('salary')"},
       {iconHtml:`<i class="bi bi-person-badge rc-icon"></i>`,
                                 label:'Ranks',        count:`${S.ranks.length} active`,                           action:"openRefManager('rank')"},
+      {iconHtml:`<i class="bi bi-clock-history rc-icon"></i>`,
+                                label:'Activity Log', count:'Audit trail',                                         action:"openActivityLog()"},
     ].map(rc=>`
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
       <div class="ref-card" onclick="${rc.action}">
@@ -5382,7 +5653,7 @@ async function renderAdmin() {
         <button class="btn btn-primary btn-sm ms-2 text-nowrap flex-shrink-0" onclick="importVesselData()" id="btn-import-vessels"><i class="bi bi-upload me-1"></i>Run Import</button>
       </div>
     </div>
-    <div class="col-12">
+    <div class="col-12 col-md-6">
       <div class="alert alert-secondary d-flex align-items-center gap-3 mb-0 h-100">
         <i class="bi bi-people-fill fs-4 flex-shrink-0"></i>
         <div class="flex-grow-1">
@@ -5390,6 +5661,16 @@ async function renderAdmin() {
           <span style="font-size:.85rem">Reads all ContactsJson fields stored in ClientMaster and AgencyList and copies them to the Contacts SP list. Safe to run multiple times — will not duplicate by name. Requires Contacts list to exist first.</span>
         </div>
         <button class="btn btn-secondary btn-sm ms-2 text-nowrap flex-shrink-0" onclick="migrateContactsFromJson()" id="btn-migrate-contacts"><i class="bi bi-arrow-repeat me-1"></i>Run Migration</button>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="alert alert-dark d-flex align-items-center gap-3 mb-0 h-100" style="background:#2d3748!important;border-color:#2d3748!important">
+        <i class="bi bi-clock-history fs-4 flex-shrink-0 text-white"></i>
+        <div class="flex-grow-1 text-white">
+          <strong>Setup Activity Log list</strong><br>
+          <span style="font-size:.85rem;opacity:.85">Creates the ActivityLog SharePoint list for tracking who changed what. Run once — logging then starts automatically on every save.</span>
+        </div>
+        <button class="btn btn-sm ms-2 text-nowrap flex-shrink-0 text-white" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.3)" onclick="setupActivityLog()" id="btn-setup-actlog"><i class="bi bi-database-add me-1"></i>Run Setup</button>
       </div>
     </div>
   </div>
@@ -5557,7 +5838,12 @@ function editVessel(id) {
   const flagOpts=MARITIME_FLAGS.map(f=>`<option${v?.Flag===f?' selected':''}>${f}</option>`).join('');
   const clientOpts=S.clients.map(c=>`<option value="${c.Id}"${v?.ClientId==c.Id?' selected':''}>${h(c.Title)}</option>`).join('');
   const typeOpts=['General cargo','Bulk carrier','Tanker','Container','RoRo','Reefer','Multi-purpose','Chemical tanker','Gas carrier','Offshore','Other'].map(t=>`<option${v?.VesselType===t?' selected':''}>${t}</option>`).join('');
-  const entityOpts=['MFM','MCM','MSM','MCG'].map(e=>`<option value="${e}"${v?.MartraconEntity===e?' selected':''}>${e}</option>`).join('');
+  const ENTITY_LIST=['MFM','MCM','MSM','MCG'];
+  // Officers entity: prefer EntityOfficers; fall back to old MartraconEntity for backward compat
+  const curEntityO=v?.EntityOfficers||v?.MartraconEntity||'';
+  const curEntityR=v?.EntityRatings||'';
+  const entityOptsO=ENTITY_LIST.map(e=>`<option value="${e}"${curEntityO===e?' selected':''}>${e}</option>`).join('');
+  const entityOptsR=ENTITY_LIST.map(e=>`<option value="${e}"${curEntityR===e?' selected':''}>${e}</option>`).join('');
   const serviceOpts=['Full Crew Management','Partial Crew Management','Sporadic Placement'].map(s=>`<option value="${s}"${v?.ServiceType===s?' selected':''}>${s}</option>`).join('');
   // Parse existing engine specs "maker | output | stroke" or just free text
   let engMaker='', engOutput='', engStroke='2-stroke';
@@ -5567,6 +5853,20 @@ function editVessel(id) {
   // Trading areas multi-select
   const selAreas=new Set((v?.TradingArea||'').split(',').map(s=>s.trim()).filter(Boolean));
   const tradingCheckboxes=TRADING_AREAS.map((a,i)=>`<div class="form-check form-check-inline" style="min-width:200px"><input class="form-check-input" type="checkbox" id="vfta_${i}" value="${a}"${selAreas.has(a)?' checked':''}><label class="form-check-label" for="vfta_${i}" style="font-size:.82rem">${a}</label></div>`).join('');
+  // Inspections
+  let inspections=[]; try{inspections=JSON.parse(v?.InspectionsJson||'[]');}catch(_){}
+  window._vesselInspections=[...inspections];
+  const inspectionRows=inspections.length
+    ?inspections.map((ins,i)=>`<tr>
+      <td style="font-size:.82rem">${h(ins.date||'')}</td>
+      <td style="font-size:.82rem">${h(ins.type||'Crewing')}</td>
+      <td style="font-size:.82rem">${h(ins.result||'')}</td>
+      <td style="font-size:.82rem">${h(ins.inspector||'')}</td>
+      <td style="font-size:.82rem">${ins.reportUrl?`<a href="${h(ins.reportUrl)}" target="_blank" rel="noopener">Open</a>`:'—'}</td>
+      <td style="font-size:.82rem">${h(ins.notes||'')}</td>
+      <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeVesselInspection(${i})"><i class="bi bi-trash3" style="font-size:.7rem"></i></button></td>
+    </tr>`).join('')
+    :'<tr><td colspan="7" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';
   // Master data fields are locked for existing vessels
   const LOCKED_FIELDS=['vf-title','vf-abbr','vf-type','vf-flag','vf-built','vf-imo','vf-dwt','vf-grt'];
   const lockAttr=(!isNew)?'readonly disabled':'' ; // will be set via JS after render
@@ -5617,11 +5917,15 @@ function editVessel(id) {
     <div class="col-md-6"><label class="form-label fw-bold">Auxiliary Engine</label>
       <input type="text" class="form-control" id="vf-auxengine" value="${h(v?.AuxEngine||'')}" placeholder="e.g. Cat 3412 / 2×440 kW"></div>
   </div>
-  <div class="row g-3 mb-3">
+  <div class="row g-3 mb-2">
     <div class="col-md-6"><label class="form-label fw-bold">Scrubber</label>
       <input type="text" class="form-control" id="vf-scrubber" value="${h(v?.Scrubber||'')}" placeholder="e.g. Alfa Laval PureSOx open loop / N/A"></div>
     <div class="col-md-6"><label class="form-label fw-bold">BWTS</label>
       <input type="text" class="form-control" id="vf-bwts" value="${h(v?.BWTS||'')}" placeholder="e.g. Alfa Laval PureBallast 3"></div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label fw-bold">Engine Remarks</label>
+    <textarea class="form-control" id="vf-engine-remarks" rows="2" placeholder="e.g. Engine overhaul due Q3 2025, known issues, maintenance notes…">${h(v?.EngineRemarks||'')}</textarea>
   </div>
   <hr class="my-2">
   <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-display me-1"></i>Bridge &amp; Deck</p>
@@ -5643,6 +5947,10 @@ function editVessel(id) {
     <div class="col-md-6"><label class="form-label fw-bold">TEU / Reefers</label>
       <input type="text" class="form-control" id="vf-teu" value="${h(v?.TEU||'')}" placeholder="e.g. 862 TEU / 150 RF"></div>
   </div>
+  <div class="mb-3">
+    <label class="form-label fw-bold">Bridge &amp; Deck Remarks</label>
+    <textarea class="form-control" id="vf-deck-remarks" rows="2" placeholder="e.g. Special bridge equipment, deck maintenance notes…">${h(v?.DeckRemarks||'')}</textarea>
+  </div>
   <hr class="my-2">
   <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-people me-1"></i>Crew Requirements</p>
   <div class="row g-3 mb-2">
@@ -5660,40 +5968,90 @@ function editVessel(id) {
   <hr class="my-2">
   <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-envelope me-1"></i>Contact &amp; Communication</p>
   <div class="row g-3 mb-3">
-    <div class="col-md-6"><label class="form-label fw-bold">Vessel E-Mail</label>
+    <div class="col-md-4"><label class="form-label fw-bold">Vessel E-Mail</label>
       <input type="email" class="form-control" id="vf-email" value="${h(v?.VesselEmail||'')}" placeholder="e.g. bridge@vessel.com"></div>
-    <div class="col-md-6"><label class="form-label fw-bold">Vessel Phone / Sat</label>
-      <input type="text" class="form-control" id="vf-phone" value="${h(v?.VesselPhone||'')}" placeholder="e.g. Sat: +4723679769"></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Satellite Phone</label>
+      <input type="text" class="form-control" id="vf-satphone" value="${h(v?.VesselSatPhone||v?.VesselPhone||'')}" placeholder="e.g. +4723679769"></div>
+    <div class="col-md-4"><label class="form-label fw-bold">Mobile</label>
+      <input type="text" class="form-control" id="vf-mobile" value="${h(v?.VesselMobile||'')}" placeholder="e.g. +49 151 …"></div>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-6"><label class="form-label fw-bold">Vessel Photo</label>
       ${buildImgDropZone('vf-photo', v?.VesselPhotoUrl||'', 'vessels', 'Vessel photo')}
     </div>
-    <div class="col-md-6"><label class="form-label fw-bold">MarineTraffic Link</label>
+    <div class="col-md-6"><label class="form-label fw-bold">VesselFinder Link</label>
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-map"></i></span>
-        <input type="text" class="form-control" id="vf-marinetraffic" value="${h(v?.MarineTrafficUrl||'')}" placeholder="https://www.marinetraffic.com/…">
-      </div></div>
+        <input type="text" class="form-control" id="vf-marinetraffic" value="${h(v?.MarineTrafficUrl||'')}" placeholder="https://www.vesselfinder.com/vessels/…">
+        ${v?.MarineTrafficUrl?`<a href="${h(v.MarineTrafficUrl)}" target="_blank" rel="noopener" class="btn btn-outline-secondary" title="Open VesselFinder"><i class="bi bi-box-arrow-up-right"></i></a>`:'<button type="button" class="btn btn-outline-secondary" onclick="const u=document.getElementById(\'vf-marinetraffic\').value;if(u)window.open(u,\'_blank\');else toast(\'Paste the VesselFinder URL first\',\'warning\')" title="Open link"><i class="bi bi-box-arrow-up-right"></i></button>'}
+      </div>
+      <div class="form-text">Paste URL from <a href="https://www.vesselfinder.com" target="_blank" rel="noopener">VesselFinder.com</a></div>
+    </div>
   </div>
   <hr class="my-2">
-  <div class="mb-3">
+  <div class="mb-2">
     <label class="form-label fw-bold">Trading Areas (select all that apply)</label>
     <div class="border rounded p-2" style="background:#f8f9fa;max-height:130px;overflow-y:auto">${tradingCheckboxes}</div>
   </div>
+  <div class="mb-3">
+    <label class="form-label fw-bold">Trading Area Description <span class="text-muted fw-normal" style="font-size:.78rem">(specific ports / routes)</span></label>
+    <textarea class="form-control" id="vf-trading-desc" rows="2" placeholder="e.g. Nemport–Gemlik–Ambarli–Bizerte–Casablanca–Castellon–Valencia–Genoa–Salerno–Misurata–Nemport">${h(v?.TradingAreaDesc||'')}</textarea>
+  </div>
   <div class="row g-3 mb-3">
-    <div class="col-md-4"><label class="form-label fw-bold">Martracon Entity</label>
-      <select class="form-select" id="vf-entity"><option value="">— none —</option>${entityOpts}</select></div>
-    <div class="col-md-4"><label class="form-label fw-bold">Service Type</label>
+    <div class="col-md-3"><label class="form-label fw-bold">Entity — Officers</label>
+      <select class="form-select" id="vf-entity-officers"><option value="">— none —</option>${entityOptsO}</select></div>
+    <div class="col-md-3"><label class="form-label fw-bold">Entity — Ratings</label>
+      <select class="form-select" id="vf-entity-ratings"><option value="">— none —</option>${entityOptsR}</select></div>
+    <div class="col-md-3"><label class="form-label fw-bold">Service Type</label>
       <select class="form-select" id="vf-service"><option value="">— none —</option>${serviceOpts}</select></div>
-    <div class="col-md-4"><label class="form-label fw-bold">Sr. Officer Nationality <span class="text-muted fw-normal" style="font-size:.78rem">(preferred)</span></label>
+    <div class="col-md-3"><label class="form-label fw-bold">Sr. Officer Nationality <span class="text-muted fw-normal" style="font-size:.78rem">(preferred)</span></label>
       <input type="text" class="form-control" id="vf-mgtnat" value="${h(v?.ManagementNationality||'')}" placeholder="e.g. European, Filipino"></div>
   </div>
-  <div class="row g-3 mb-2">
+  <div class="row g-3 mb-3">
     <div class="col-md-8"><label class="form-label fw-bold">Client (Owner / Principal)</label>
       <select class="form-select" id="vf-client"><option value="">— none —</option>${clientOpts}</select></div>
     <div class="col-md-4 d-flex align-items-end pb-2">
       <div class="form-check"><input class="form-check-input" type="checkbox" id="vf-active"${v?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="vf-active">Active vessel</label></div>
     </div>
+  </div>
+  <hr class="my-2">
+  <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-clipboard-check me-1"></i>Crewing Inspections</p>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label fw-bold">Next Planned Inspection</label>
+      <input type="text" class="form-control" id="vf-next-inspection" value="${h(v?.NextInspectionDate||'')}" placeholder="DD.MM.YYYY"></div>
+    <div class="col-md-6 d-flex align-items-end">
+      <div class="text-muted" style="font-size:.82rem">Past inspections are recorded below. The most recent date appears in dashboards &amp; KPIs.</div>
+    </div>
+  </div>
+  <div id="vessel-inspections-wrap" class="mb-2">
+    <table class="table table-sm table-bordered mb-2" style="font-size:.82rem">
+      <thead style="background:#f0f4f8"><tr>
+        <th>Date</th><th>Type</th><th>Result</th><th>Inspector</th><th>Report</th><th>Notes</th><th style="width:36px"></th>
+      </tr></thead>
+      <tbody id="vessel-inspections-body">${inspectionRows}</tbody>
+    </table>
+  </div>
+  <div class="card border-0 bg-light p-2 mb-2" style="font-size:.83rem">
+    <div class="fw-bold mb-2" style="color:var(--mc-blue)"><i class="bi bi-plus-circle me-1"></i>Add Inspection Record</div>
+    <div class="row g-2">
+      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Date</label>
+        <input type="text" class="form-control form-control-sm" id="vi-date" placeholder="DD.MM.YYYY"></div>
+      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Type</label>
+        <select class="form-select form-select-sm" id="vi-type">
+          <option>Crewing</option><option>Safety</option><option>ISM</option><option>ISPS</option><option>Flag State</option><option>P&amp;I</option><option>Other</option>
+        </select></div>
+      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Result</label>
+        <select class="form-select form-select-sm" id="vi-result">
+          <option>Passed</option><option>Passed w/ Observations</option><option>Failed</option><option>Pending</option>
+        </select></div>
+      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Inspector</label>
+        <input type="text" class="form-control form-control-sm" id="vi-inspector" placeholder="Name / org"></div>
+      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Report URL</label>
+        <input type="text" class="form-control form-control-sm" id="vi-report" placeholder="SP/OneDrive link"></div>
+      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Notes</label>
+        <input type="text" class="form-control form-control-sm" id="vi-notes" placeholder="Short notes"></div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addVesselInspection()"><i class="bi bi-plus me-1"></i>Add</button>
   </div>
   </form>`;
   // Lock protected fields for existing vessels
@@ -5749,7 +6107,9 @@ async function saveVessel() {
     Flag:document.getElementById('vf-flag')?.value||null,
     BuiltYear:builtVal?parseInt(builtVal):null,
     Union:document.getElementById('vf-union')?.value||null,
-    MartraconEntity:document.getElementById('vf-entity')?.value||null,
+    MartraconEntity:document.getElementById('vf-entity-officers')?.value||null, // kept for compat
+    EntityOfficers:document.getElementById('vf-entity-officers')?.value||null,
+    EntityRatings:document.getElementById('vf-entity-ratings')?.value||null,
     ServiceType:document.getElementById('vf-service')?.value||null,
     ManagementNationality:document.getElementById('vf-mgtnat')?.value||null,
     IsActive:document.getElementById('vf-active')?.checked??true,
@@ -5776,7 +6136,21 @@ async function saveVessel() {
   const vfEngineCrew=document.getElementById('vf-enginecrew')?.value?.trim(); if(vfEngineCrew) data.EngineCrew=vfEngineCrew;
   const vfFlagReq=document.getElementById('vf-flagreq')?.value?.trim(); if(vfFlagReq) data.FlagReq=vfFlagReq;
   const vfEmail=document.getElementById('vf-email')?.value?.trim(); if(vfEmail) data.VesselEmail=vfEmail;
-  const vfPhone=document.getElementById('vf-phone')?.value?.trim(); if(vfPhone) data.VesselPhone=vfPhone;
+  const vfSatPhone=document.getElementById('vf-satphone')?.value?.trim(); if(vfSatPhone){data.VesselPhone=vfSatPhone;data.VesselSatPhone=vfSatPhone;}
+  const vfMobile=document.getElementById('vf-mobile')?.value?.trim(); if(vfMobile) data.VesselMobile=vfMobile;
+  const vfEngineRemarks=document.getElementById('vf-engine-remarks')?.value?.trim(); if(vfEngineRemarks) data.EngineRemarks=vfEngineRemarks;
+  const vfDeckRemarks=document.getElementById('vf-deck-remarks')?.value?.trim(); if(vfDeckRemarks) data.DeckRemarks=vfDeckRemarks;
+  const vfTradingDesc=document.getElementById('vf-trading-desc')?.value?.trim(); if(vfTradingDesc) data.TradingAreaDesc=vfTradingDesc;
+  const vfNextInspection=document.getElementById('vf-next-inspection')?.value?.trim(); if(vfNextInspection) data.NextInspectionDate=vfNextInspection;
+  // Save inspection history
+  if(window._vesselInspections&&window._vesselInspections.length) {
+    data.InspectionsJson=JSON.stringify(window._vesselInspections);
+    // Derive last inspection date from most recent record
+    const sorted=[...window._vesselInspections].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(sorted[0]?.date) data.LastInspectionDate=sorted[0].date;
+  } else if(window._vesselInspections) {
+    data.InspectionsJson='[]';
+  }
   // Upload pending vessel photo if any
   if(window._pendingImgFiles?.['vf-photo']) {
     const {file,subdir}=window._pendingImgFiles['vf-photo'];
@@ -5792,7 +6166,7 @@ async function saveVessel() {
   const btn=document.getElementById('btn-vessel-save');
   btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
   // Extended SP columns that may not exist yet (require Setup Vessel Columns to be run first)
-  const EXTENDED_COLS=['EngineSpecs','TradingArea','DWT','GRT','IMONumber','FuelType','AuxEngine','Scrubber','BWTS','ECDIS','PMS','Gear','Thrusters','LoadingProgram','TEU','BridgeCrew','DeckCrew','EngineCrew','FlagReq','VesselEmail','VesselPhone','VesselPhotoUrl','MarineTrafficUrl'];
+  const EXTENDED_COLS=['EngineSpecs','TradingArea','DWT','GRT','IMONumber','FuelType','AuxEngine','Scrubber','BWTS','ECDIS','PMS','Gear','Thrusters','LoadingProgram','TEU','BridgeCrew','DeckCrew','EngineCrew','FlagReq','VesselEmail','VesselPhone','VesselSatPhone','VesselMobile','VesselPhotoUrl','MarineTrafficUrl','EntityOfficers','EntityRatings','EngineRemarks','DeckRemarks','TradingAreaDesc','LastInspectionDate','NextInspectionDate','InspectionsJson'];
   try {
     const id=S._editingVesselId;
     try {
@@ -5816,7 +6190,9 @@ async function saveVessel() {
         }
       } else { throw e400; }
     }
+    const savedVesselId=S._editingVesselId||id;
     toast(S._editingVesselId?'Vessel updated ✓':'Vessel created ✓');
+    logActivity(S._editingVesselId?'Updated':'Created','Vessel',savedVesselId,title);
     bootstrap.Modal.getInstance(document.getElementById('modalVesselForm'))?.hide();
     await loadRefData();
     // Refresh the vessel manager list if it is currently open
@@ -5826,6 +6202,48 @@ async function saveVessel() {
     } catch(_){}
   } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
   finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VESSEL INSPECTION HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function addVesselInspection() {
+  const date=document.getElementById('vi-date')?.value?.trim();
+  if(!date){toast('Please enter an inspection date','warning');return;}
+  const rec={
+    date,
+    type:document.getElementById('vi-type')?.value||'Crewing',
+    result:document.getElementById('vi-result')?.value||'Passed',
+    inspector:document.getElementById('vi-inspector')?.value?.trim()||'',
+    reportUrl:document.getElementById('vi-report')?.value?.trim()||'',
+    notes:document.getElementById('vi-notes')?.value?.trim()||''
+  };
+  if(!window._vesselInspections) window._vesselInspections=[];
+  window._vesselInspections.unshift(rec); // newest first
+  // Clear add form
+  ['vi-date','vi-inspector','vi-report','vi-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderVesselInspectionTable();
+  toast('Inspection record added — save vessel to persist','info');
+}
+function removeVesselInspection(idx) {
+  if(!window._vesselInspections) return;
+  window._vesselInspections.splice(idx,1);
+  renderVesselInspectionTable();
+}
+function renderVesselInspectionTable() {
+  const tbody=document.getElementById('vessel-inspections-body');
+  if(!tbody) return;
+  const ins=window._vesselInspections||[];
+  if(!ins.length){tbody.innerHTML='<tr><td colspan="7" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';return;}
+  tbody.innerHTML=ins.map((r,i)=>`<tr>
+    <td style="font-size:.82rem">${h(r.date||'')}</td>
+    <td style="font-size:.82rem">${h(r.type||'Crewing')}</td>
+    <td style="font-size:.82rem">${h(r.result||'')}</td>
+    <td style="font-size:.82rem">${h(r.inspector||'')}</td>
+    <td style="font-size:.82rem">${r.reportUrl?`<a href="${h(r.reportUrl)}" target="_blank" rel="noopener">Open</a>`:'—'}</td>
+    <td style="font-size:.82rem">${h(r.notes||'')}</td>
+    <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeVesselInspection(${i})"><i class="bi bi-trash3" style="font-size:.7rem"></i></button></td>
+  </tr>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6629,6 +7047,7 @@ async function saveRefItem() {
       } else { throw e400; }
     }
     toast(`${cfg.label} ${S._editingRefId?'updated':'created'} ✓`);
+    logActivity(S._editingRefId?'Updated':'Created', cfg.label, savedId, data.Title||'—');
     // Sync contacts to Contacts registry for client/agency types
     if((window._refManagerType==='client'||window._refManagerType==='agency') && savedId) {
       const contacts=window['_formContacts_'+(window._refManagerType==='client'?'cl':'ag')]||[];
@@ -6653,6 +7072,7 @@ async function deleteRefItem(id, title) {
   try {
     await spDelete(cfg.list, id);
     toast(`${cfg.label} deleted`);
+    logActivity('Deleted', cfg.label, id, title);
     window._refManagerItems=(window._refManagerItems||[]).filter(r=>r.Id!==id);
     renderRefTable();
     await loadRefData().catch(()=>{});
