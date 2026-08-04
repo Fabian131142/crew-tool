@@ -4223,9 +4223,9 @@ async function ensureActivityLogList() {
     {n:'ActionType',t:2,m:100},{n:'ActionDetails',t:3},{n:'UserName',t:2,m:200},{n:'UserEmail',t:2,m:200}
   ];
   await Promise.allSettled(fields.map(f=>{
-    const body=f.t===9?JSON.stringify({__metadata:{type:'SP.FieldNumber'},FieldTypeKind:9,Title:f.n,StaticName:f.n,InternalName:f.n}):
-      f.t===3?JSON.stringify({__metadata:{type:'SP.FieldMultiLineText'},FieldTypeKind:3,Title:f.n,StaticName:f.n,InternalName:f.n,NumberOfLines:4}):
-      JSON.stringify({__metadata:{type:'SP.FieldText'},FieldTypeKind:2,Title:f.n,StaticName:f.n,InternalName:f.n,MaxLength:f.m||255});
+    const body=f.t===9?JSON.stringify({__metadata:{type:'SP.FieldNumber'},Title:f.n,InternalName:f.n,FieldTypeKind:9,Required:false}):
+      f.t===3?JSON.stringify({__metadata:{type:'SP.FieldMultiLineText'},Title:f.n,InternalName:f.n,FieldTypeKind:3,Required:false,NumberOfLines:4}):
+      JSON.stringify({__metadata:{type:'SP.FieldText'},Title:f.n,InternalName:f.n,FieldTypeKind:2,Required:false,MaxLength:f.m||255});
     return fetch(`${API}/lists/getbytitle('ActivityLog')/fields`,{method:'POST',headers:hdr,body});
   }));
 }
@@ -4283,11 +4283,14 @@ async function openActivityLog() {
   const wrap=document.getElementById('activity-log-wrap');
   if(wrap) wrap.innerHTML='<div class="p-4 text-center text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>';
   try {
-    const rows=await spGet('ActivityLog','?$select=Id,Title,EntityType,EntityId,EntityTitle,ActionType,ActionDetails,UserName,UserEmail,Created&$orderby=Created desc&$top=500');
+    const rows=await spGet('ActivityLog','?$orderby=Created desc&$top=500');
     window._activityLogData=rows;
     renderActivityLogTable();
   } catch(e) {
-    if(wrap) wrap.innerHTML=`<div class="alert alert-warning m-3"><strong>Activity Log list not set up yet.</strong><br>Go to <strong>Admin → One-Time Setup → Setup Activity Log</strong> and run it once.<br><small class="text-muted">${h(e.message)}</small></div>`;
+    const notFound=e.message?.includes('404')||e.message?.includes('does not exist');
+    if(wrap) wrap.innerHTML=notFound
+      ? `<div class="alert alert-warning m-3"><strong>Activity Log list not set up yet.</strong><br>Go to <strong>Admin → One-Time Setup → Setup Activity Log</strong> and run it once.</div>`
+      : `<div class="alert alert-danger m-3"><strong>Could not load Activity Log.</strong><br><small class="text-muted">${h(e.message)}</small></div>`;
   }
 }
 
@@ -5835,7 +5838,7 @@ function editVessel(id) {
   const curYear=new Date().getFullYear();
   const yearOpts=Array.from({length:curYear-1959},(_,i)=>curYear+1-i).map(y=>`<option${v?.BuiltYear==y?' selected':''}>${y}</option>`).join('');
   const flagOpts=MARITIME_FLAGS.map(f=>`<option${v?.Flag===f?' selected':''}>${f}</option>`).join('');
-  const clientOpts=S.clients.map(c=>`<option value="${c.Id}"${v?.ClientId==c.Id?' selected':''}>${h(c.Title)}</option>`).join('');
+  const clientOpts=S.clients.filter(c=>c.IsActive!==false||v?.ClientId==c.Id).map(c=>`<option value="${c.Id}"${v?.ClientId==c.Id?' selected':''}>${h(c.Title)}${c.IsActive===false?' (inactive)':''}</option>`).join('');
   const typeOpts=['General cargo','Bulk carrier','Tanker','Container','RoRo','Reefer','Multi-purpose','Chemical tanker','Gas carrier','Offshore','Other'].map(t=>`<option${v?.VesselType===t?' selected':''}>${t}</option>`).join('');
   const ENTITY_LIST=['MFM','MCM','MSM','MCG'];
   // Officers entity: prefer EntityOfficers; fall back to old MartraconEntity for backward compat
@@ -5861,11 +5864,10 @@ function editVessel(id) {
       <td style="font-size:.82rem">${h(ins.type||'Crewing')}</td>
       <td style="font-size:.82rem">${h(ins.result||'')}</td>
       <td style="font-size:.82rem">${h(ins.inspector||'')}</td>
-      <td style="font-size:.82rem">${ins.reportUrl?`<a href="${h(ins.reportUrl)}" target="_blank" rel="noopener">Open</a>`:'—'}</td>
-      <td style="font-size:.82rem">${h(ins.notes||'')}</td>
+      <td style="font-size:.82rem">${ins.reportUrl?`<a href="${h(ins.reportUrl)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1"></i>Open</a>`:'—'}</td>
       <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeVesselInspection(${i})"><i class="bi bi-trash3" style="font-size:.7rem"></i></button></td>
     </tr>`).join('')
-    :'<tr><td colspan="7" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';
+    :'<tr><td colspan="6" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';
   // Master data fields are locked for existing vessels
   const LOCKED_FIELDS=['vf-title','vf-abbr','vf-type','vf-flag','vf-built','vf-imo','vf-dwt','vf-grt'];
   const lockAttr=(!isNew)?'readonly disabled':'' ; // will be set via JS after render
@@ -6025,7 +6027,7 @@ function editVessel(id) {
   <div id="vessel-inspections-wrap" class="mb-2">
     <table class="table table-sm table-bordered mb-2" style="font-size:.82rem">
       <thead style="background:#f0f4f8"><tr>
-        <th>Date</th><th>Type</th><th>Result</th><th>Inspector</th><th>Report</th><th>Notes</th><th style="width:36px"></th>
+        <th>Date</th><th>Type</th><th>Result</th><th>Inspector</th><th>Report</th><th style="width:36px"></th>
       </tr></thead>
       <tbody id="vessel-inspections-body">${inspectionRows}</tbody>
     </table>
@@ -6045,10 +6047,13 @@ function editVessel(id) {
         </select></div>
       <div class="col-md-2"><label class="form-label form-label-sm mb-1">Inspector</label>
         <input type="text" class="form-control form-control-sm" id="vi-inspector" placeholder="Name / org"></div>
-      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Report URL</label>
-        <input type="text" class="form-control form-control-sm" id="vi-report" placeholder="SP/OneDrive link"></div>
-      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Notes</label>
-        <input type="text" class="form-control form-control-sm" id="vi-notes" placeholder="Short notes"></div>
+      <div class="col-md-4"><label class="form-label form-label-sm mb-1">Inspection Report</label>
+        <div id="vi-report-zone" ondragover="viReportDragOver(event)" ondragleave="viReportDragLeave(event)" ondrop="viReportDrop(event)" onclick="document.getElementById('vi-report-file').click()" style="border:2px dashed #ccc;border-radius:4px;padding:4px 10px;cursor:pointer;background:#fafafa;font-size:.78rem;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center">
+          <span id="vi-report-label"><i class="bi bi-upload me-1"></i>Drag report or click to upload</span>
+        </div>
+        <input type="file" id="vi-report-file" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" onchange="viReportFileSelected(this)">
+        <input type="hidden" id="vi-report" value="">
+      </div>
     </div>
     <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addVesselInspection()"><i class="bi bi-plus me-1"></i>Add</button>
   </div>
@@ -6106,9 +6111,6 @@ async function saveVessel() {
     Flag:document.getElementById('vf-flag')?.value||null,
     BuiltYear:builtVal?parseInt(builtVal):null,
     Union:document.getElementById('vf-union')?.value||null,
-    MartraconEntity:document.getElementById('vf-entity-officers')?.value||null, // kept for compat
-    EntityOfficers:document.getElementById('vf-entity-officers')?.value||null,
-    EntityRatings:document.getElementById('vf-entity-ratings')?.value||null,
     ServiceType:document.getElementById('vf-service')?.value||null,
     ManagementNationality:document.getElementById('vf-mgtnat')?.value||null,
     IsActive:document.getElementById('vf-active')?.checked??true,
@@ -6120,6 +6122,12 @@ async function saveVessel() {
   if(engStr) data.EngineSpecs=engStr;
   if(tradingStr) data.TradingArea=tradingStr;
   // Extended spec fields
+  // Entity fields — always sync MartraconEntity (existing col) + conditionally set new cols
+  const vfEntityO=document.getElementById('vf-entity-officers')?.value||'';
+  const vfEntityR=document.getElementById('vf-entity-ratings')?.value||'';
+  data.MartraconEntity=vfEntityO||null; // original column, always safe to send
+  if(vfEntityO) data.EntityOfficers=vfEntityO;
+  if(vfEntityR) data.EntityRatings=vfEntityR;
   const vfFuelType=document.getElementById('vf-fueltype')?.value?.trim(); if(vfFuelType) data.FuelType=vfFuelType;
   const vfAuxEngine=document.getElementById('vf-auxengine')?.value?.trim(); if(vfAuxEngine) data.AuxEngine=vfAuxEngine;
   const vfScrubber=document.getElementById('vf-scrubber')?.value?.trim(); if(vfScrubber) data.Scrubber=vfScrubber;
@@ -6206,6 +6214,44 @@ async function saveVessel() {
 // ═══════════════════════════════════════════════════════════════════
 // VESSEL INSPECTION HELPERS
 // ═══════════════════════════════════════════════════════════════════
+// ── Inspection report file upload ──────────────────────────────────
+function viReportDragOver(e){e.preventDefault();const z=document.getElementById('vi-report-zone');if(z){z.style.borderColor='var(--mc-blue)';z.style.background='#ebf3fb';}}
+function viReportDragLeave(e){const z=document.getElementById('vi-report-zone');if(z){z.style.borderColor='#ccc';z.style.background='#fafafa';}}
+async function viReportDrop(e){e.preventDefault();viReportDragLeave(e);const f=e.dataTransfer.files[0];if(f)await handleViReportFile(f);}
+async function viReportFileSelected(inp){const f=inp.files[0];if(f)await handleViReportFile(f);}
+async function handleViReportFile(file) {
+  const lbl=document.getElementById('vi-report-label');
+  const zone=document.getElementById('vi-report-zone');
+  if(lbl) lbl.textContent='Uploading…';
+  if(zone) zone.style.borderColor='#aaa';
+  try {
+    const token=await getToken();
+    const siteRel=SP_SITE.replace('https://martraconeu.sharepoint.com','');
+    await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(siteRel+'/SiteAssets')}')/Folders/add('inspection-reports')`,
+      {method:'POST',headers:{Authorization:`Bearer ${token}`,'X-RequestDigest':'nodigest','Accept':'application/json;odata=verbose'}}).catch(()=>{});
+    const safe=file.name.replace(/[^a-zA-Z0-9._()-]/g,'_');
+    const fileName=`${Date.now()}_${safe}`;
+    const up=await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(siteRel+'/SiteAssets/inspection-reports')}')/Files/add(url='${encodeURIComponent(fileName)}',overwrite=true)`,
+      {method:'POST',headers:{Authorization:`Bearer ${token}`,'X-RequestDigest':'nodigest','Accept':'application/json;odata=verbose'},body:file});
+    const j=await up.json();
+    const url=`https://martraconeu.sharepoint.com${j.d.ServerRelativeUrl}`;
+    const inp=document.getElementById('vi-report'); if(inp) inp.value=url;
+    if(lbl) lbl.innerHTML=`<i class="bi bi-file-earmark-check me-1"></i>${h(file.name)}`;
+    if(zone){zone.style.borderColor='#28a745';zone.style.background='#f0fff4';}
+    toast('Report uploaded ✓','success');
+  } catch(e) {
+    if(lbl) lbl.textContent='Upload failed — try again';
+    if(zone){zone.style.borderColor='#dc3545';zone.style.background='#fff5f5';}
+    toast('Upload failed: '+e.message,'danger');
+  }
+}
+function viReportReset() {
+  const inp=document.getElementById('vi-report'); if(inp) inp.value='';
+  const lbl=document.getElementById('vi-report-label'); if(lbl) lbl.innerHTML='<i class="bi bi-upload me-1"></i>Drag report or click';
+  const zone=document.getElementById('vi-report-zone'); if(zone){zone.style.borderColor='#ccc';zone.style.background='#fafafa';}
+  const fi=document.getElementById('vi-report-file'); if(fi) fi.value='';
+}
+
 function addVesselInspection() {
   const date=document.getElementById('vi-date')?.value?.trim();
   if(!date){toast('Please enter an inspection date','warning');return;}
@@ -6214,13 +6260,13 @@ function addVesselInspection() {
     type:document.getElementById('vi-type')?.value||'Crewing',
     result:document.getElementById('vi-result')?.value||'Passed',
     inspector:document.getElementById('vi-inspector')?.value?.trim()||'',
-    reportUrl:document.getElementById('vi-report')?.value?.trim()||'',
-    notes:document.getElementById('vi-notes')?.value?.trim()||''
+    reportUrl:document.getElementById('vi-report')?.value?.trim()||''
   };
   if(!window._vesselInspections) window._vesselInspections=[];
   window._vesselInspections.unshift(rec); // newest first
   // Clear add form
-  ['vi-date','vi-inspector','vi-report','vi-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['vi-date','vi-inspector'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  viReportReset();
   renderVesselInspectionTable();
   toast('Inspection record added — save vessel to persist','info');
 }
@@ -6233,14 +6279,13 @@ function renderVesselInspectionTable() {
   const tbody=document.getElementById('vessel-inspections-body');
   if(!tbody) return;
   const ins=window._vesselInspections||[];
-  if(!ins.length){tbody.innerHTML='<tr><td colspan="7" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';return;}
+  if(!ins.length){tbody.innerHTML='<tr><td colspan="6" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';return;}
   tbody.innerHTML=ins.map((r,i)=>`<tr>
     <td style="font-size:.82rem">${h(r.date||'')}</td>
     <td style="font-size:.82rem">${h(r.type||'Crewing')}</td>
     <td style="font-size:.82rem">${h(r.result||'')}</td>
     <td style="font-size:.82rem">${h(r.inspector||'')}</td>
-    <td style="font-size:.82rem">${r.reportUrl?`<a href="${h(r.reportUrl)}" target="_blank" rel="noopener">Open</a>`:'—'}</td>
-    <td style="font-size:.82rem">${h(r.notes||'')}</td>
+    <td style="font-size:.82rem">${r.reportUrl?`<a href="${h(r.reportUrl)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1"></i>Open</a>`:'—'}</td>
     <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeVesselInspection(${i})"><i class="bi bi-trash3" style="font-size:.7rem"></i></button></td>
   </tr>`).join('');
 }
