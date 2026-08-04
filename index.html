@@ -4758,11 +4758,11 @@ async function renderReports() {
     const activeClients=clients.filter(c=>c.IsActive!==false).length;
     const activeAgencies=agencies.filter(a=>a.IsActive!==false).length;
     // Inspection KPIs
-    const now=new Date(); const in90=new Date(now); in90.setDate(in90.getDate()+90);
+    const nowDate=new Date(); const in90=new Date(nowDate); in90.setDate(in90.getDate()+90);
     function parseDate(s){if(!s)return null;const p=s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);return p?new Date(+p[3],+p[2]-1,+p[1]):new Date(s);}
     const activeVessels=vessels.filter(v=>v.IsActive!==false);
-    const upcomingInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d>=now&&d<=in90;});
-    const overdueInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d<now;});
+    const upcomingInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d>=nowDate&&d<=in90;});
+    const overdueInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d<nowDate;});
     const noInspectionSet=activeVessels.filter(v=>!v.NextInspectionDate&&!v.LastInspectionDate).length;
 
     // ── Monthly performance ────────────────────────────────────────
