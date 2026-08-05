@@ -5755,8 +5755,9 @@ async function openVesselManager() {
   if(spLink) spLink.href=`${SP_SITE}/Lists/VesselMaster`;
   new bootstrap.Modal(document.getElementById('modalVesselManager')).show();
   try {
-    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,VesselPhotoUrl,MarineTrafficUrl,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
-      spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500'));
+    window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,EntityOfficers,EntityRatings,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,TradingAreaDesc,VesselEmail,VesselPhone,VesselSatPhone,VesselMobile,VesselPhotoUrl,MarineTrafficUrl,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,EngineRemarks,DeckRemarks,LastInspectionDate,NextInspectionDate,InspectionsJson,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
+      spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,EngineSpecs,TradingArea,VesselEmail,VesselPhone,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
+      spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500')));
   } catch(e){ window._allVessels=S.vessels; toast('Could not load all vessels: '+e.message,'warning'); }
   renderVesselTable();
 }
@@ -6204,7 +6205,8 @@ async function saveVessel() {
     await loadRefData();
     // Refresh the vessel manager list if it is currently open
     try {
-      window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,VesselEmail,VesselPhone,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,VesselPhotoUrl,MarineTrafficUrl,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500');
+      window._allVessels=await spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,EntityOfficers,EntityRatings,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,DWT,GRT,IMONumber,EngineSpecs,TradingArea,TradingAreaDesc,VesselEmail,VesselPhone,VesselSatPhone,VesselMobile,VesselPhotoUrl,MarineTrafficUrl,TEU,LoadingProgram,PMS,ECDIS,Gear,BWTS,Thrusters,FuelType,AuxEngine,Scrubber,BridgeCrew,DeckCrew,EngineCrew,FlagReq,EngineRemarks,DeckRemarks,LastInspectionDate,NextInspectionDate,InspectionsJson,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500').catch(()=>
+        spGet('VesselMaster','?$select=Id,Title,Abbreviation,MartraconEntity,ServiceType,Flag,BuiltYear,VesselType,Union,ManagementNationality,IsActive,ClientId,Client/Title,Client/Id&$expand=Client&$orderby=Title&$top=500'));
       renderVesselTable();
     } catch(_){}
   } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
