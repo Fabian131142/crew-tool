@@ -6481,16 +6481,28 @@ async function saveQuickInspection() {
   const btn=document.getElementById('qi-save-btn');
   btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
   try {
-    // Load current vessel data to get existing InspectionsJson
-    const vessel=await spGetOne('VesselMaster',vesselId,'?$select=Id,InspectionsJson');
-    let recs=[]; try{recs=JSON.parse(vessel?.InspectionsJson||'[]');}catch(_){}
+    // Load existing inspection records — gracefully skip if column not yet created
+    let recs=[];
+    try {
+      const vessel=await spGetOne('VesselMaster',vesselId,'?$select=Id,InspectionsJson');
+      try{recs=JSON.parse(vessel?.InspectionsJson||'[]');}catch(_){}
+    } catch(_) { /* column may not exist yet — start fresh */ }
     const newRec={date,type,result:'Passed',port,inspector,reportUrl:'',notes};
     recs.unshift(newRec);
     const sorted=[...recs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     const lastDate=sorted[0]?.date||'';
     const patch={InspectionsJson:JSON.stringify(recs)};
     if(lastDate) patch.LastInspectionDate=lastDate;
-    await spUpdate('VesselMaster',vesselId,patch);
+    // Patch with auto-create of extended columns on first 400, then retry
+    try {
+      await spUpdate('VesselMaster',vesselId,patch);
+    } catch(e400) {
+      if(e400.message?.includes('400')||e400.message?.includes('does not exist')) {
+        toast('Creating missing SharePoint columns…','info');
+        await ensureAllVesselExtCols().catch(()=>{});
+        await spUpdate('VesselMaster',vesselId,patch);
+      } else { throw e400; }
+    }
     logActivity('Created','Inspection',vesselId,`${type} on ${date}`,{vessel:vesselId,port,inspector});
     toast(`Inspection record saved for vessel ✓`,'success');
     bootstrap.Modal.getInstance(document.getElementById('modalQuickInspection'))?.hide();
