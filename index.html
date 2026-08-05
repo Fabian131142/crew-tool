@@ -374,7 +374,7 @@
       box-shadow: 0 1px 4px rgba(0,0,0,.05), 0 5px 20px rgba(64,90,112,.09);
       padding: 1.2rem 1.3rem;
       transition: transform .22s cubic-bezier(.4,0,.2,1), box-shadow .22s;
-      position: relative; overflow: hidden;
+      position: relative; overflow: hidden; cursor: pointer;
     }
     .dash-kpi::before {
       content: '';
@@ -632,6 +632,7 @@
         <li class="nav-item d-none"><a class="nav-link" id="nav-salary"    href="javascript:void(0)" onclick="nav('salary')"><i class="bi bi-cash-coin me-1"></i>Salary</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-seafarers" href="javascript:void(0)" onclick="nav('seafarers')"><i class="bi bi-life-preserver me-1"></i>Seafarers</a></li>
         <li class="nav-item d-none"><a class="nav-link" id="nav-contacts" href="javascript:void(0)" onclick="nav('contacts')"><i class="bi bi-person-lines-fill me-1"></i>Contacts</a></li>
+        <li class="nav-item"><a class="nav-link" id="nav-inspections" href="javascript:void(0)" onclick="nav('inspections')"><i class="bi bi-clipboard-check me-1"></i>Inspections</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-reports"  href="javascript:void(0)" onclick="nav('reports')"><i class="bi bi-compass me-1"></i>Reports</a></li>
         <li class="nav-item"><a class="nav-link" id="nav-admin"    href="javascript:void(0)" onclick="nav('admin')"><i class="bi bi-gear me-1"></i>Admin</a></li>
       </ul>
@@ -658,6 +659,7 @@
   <div id="v-salary" class="d-none"></div>
   <div id="v-seafarers" class="d-none"></div>
   <div id="v-contacts" class="d-none"></div>
+  <div id="v-inspections" class="d-none"></div>
   <div id="v-reports" class="d-none"></div>
   <div id="v-admin" class="d-none"></div>
 </div>
@@ -1184,6 +1186,78 @@
   </div>
 </div>
 
+<!-- ── Dashboard KPI Detail Modal ─────────────────────────────────── -->
+<div class="modal fade" id="modalDashDetail" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" id="dash-detail-header" style="background:var(--mc-blue);color:#fff">
+        <h6 class="modal-title mb-0" id="dash-detail-title"></h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0" id="dash-detail-body"></div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick-Add Inspection Modal ────────────────────────────────── -->
+<div class="modal fade" id="modalQuickInspection" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--mc-blue);color:#fff">
+        <h6 class="modal-title mb-0"><i class="bi bi-clipboard-plus me-2"></i>Add Visit / Inspection Record</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Vessel <span class="text-danger">*</span></label>
+            <select class="form-select" id="qi-vessel"></select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Date <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="qi-date" placeholder="DD.MM.YYYY">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Type</label>
+            <select class="form-select" id="qi-type">
+              <option value="Crewing Inspection">Crewing Inspection</option>
+              <option value="Management Vessel Visit">Management Vessel Visit</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Port</label>
+            <input type="text" class="form-control" id="qi-port" placeholder="e.g. Hamburg">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Inspector / Visitor</label>
+            <input type="text" class="form-control" id="qi-inspector" list="qi-inspector-list" placeholder="Select or type name">
+            <datalist id="qi-inspector-list">
+              <option value="Vitaliy Stasyuk">
+              <option value="Serhii Boshko">
+              <option value="Philipp">
+              <option value="Fabian">
+            </datalist>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Notes <span class="text-muted fw-normal" style="font-size:.8rem">(optional)</span></label>
+            <input type="text" class="form-control" id="qi-notes" placeholder="e.g. crew documents checked">
+          </div>
+        </div>
+        <div id="qi-error" class="alert alert-danger mt-3 d-none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="qi-save-btn" onclick="saveQuickInspection()">
+          <i class="bi bi-floppy me-1"></i>Save Record
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Activity Log Modal ─────────────────────────────────────────── -->
 <div class="modal fade" id="modalActivityLog" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -1624,7 +1698,7 @@ function nav(name,param=null) {
   // Close mobile navbar if open
   const navColl=document.getElementById('navColl');
   if(navColl?.classList.contains('show')) bootstrap.Collapse.getInstance(navColl)?.hide();
-  ['dashboard','open','all','detail','salary','seafarers','contacts','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
+  ['dashboard','open','all','detail','salary','seafarers','contacts','inspections','reports','admin'].forEach(v=>document.getElementById('v-'+v).classList.add('d-none'));
   document.querySelectorAll('.nav-link[id^="nav-"]').forEach(l=>l.classList.remove('active'));
   const navEl=document.getElementById('nav-'+(name==='detail'?S.prevViewName:name));
   if(navEl) navEl.classList.add('active');
@@ -1639,6 +1713,7 @@ function nav(name,param=null) {
   else if(name==='detail') renderDetail(param);
   else if(name==='salary') renderSalary();
   else if(name==='seafarers') renderSeafarers();
+  else if(name==='inspections') renderInspections();
   else if(name==='reports') renderReports();
   else if(name==='contacts') renderContacts();
   else if(name==='admin') { if(S.isAdmin) renderAdmin(); else { toast('Admin access restricted','warning'); nav('dashboard'); } }
@@ -1811,19 +1886,22 @@ async function renderDashboard() {
       const months=lastD?monthsSince(lastD):Infinity;
       if(months>14){
         const label=lastD?`last inspected ${h(v.LastInspectionDate)}`:'never inspected';
-        alertItems.push(`<div class="alert-row alert-row-danger" onclick="nav('reports')">
+        alertItems.push(`<div class="alert-row alert-row-danger" onclick="nav('inspections')">
           <i class="bi bi-clipboard-x text-danger flex-shrink-0"></i>
           <div><strong>${h(v.Title)}</strong> — crewing inspection <strong>overdue</strong> (${label})</div>
           <span class="ms-auto badge bg-danger">Overdue</span>
         </div>`);
       } else if(months>=10){
-        alertItems.push(`<div class="alert-row alert-row-warning" onclick="nav('reports')">
+        alertItems.push(`<div class="alert-row alert-row-warning" onclick="nav('inspections')">
           <i class="bi bi-clipboard-check flex-shrink-0" style="color:#b45309"></i>
           <div><strong>${h(v.Title)}</strong> — inspection due (last: ${h(v.LastInspectionDate)}, ${Math.floor(months)}m ago)</div>
           <span class="ms-auto badge bg-warning text-dark">Due</span>
         </div>`);
       }
     });
+
+    // Store for KPI tile popups
+    window._dashData={openVacs,overdueVacs,within7Vacs,veroQueue,staleVacs,alertItems,urgency,vacMap};
 
     el.innerHTML=`
     <!-- Header -->
@@ -1832,13 +1910,14 @@ async function renderDashboard() {
       <div class="text-muted d-flex align-items-center gap-3" style="font-size:.77rem">
         <span><i class="bi bi-calendar3 me-1"></i>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>
         <a href="#" onclick="renderDashboard();return false" class="text-decoration-none" style="color:var(--mc-blue)"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</a>
+        <button class="btn btn-sm btn-primary" onclick="openQuickInspection()" style="font-size:.78rem;padding:3px 10px"><i class="bi bi-clipboard-plus me-1"></i>Add Visit / Inspection</button>
       </div>
     </div>
 
     <!-- KPI strip -->
     <div class="row g-2 mb-4">
       <div class="col-6 col-md-3">
-        <div class="dash-kpi">
+        <div class="dash-kpi" onclick="openDashDetail('openVacs')" style="cursor:pointer" title="Click to see all open vacancies">
           <i class="bi bi-briefcase-fill mb-1" style="color:var(--mc-blue);font-size:1.15rem"></i>
           <div class="dk-val" style="color:var(--mc-blue)">${openVacs.length}</div>
           <div class="dk-lbl">Open Vacancies</div>
@@ -1846,7 +1925,7 @@ async function renderDashboard() {
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="dash-kpi">
+        <div class="dash-kpi" onclick="openDashDetail('attention')" style="cursor:pointer" title="Click to see vacancies needing attention">
           <i class="bi bi-alarm-fill mb-1" style="color:#dc2626;font-size:1.15rem"></i>
           <div class="dk-val" style="color:#dc2626">${overdueVacs.length+within7Vacs.length}</div>
           <div class="dk-lbl">Need Attention</div>
@@ -1854,7 +1933,7 @@ async function renderDashboard() {
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="dash-kpi">
+        <div class="dash-kpi" onclick="openDashDetail('screening')" style="cursor:pointer" title="Click to see screening queue">
           <i class="bi bi-telephone-fill mb-1" style="color:#7c3aed;font-size:1.15rem"></i>
           <div class="dk-val" style="color:#7c3aed">${veroQueue.length}</div>
           <div class="dk-lbl">Screening Queue</div>
@@ -1862,7 +1941,7 @@ async function renderDashboard() {
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="dash-kpi">
+        <div class="dash-kpi" onclick="openDashDetail('alerts')" style="cursor:pointer" title="Click to see all alerts">
           <i class="bi bi-exclamation-triangle-fill mb-1" style="color:#b45309;font-size:1.15rem"></i>
           <div class="dk-val" style="color:#b45309">${alertItems.length}</div>
           <div class="dk-lbl">Active Alerts</div>
@@ -1904,6 +1983,85 @@ async function renderDashboard() {
     <div class="text-end text-muted mb-2" style="font-size:.72rem"><i class="bi bi-clock me-1"></i>Loaded at ${new Date().toLocaleTimeString()}</div>`;
 
   } catch(e) { el.innerHTML=errBox(e); }
+}
+
+// ── Dashboard KPI tile detail popup ───────────────────────────────
+function openDashDetail(type) {
+  const D=window._dashData;
+  if(!D) return;
+  const titleEl=document.getElementById('dash-detail-title');
+  const bodyEl=document.getElementById('dash-detail-body');
+  const headerEl=document.getElementById('dash-detail-header');
+  if(!titleEl||!bodyEl) return;
+
+  function vacTable(vacs, emptyMsg) {
+    if(!vacs.length) return `<div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-2 fs-5"></i>${emptyMsg}</div>`;
+    return `<div class="table-responsive"><table class="table table-sm table-hover mb-0">
+      <thead class="table-light"><tr><th>Rank</th><th>Vessel</th><th>Client</th><th>Sign-On</th><th>Status</th></tr></thead>
+      <tbody>${vacs.map(v=>{
+        const u=D.urgency(v.SignOnDate);
+        return `<tr style="cursor:pointer" onclick="bootstrap.Modal.getInstance(document.getElementById('modalDashDetail'))?.hide();goDetail(${v.Id})">
+          <td class="fw-semibold" style="font-size:.83rem">${h(v.Rank?.Title||'—')}</td>
+          <td style="font-size:.83rem">${h(v.Vessel?.Title||'—')}</td>
+          <td style="font-size:.83rem">${h(vacClientName(v)||'—')}</td>
+          <td><span class="urg-pill ${u.cls}"><i class="bi ${u.icon}"></i>${u.label}</span></td>
+          <td><span class="badge ${v.Status==='Offer Made'?'bg-warning text-dark':'bg-primary'}" style="font-size:.7rem">${h(v.Status)}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
+
+  let title='', color='var(--mc-blue)', html='';
+
+  if(type==='openVacs') {
+    title=`<i class="bi bi-briefcase-fill me-2"></i>Open Vacancies (${D.openVacs.length})`;
+    color='var(--mc-blue)';
+    html=vacTable(D.openVacs,'No open vacancies');
+  }
+  else if(type==='attention') {
+    title=`<i class="bi bi-alarm-fill me-2"></i>Need Attention (${D.overdueVacs.length+D.within7Vacs.length})`;
+    color='#dc2626';
+    const combined=[...new Set([...D.overdueVacs,...D.within7Vacs])];
+    html=combined.length
+      ? `<div class="px-3 pt-2 pb-1" style="font-size:.8rem;color:#6c757d">${D.overdueVacs.length} overdue sign-on &nbsp;·&nbsp; ${D.within7Vacs.length} due within 7 days</div>`+vacTable(combined,'')
+      : `<div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-2 fs-5"></i>No vacancies need attention right now</div>`;
+  }
+  else if(type==='screening') {
+    title=`<i class="bi bi-telephone-fill me-2"></i>Screening Queue (${D.veroQueue.length})`;
+    color='#7c3aed';
+    if(!D.veroQueue.length) {
+      html='<div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-2 fs-5"></i>No candidates awaiting Veronika\'s call</div>';
+    } else {
+      html=`<div class="px-3 pt-2 pb-1" style="font-size:.8rem;color:#6c757d">Candidates with status "Applied" on open vacancies — click a row to open the vacancy</div>
+      <div class="table-responsive"><table class="table table-sm table-hover mb-0">
+        <thead class="table-light"><tr><th>Candidate</th><th>Rank</th><th>Vessel</th><th>Agency</th><th>Sign-On</th><th>Applied</th></tr></thead>
+        <tbody>${D.veroQueue.slice(0,60).map(({c,vac})=>{
+          const u=D.urgency(vac.SignOnDate);
+          const age=c.Created?Math.floor((Date.now()-new Date(c.Created).getTime())/864e5):'?';
+          return `<tr style="cursor:pointer" onclick="bootstrap.Modal.getInstance(document.getElementById('modalDashDetail'))?.hide();goDetail(${vac.Id})">
+            <td class="fw-semibold" style="font-size:.83rem">${h(c.Title||'—')}</td>
+            <td style="font-size:.83rem">${h(vac.Rank?.Title||'—')}</td>
+            <td style="font-size:.83rem">${h(vac.Vessel?.Title||'—')}</td>
+            <td style="font-size:.83rem;color:#6c757d">${h(c.AgencyName||'Direct')}</td>
+            <td><span class="urg-pill ${u.cls}"><i class="bi ${u.icon}"></i>${u.label}</span></td>
+            <td style="font-size:.8rem;color:#6c757d">${age}d ago</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    }
+  }
+  else if(type==='alerts') {
+    title=`<i class="bi bi-exclamation-triangle-fill me-2"></i>Active Alerts (${D.alertItems.length})`;
+    color='#b45309';
+    html=D.alertItems.length
+      ? `<div class="p-3">${D.alertItems.join('')}</div>`
+      : '<div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-2 fs-5"></i>No alerts — everything looks good!</div>';
+  }
+
+  headerEl.style.background=color;
+  titleEl.innerHTML=title;
+  bodyEl.innerHTML=html;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDashDetail')).show();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4672,6 +4830,210 @@ async function setupCandidateColumns() {
 // ═══════════════════════════════════════════════════════════════════
 // VIEW: REPORTING & STATISTICS
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// VIEW: INSPECTIONS
+// ═══════════════════════════════════════════════════════════════════
+async function renderInspections() {
+  const el=document.getElementById('v-inspections'); spin(el);
+  try {
+    // Fetch fresh vessel data with all inspection fields
+    const vessels=await spGet('VesselMaster',
+      '?$select=Id,Title,IsActive,LastInspectionDate,NextInspectionDate,NextInspectionBy,InspectionsJson&$filter=IsActive eq 1&$orderby=Title&$top=500')
+      .catch(()=>S.vessels||[]);
+    const activeVessels=(vessels.length?vessels:(S.vessels||[])).filter(v=>v.IsActive!==false);
+
+    // Date helpers
+    const today=new Date(); today.setHours(0,0,0,0);
+    function parseID(s){if(!s)return null;const p=s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);return p?new Date(+p[3],+p[2]-1,+p[1]):new Date(s);}
+    function mSinceI(d){return(today-d)/(1000*60*60*24*30.4375);}
+    function inspStat(v){
+      const d=v.LastInspectionDate?parseID(v.LastInspectionDate):null;
+      const ms=d?mSinceI(d):Infinity;
+      if(!d) return {label:'Never',badge:'<span class="badge bg-secondary">Never</span>',sort:3};
+      if(ms>14) return {label:'Overdue',badge:'<span class="badge bg-danger">Overdue</span>',sort:2};
+      if(ms>=10) return {label:'Due',badge:'<span class="badge bg-warning text-dark">Due</span>',sort:1};
+      return {label:'On Track',badge:'<span class="badge bg-success">On Track</span>',sort:0};
+    }
+
+    // Build row data
+    const rowData=activeVessels.map(v=>{
+      let recs=[]; try{recs=JSON.parse(v.InspectionsJson||'[]');}catch(_){}
+      const sorted=[...recs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const last=sorted[0]||{};
+      const st=inspStat(v);
+      return {vesselId:v.Id,vessel:v.Title||'',lastDate:v.LastInspectionDate||'',lastPort:last.port||'',lastBy:last.inspector||'',nextDate:v.NextInspectionDate||'',nextBy:v.NextInspectionBy||'',status:st,allRecs:recs};
+    });
+
+    const onTrack=rowData.filter(r=>r.status.label==='On Track').length;
+    const due=rowData.filter(r=>r.status.label==='Due').length;
+    const overdue=rowData.filter(r=>r.status.label==='Overdue').length;
+    const never=rowData.filter(r=>r.status.label==='Never').length;
+
+    // Inspector breakdown
+    const byPerson={};
+    activeVessels.forEach(v=>{
+      let recs=[]; try{recs=JSON.parse(v.InspectionsJson||'[]');}catch(_){}
+      recs.forEach(r=>{
+        if(!r.inspector) return;
+        if(!byPerson[r.inspector]) byPerson[r.inspector]={count:0,vessels:new Set(),lastDate:''};
+        byPerson[r.inspector].count++;
+        byPerson[r.inspector].vessels.add(v.Title||'?');
+        if((r.date||'')>byPerson[r.inspector].lastDate) byPerson[r.inspector].lastDate=r.date;
+      });
+    });
+    const byPersonRows=Object.entries(byPerson).sort((a,b)=>b[1].count-a[1].count)
+      .map(([name,d])=>`<tr>
+        <td class="fw-semibold" style="font-size:.83rem">${h(name)}</td>
+        <td class="text-center fw-bold" style="font-size:.83rem">${d.count}</td>
+        <td style="font-size:.83rem">${h(d.lastDate||'—')}</td>
+        <td style="font-size:.83rem" title="${h([...d.vessels].join(', '))}">${h([...d.vessels].join(', '))}</td>
+      </tr>`).join('')||'<tr><td colspan="4" class="text-muted text-center py-3 small">No inspection records yet</td></tr>';
+
+    // Full chronological event log across all vessels
+    const allEvents=[];
+    activeVessels.forEach(v=>{
+      let recs=[]; try{recs=JSON.parse(v.InspectionsJson||'[]');}catch(_){}
+      recs.forEach(r=>allEvents.push({...r,vesselTitle:v.Title||'?',vesselId:v.Id}));
+    });
+    allEvents.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const logRows=allEvents.length?allEvents.map(e=>`<tr>
+      <td style="font-size:.82rem;white-space:nowrap">${h(e.date||'—')}</td>
+      <td class="fw-semibold" style="font-size:.82rem">${h(e.vesselTitle)}</td>
+      <td style="font-size:.82rem">${h(e.type||'Crewing Inspection')}</td>
+      <td style="font-size:.82rem">${h(e.port||'—')}</td>
+      <td style="font-size:.82rem">${h(e.inspector||'—')}</td>
+      <td style="font-size:.82rem">${e.reportUrl?`<a href="${h(e.reportUrl)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1"></i>Open</a>`:'—'}</td>
+    </tr>`).join(''):'<tr><td colspan="6" class="text-muted text-center py-3">No inspection records yet. Use "Add Visit / Inspection" to record your first one.</td></tr>';
+
+    // Sort function for overview table
+    function buildIRows(rows){
+      if(!rows.length) return '<tr><td colspan="7" class="text-muted text-center py-3">No vessel data — run Admin → Setup Vessel Extended Columns first</td></tr>';
+      return rows.map(r=>`<tr>
+        <td class="fw-semibold" style="font-size:.82rem">${h(r.vessel)}</td>
+        <td style="font-size:.82rem">${r.lastDate||'—'}</td>
+        <td style="font-size:.82rem">${r.lastPort||'—'}</td>
+        <td style="font-size:.82rem">${r.lastBy||'—'}</td>
+        <td style="font-size:.82rem">${r.nextDate||'—'}</td>
+        <td style="font-size:.82rem">${r.nextBy||'—'}</td>
+        <td>${r.status.badge}</td>
+      </tr>`).join('');
+    }
+    window._inspData=[...rowData].sort((a,b)=>a.vessel.localeCompare(b.vessel));
+    window._inspSortCol='vessel'; window._inspSortAsc=true;
+    window.sortInspTable=function(col){
+      if(window._inspSortCol===col) window._inspSortAsc=!window._inspSortAsc;
+      else{window._inspSortCol=col;window._inspSortAsc=true;}
+      const rows=[...window._inspData];
+      rows.sort((a,b)=>{
+        if(col==='status'){const va=a.status.sort,vb=b.status.sort;return window._inspSortAsc?va-vb:vb-va;}
+        const va=a[col]||'',vb=b[col]||'';
+        return window._inspSortAsc?va.localeCompare(vb):vb.localeCompare(va);
+      });
+      const tbody=document.getElementById('insp-overview-tbody');
+      if(tbody) tbody.innerHTML=buildIRows(rows);
+    };
+    const initTbody=buildIRows(window._inspData);
+
+    el.innerHTML=`
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+      <h4 class="sec-title mb-0"><i class="bi bi-clipboard-check me-2" style="opacity:.8"></i>Crewing Inspections</h4>
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted" style="font-size:.77rem"><i class="bi bi-calendar3 me-1"></i>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>
+        <button class="btn btn-primary btn-sm" onclick="openQuickInspection()" style="font-size:.8rem"><i class="bi bi-clipboard-plus me-1"></i>Add Visit / Inspection</button>
+        <a href="#" onclick="renderInspections();return false" class="text-decoration-none" style="color:var(--mc-blue);font-size:.77rem"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</a>
+      </div>
+    </div>
+
+    <!-- KPI tiles -->
+    <div class="row g-2 mb-4">
+      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3">
+        <i class="bi bi-check-circle-fill mb-1" style="color:#198754;font-size:1.15rem"></i>
+        <div style="font-size:2rem;font-weight:800;color:#198754;line-height:1.1">${onTrack}</div>
+        <div class="text-muted mt-1" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em">On Track</div>
+        <div style="font-size:.67rem;color:#198754;margin-top:.2rem">Last visit &lt;10 months ago</div>
+      </div></div></div>
+      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3">
+        <i class="bi bi-clock-fill mb-1" style="color:#fd7e14;font-size:1.15rem"></i>
+        <div style="font-size:2rem;font-weight:800;color:#fd7e14;line-height:1.1">${due}</div>
+        <div class="text-muted mt-1" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em">Due</div>
+        <div style="font-size:.67rem;color:#fd7e14;margin-top:.2rem">10–14 months since last visit</div>
+      </div></div></div>
+      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3">
+        <i class="bi bi-exclamation-triangle-fill mb-1" style="color:#dc3545;font-size:1.15rem"></i>
+        <div style="font-size:2rem;font-weight:800;color:#dc3545;line-height:1.1">${overdue}</div>
+        <div class="text-muted mt-1" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em">Overdue</div>
+        <div style="font-size:.67rem;color:#dc3545;margin-top:.2rem">More than 14 months since last visit</div>
+      </div></div></div>
+      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3">
+        <i class="bi bi-question-circle-fill mb-1" style="color:#6c757d;font-size:1.15rem"></i>
+        <div style="font-size:2rem;font-weight:800;color:#6c757d;line-height:1.1">${never}</div>
+        <div class="text-muted mt-1" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em">Never Inspected</div>
+        <div style="font-size:.67rem;color:#6c757d;margin-top:.2rem">No visit on record</div>
+      </div></div></div>
+    </div>
+
+    <!-- Vessel overview table -->
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="fw-bold" style="font-size:.82rem;color:var(--mc-blue);text-transform:uppercase;letter-spacing:.04em"><i class="bi bi-ship me-1"></i>Vessel Overview</span>
+      <span class="text-muted" style="font-size:.75rem">— click column headers to sort · target cycle: every 10–14 months</span>
+    </div>
+    <div class="card shadow-sm mb-4"><div class="card-body p-0"><div class="table-responsive">
+      <table class="table table-sm table-hover mb-0" id="insp-overview-table" style="font-size:.83rem">
+        <thead style="background:#f0f4f8"><tr>
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('vessel')">Vessel <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('lastDate')">Last Visit <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('lastPort')">Port <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('lastBy')">Performed By <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('nextDate')">Next Planned <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
+          <th style="white-space:nowrap">Next By</th>
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('status')">Status <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
+        </tr></thead>
+        <tbody id="insp-overview-tbody">${initTbody}</tbody>
+      </table>
+    </div></div></div>
+
+    <!-- Inspector breakdown + log side by side -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-5">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-person-check me-2" style="color:var(--mc-blue)"></i>Inspector / Visitor Breakdown</div>
+          <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+            <thead class="table-light"><tr>
+              <th style="font-size:.78rem">Name</th>
+              <th class="text-center" style="font-size:.78rem">Visits</th>
+              <th style="font-size:.78rem">Last Visit</th>
+              <th style="font-size:.78rem">Vessels</th>
+            </tr></thead>
+            <tbody>${byPersonRows}</tbody>
+          </table></div></div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white fw-bold d-flex align-items-center gap-2" style="font-size:.83rem">
+            <i class="bi bi-journal-text me-1" style="color:var(--mc-blue)"></i>Full Visit / Inspection Log
+            <span class="badge bg-secondary ms-auto fw-normal" style="font-size:.7rem">${allEvents.length} records</span>
+          </div>
+          <div class="card-body p-0" style="max-height:360px;overflow-y:auto"><div class="table-responsive"><table class="table table-sm mb-0">
+            <thead class="table-light" style="position:sticky;top:0;z-index:1"><tr>
+              <th style="font-size:.78rem">Date</th>
+              <th style="font-size:.78rem">Vessel</th>
+              <th style="font-size:.78rem">Type</th>
+              <th style="font-size:.78rem">Port</th>
+              <th style="font-size:.78rem">By</th>
+              <th style="font-size:.78rem">Report</th>
+            </tr></thead>
+            <tbody>${logRows}</tbody>
+          </table></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-end text-muted mb-2" style="font-size:.72rem"><i class="bi bi-clock me-1"></i>Loaded at ${new Date().toLocaleTimeString()}</div>`;
+  } catch(e){ el.innerHTML=errBox(e); }
+}
+
 async function renderReports() {
   const el=document.getElementById('v-reports'); el.classList.remove('d-none');
   el.innerHTML=`<h4 class="sec-title"><i class="bi bi-compass me-2" style="opacity:.7"></i>Reporting &amp; KPIs</h4>
@@ -4760,14 +5122,6 @@ async function renderReports() {
     const activeVess=vessels.filter(v=>v.IsActive!==false).length;
     const activeClients=clients.filter(c=>c.IsActive!==false).length;
     const activeAgencies=agencies.filter(a=>a.IsActive!==false).length;
-    // Inspection KPIs
-    const nowDate=new Date(); const in90=new Date(nowDate); in90.setDate(in90.getDate()+90);
-    function parseDate(s){if(!s)return null;const p=s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);return p?new Date(+p[3],+p[2]-1,+p[1]):new Date(s);}
-    const activeVessels=vessels.filter(v=>v.IsActive!==false);
-    const upcomingInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d>=nowDate&&d<=in90;});
-    const overdueInspections=activeVessels.filter(v=>{const d=parseDate(v.NextInspectionDate);return d&&d<nowDate;});
-    const noInspectionSet=activeVessels.filter(v=>!v.NextInspectionDate&&!v.LastInspectionDate).length;
-
     // ── Monthly performance ────────────────────────────────────────
     const PERF_USERS=[
       {name:'Serhii Boshko',  firstName:'Serhii'},
@@ -4898,78 +5252,6 @@ async function renderReports() {
       ? Object.entries(outcomeCount).sort((a,b)=>b[1]-a[1]).map(([o,n])=>`<tr><td style="font-size:.82rem">${h(o)}</td><td class="text-end fw-bold" style="font-size:.82rem">${n}</td><td style="width:70px">${bar(n,closedVacs.length,'#fd7e14')}</td></tr>`).join('')
       : '<tr><td colspan="3" class="text-muted text-center py-2 small">No closed vacancies yet</td></tr>';
 
-    // ── Inspection data (LastInspectionDate-based 3-tier) ──────────
-    const today2=new Date(); today2.setHours(0,0,0,0);
-    function mSince2(d){return(today2-d)/(1000*60*60*24*30.4375);}
-    function inspSt(v){
-      const d=v.LastInspectionDate?parseDate(v.LastInspectionDate):null;
-      const ms=d?mSince2(d):Infinity;
-      if(!d) return {label:'Never',badge:'<span class="badge bg-secondary">Never</span>',sort:3};
-      if(ms>14) return {label:'Overdue',badge:'<span class="badge bg-danger">Overdue</span>',sort:2};
-      if(ms>=10) return {label:'Due',badge:'<span class="badge bg-warning text-dark">Due</span>',sort:1};
-      return {label:'On Track',badge:'<span class="badge bg-success">On Track</span>',sort:0};
-    }
-    const inspRowsData=activeVessels.map(v=>{
-      let inspRecs=[]; try{inspRecs=JSON.parse(v.InspectionsJson||'[]');}catch(_){}
-      const srt=[...inspRecs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-      const last=srt[0]||{};
-      const st=inspSt(v);
-      return {vessel:v.Title||'',lastDate:v.LastInspectionDate||'',lastPort:last.port||'',lastBy:last.inspector||'',nextDate:v.NextInspectionDate||'',nextBy:v.NextInspectionBy||'',status:st};
-    });
-    const inspOnTrack=inspRowsData.filter(r=>r.status.label==='On Track').length;
-    const inspDue=inspRowsData.filter(r=>r.status.label==='Due').length;
-    const inspOverdue=inspRowsData.filter(r=>r.status.label==='Overdue').length;
-    const inspNever=inspRowsData.filter(r=>r.status.label==='Never').length;
-    // Inspector breakdown
-    const inspByPerson={};
-    activeVessels.forEach(v=>{
-      let recs=[]; try{recs=JSON.parse(v.InspectionsJson||'[]');}catch(_){}
-      recs.forEach(r=>{
-        if(!r.inspector) return;
-        if(!inspByPerson[r.inspector]) inspByPerson[r.inspector]={count:0,vessels:new Set()};
-        inspByPerson[r.inspector].count++;
-        inspByPerson[r.inspector].vessels.add(v.Title||'?');
-      });
-    });
-    const inspByPersonRows=Object.entries(inspByPerson).sort((a,b)=>b[1].count-a[1].count)
-      .map(([name,d])=>`<tr>
-        <td style="font-size:.82rem">${h(name)}</td>
-        <td class="text-center fw-bold" style="font-size:.82rem">${d.count}</td>
-        <td style="font-size:.82rem;max-width:260px" title="${h([...d.vessels].join(', '))}">${h([...d.vessels].join(', '))}</td>
-      </tr>`).join('')||'<tr><td colspan="3" class="text-muted text-center py-2 small">No inspection records found</td></tr>';
-    // Store globally so the onclick sort handler can access after render
-    window._inspData=[...inspRowsData].sort((a,b)=>a.vessel.localeCompare(b.vessel));
-    window._inspSortCol='vessel'; window._inspSortAsc=true;
-    window.sortInspTable=function(col){
-      if(window._inspSortCol===col) window._inspSortAsc=!window._inspSortAsc;
-      else{window._inspSortCol=col;window._inspSortAsc=true;}
-      const rows=[...window._inspData];
-      rows.sort((a,b)=>{
-        if(col==='status'){const va=a.status.sort,vb=b.status.sort;return window._inspSortAsc?va-vb:vb-va;}
-        const va=a[col]||'',vb=b[col]||'';
-        return window._inspSortAsc?va.localeCompare(vb):vb.localeCompare(va);
-      });
-      const tbody=document.getElementById('insp-overview-tbody');
-      if(tbody) tbody.innerHTML=rows.map(r=>`<tr>
-        <td class="fw-semibold" style="font-size:.82rem">${h(r.vessel)}</td>
-        <td style="font-size:.82rem">${r.lastDate||'—'}</td>
-        <td style="font-size:.82rem">${r.lastPort||'—'}</td>
-        <td style="font-size:.82rem">${r.lastBy||'—'}</td>
-        <td style="font-size:.82rem">${r.nextDate||'—'}</td>
-        <td style="font-size:.82rem">${r.nextBy||'—'}</td>
-        <td>${r.status.badge}</td>
-      </tr>`).join('');
-    };
-    const initInspTbody=window._inspData.length?window._inspData.map(r=>`<tr>
-      <td class="fw-semibold" style="font-size:.82rem">${h(r.vessel)}</td>
-      <td style="font-size:.82rem">${r.lastDate||'—'}</td>
-      <td style="font-size:.82rem">${r.lastPort||'—'}</td>
-      <td style="font-size:.82rem">${r.lastBy||'—'}</td>
-      <td style="font-size:.82rem">${r.nextDate||'—'}</td>
-      <td style="font-size:.82rem">${r.nextBy||'—'}</td>
-      <td>${r.status.badge}</td>
-    </tr>`).join(''):'<tr><td colspan="7" class="text-muted text-center py-2">No vessel data — run Admin → Setup Vessel Extended Columns first</td></tr>';
-
     document.getElementById('reports-body').innerHTML=`
     <!-- ── Overview KPIs ── -->
     <div class="row g-2 mb-3">
@@ -4984,52 +5266,13 @@ async function renderReports() {
       ${kpi(activeVess,'Active Vessels','','var(--mc-blue)','<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>')}
       ${kpi(activeClients,'Active Clients','','var(--mc-blue)','bi-building')}
       ${kpi(activeAgencies,'Active Agencies','','var(--mc-blue)','bi-globe')}
-      ${kpi(upcomingInspections.length,'Inspections Due','next 90 days',upcomingInspections.length>0?'#fd7e14':'#198754','bi-clipboard-check')}
-      ${kpi(overdueInspections.length,'Overdue Inspections','past due date',overdueInspections.length>0?'#dc3545':'#198754','bi-exclamation-triangle')}
       ${kpi(rejRate+'%','Rejection Rate','of all candidates',rejRate>50?'#dc3545':rejRate>30?'#fd7e14':'#198754','bi-x-circle')}
       ${kpi(allVacs.length?Math.round(totalCands/allVacs.length*10)/10:'—','Avg Cands / Vac','','var(--mc-blue)','bi-person-lines-fill')}
       ${kpi(allVacs.length,'Total Vacancies','all time','#6c757d','bi-archive')}
-    </div>
-
-    <!-- ── Inspection Overview ── -->
-    <div class="d-flex align-items-center gap-2 mb-2">
-      <span class="fw-bold" style="font-size:.82rem;color:var(--mc-blue);text-transform:uppercase;letter-spacing:.04em"><i class="bi bi-clipboard-check me-1"></i>Crewing Inspection Overview</span>
-      <span class="text-muted" style="font-size:.75rem">— based on last inspection date; target cycle: every 10–14 months</span>
-    </div>
-    <div class="row g-2 mb-3">
-      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3"><div style="font-size:1.75rem;font-weight:700;color:#198754;line-height:1.1">${inspOnTrack}</div><div class="text-muted mt-1" style="font-size:.72rem;line-height:1.3">On Track</div><div style="font-size:.65rem;color:#198754">last inspection &lt;10m ago</div></div></div></div>
-      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3"><div style="font-size:1.75rem;font-weight:700;color:#fd7e14;line-height:1.1">${inspDue}</div><div class="text-muted mt-1" style="font-size:.72rem;line-height:1.3">Due for Inspection</div><div style="font-size:.65rem;color:#fd7e14">10–14 months ago</div></div></div></div>
-      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3"><div style="font-size:1.75rem;font-weight:700;color:#dc3545;line-height:1.1">${inspOverdue}</div><div class="text-muted mt-1" style="font-size:.72rem;line-height:1.3">Overdue</div><div style="font-size:.65rem;color:#dc3545">more than 14 months ago</div></div></div></div>
-      <div class="col-6 col-md-3"><div class="card text-center h-100 border-0 shadow-sm"><div class="card-body py-3"><div style="font-size:1.75rem;font-weight:700;color:#6c757d;line-height:1.1">${inspNever}</div><div class="text-muted mt-1" style="font-size:.72rem;line-height:1.3">Never Inspected</div></div></div></div>
-    </div>
-    <div class="card shadow-sm mb-3"><div class="card-body p-0"><div class="table-responsive">
-    <table class="table table-sm table-hover mb-0" id="insp-overview-table" style="font-size:.83rem">
-      <thead style="background:#f0f4f8"><tr>
-        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('vessel')">Vessel <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
-        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('lastDate')">Last Inspection <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
-        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('lastPort')">Last Port <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
-        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('lastBy')">Inspected By <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
-        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('nextDate')">Next Planned <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
-        <th style="white-space:nowrap">Next By</th>
-        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortInspTable('status')">Status <i class="bi bi-arrow-down-up" style="font-size:.65rem;opacity:.45"></i></th>
-      </tr></thead>
-      <tbody id="insp-overview-tbody">${initInspTbody}</tbody>
-    </table>
-    </div></div></div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-7">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white fw-bold" style="font-size:.83rem"><i class="bi bi-person-check me-2" style="color:var(--mc-blue)"></i>Inspector Breakdown</div>
-          <div class="card-body p-0"><table class="table table-sm mb-0">
-            <thead class="table-light"><tr>
-              <th style="font-size:.78rem">Inspector</th>
-              <th class="text-center" style="font-size:.78rem">Inspections</th>
-              <th style="font-size:.78rem">Vessels</th>
-            </tr></thead>
-            <tbody>${inspByPersonRows}</tbody>
-          </table></div>
-        </div>
-      </div>
+      <div class="col-6 col-md-2"><div class="card text-center h-100 border-0 shadow-sm" style="cursor:pointer" onclick="nav('inspections')" title="Go to Inspections tab"><div class="card-body py-3 d-flex flex-column align-items-center justify-content-center">
+        <i class="bi bi-clipboard-check mb-1" style="font-size:1rem;color:var(--mc-blue);opacity:.75"></i>
+        <div style="font-size:.72rem;color:var(--mc-blue);font-weight:700">Inspection data<br>moved to<br><u>Inspections</u> tab</div>
+      </div></div></div>
     </div>
 
     <!-- ── Time to Close ── -->
@@ -5957,14 +6200,13 @@ function editVessel(id) {
   const inspectionRows=inspections.length
     ?inspections.map((ins,i)=>`<tr>
       <td style="font-size:.82rem">${h(ins.date||'')}</td>
-      <td style="font-size:.82rem">${h(ins.type||'Crewing')}</td>
-      <td style="font-size:.82rem">${h(ins.result||'')}</td>
+      <td style="font-size:.82rem">${h(ins.type||'Crewing Inspection')}</td>
       <td style="font-size:.82rem">${h(ins.port||'')}</td>
       <td style="font-size:.82rem">${h(ins.inspector||'')}</td>
       <td style="font-size:.82rem">${ins.reportUrl?`<a href="${h(ins.reportUrl)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1"></i>Open</a>`:'—'}</td>
       <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeVesselInspection(${i})"><i class="bi bi-trash3" style="font-size:.7rem"></i></button></td>
     </tr>`).join('')
-    :'<tr><td colspan="7" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';
+    :'<tr><td colspan="6" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';
   // Master data fields are locked for existing vessels
   const LOCKED_FIELDS=['vf-title','vf-abbr','vf-type','vf-flag','vf-built','vf-imo','vf-dwt','vf-grt'];
   const lockAttr=(!isNew)?'readonly disabled':'' ; // will be set via JS after render
@@ -6126,7 +6368,7 @@ function editVessel(id) {
   <div id="vessel-inspections-wrap" class="mb-2">
     <table class="table table-sm table-bordered mb-2" style="font-size:.82rem">
       <thead style="background:#f0f4f8"><tr>
-        <th>Date</th><th>Type</th><th>Result</th><th>Port</th><th>Inspector</th><th>Report</th><th style="width:36px"></th>
+        <th>Date</th><th>Type</th><th>Port</th><th>Inspector</th><th>Report</th><th style="width:36px"></th>
       </tr></thead>
       <tbody id="vessel-inspections-body">${inspectionRows}</tbody>
     </table>
@@ -6136,18 +6378,21 @@ function editVessel(id) {
     <div class="row g-2">
       <div class="col-md-2"><label class="form-label form-label-sm mb-1">Date</label>
         <input type="text" class="form-control form-control-sm" id="vi-date" placeholder="DD.MM.YYYY"></div>
-      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Type</label>
+      <div class="col-md-3"><label class="form-label form-label-sm mb-1">Type</label>
         <select class="form-select form-select-sm" id="vi-type">
-          <option>Crewing</option><option>Safety</option><option>ISM</option><option>ISPS</option><option>Flag State</option><option>P&amp;I</option><option>Other</option>
-        </select></div>
-      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Result</label>
-        <select class="form-select form-select-sm" id="vi-result">
-          <option>Passed</option><option>Passed w/ Observations</option><option>Failed</option><option>Pending</option>
+          <option value="Crewing Inspection">Crewing Inspection</option>
+          <option value="Management Vessel Visit">Management Vessel Visit</option>
         </select></div>
       <div class="col-md-2"><label class="form-label form-label-sm mb-1">Port</label>
         <input type="text" class="form-control form-control-sm" id="vi-port" placeholder="e.g. Hamburg"></div>
-      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Inspector</label>
-        <input type="text" class="form-control form-control-sm" id="vi-inspector" placeholder="Name / org"></div>
+      <div class="col-md-3"><label class="form-label form-label-sm mb-1">Inspector / Visitor</label>
+        <input type="text" class="form-control form-control-sm" id="vi-inspector" list="vi-inspector-list" placeholder="Select or type name">
+        <datalist id="vi-inspector-list">
+          <option value="Vitaliy Stasyuk">
+          <option value="Serhii Boshko">
+          <option value="Philipp">
+          <option value="Fabian">
+        </datalist></div>
       <div class="col-md-4"><label class="form-label form-label-sm mb-1">Inspection Report</label>
         <div id="vi-report-zone" ondragover="viReportDragOver(event)" ondragleave="viReportDragLeave(event)" ondrop="viReportDrop(event)" onclick="document.getElementById('vi-report-file').click()" style="border:2px dashed #ccc;border-radius:4px;padding:4px 10px;cursor:pointer;background:#fafafa;font-size:.78rem;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center">
           <span id="vi-report-label"><i class="bi bi-upload me-1"></i>Drag report or click to upload</span>
@@ -6296,10 +6541,22 @@ async function saveVessel() {
           if(S._editingVesselId){ await spUpdate('VesselMaster',S._editingVesselId,coreData); }
           else { await spCreate('VesselMaster',coreData); }
           toast('Vessel saved (core fields only) — go to Admin → Setup Vessel Extended Columns then re-save','warning');
+          // Always rescue inspection data separately — it's the most critical operational field
+          window._inspRescuePending={id:S._editingVesselId,data};
         }
       } else { throw e400; }
     }
     const savedVesselId=S._editingVesselId||id;
+    // If fallback to core-only was triggered, rescue inspection data now (columns exist after ensureAllVesselExtCols)
+    if(window._inspRescuePending) {
+      const {id:rescueId,data:rescueData}=window._inspRescuePending;
+      delete window._inspRescuePending;
+      if(rescueData.InspectionsJson!==undefined) {
+        const inspPatch={InspectionsJson:rescueData.InspectionsJson};
+        if(rescueData.LastInspectionDate) inspPatch.LastInspectionDate=rescueData.LastInspectionDate;
+        await spUpdate('VesselMaster',rescueId||savedVesselId,inspPatch).catch(()=>{});
+      }
+    }
     toast(S._editingVesselId?'Vessel updated ✓':'Vessel created ✓');
     logActivity(S._editingVesselId?'Updated':'Created','Vessel',savedVesselId,title);
     bootstrap.Modal.getInstance(document.getElementById('modalVesselForm'))?.hide();
@@ -6360,8 +6617,8 @@ function addVesselInspection() {
   if(!date){toast('Please enter an inspection date','warning');return;}
   const rec={
     date,
-    type:document.getElementById('vi-type')?.value||'Crewing',
-    result:document.getElementById('vi-result')?.value||'Passed',
+    type:document.getElementById('vi-type')?.value||'Crewing Inspection',
+    result:'Passed',
     port:document.getElementById('vi-port')?.value?.trim()||'',
     inspector:document.getElementById('vi-inspector')?.value?.trim()||'',
     reportUrl:document.getElementById('vi-report')?.value?.trim()||''
@@ -6370,6 +6627,7 @@ function addVesselInspection() {
   window._vesselInspections.unshift(rec); // newest first
   // Clear add form
   ['vi-date','vi-port','vi-inspector'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const viType=document.getElementById('vi-type');if(viType)viType.selectedIndex=0;
   viReportReset();
   renderVesselInspectionTable();
   toast('Inspection record added — save vessel to persist','info');
@@ -6379,15 +6637,77 @@ function removeVesselInspection(idx) {
   window._vesselInspections.splice(idx,1);
   renderVesselInspectionTable();
 }
+
+// ── Quick-Add Inspection Modal ─────────────────────────────────────
+function openQuickInspection(preselectVesselId) {
+  const sel=document.getElementById('qi-vessel');
+  if(sel) {
+    const vessels=(S.vessels||[]).filter(v=>v.IsActive!==false);
+    sel.innerHTML='<option value="">— Select vessel —</option>'+
+      vessels.map(v=>`<option value="${v.Id}"${v.Id==preselectVesselId?' selected':''}>${h(v.Title)}</option>`).join('');
+  }
+  // Pre-fill today's date
+  const dateInp=document.getElementById('qi-date');
+  if(dateInp&&!dateInp.value){
+    const t=new Date();
+    dateInp.value=`${String(t.getDate()).padStart(2,'0')}.${String(t.getMonth()+1).padStart(2,'0')}.${t.getFullYear()}`;
+  }
+  ['qi-port','qi-inspector','qi-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const qiType=document.getElementById('qi-type');if(qiType)qiType.selectedIndex=0;
+  const err=document.getElementById('qi-error');if(err)err.classList.add('d-none');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalQuickInspection')).show();
+}
+
+async function saveQuickInspection() {
+  const vesselId=document.getElementById('qi-vessel')?.value;
+  const date=document.getElementById('qi-date')?.value?.trim();
+  const type=document.getElementById('qi-type')?.value||'Crewing Inspection';
+  const port=document.getElementById('qi-port')?.value?.trim()||'';
+  const inspector=document.getElementById('qi-inspector')?.value?.trim()||'';
+  const notes=document.getElementById('qi-notes')?.value?.trim()||'';
+  const errEl=document.getElementById('qi-error');
+
+  if(!vesselId){if(errEl){errEl.textContent='Please select a vessel.';errEl.classList.remove('d-none');}return;}
+  if(!date){if(errEl){errEl.textContent='Please enter a date.';errEl.classList.remove('d-none');}return;}
+  if(errEl)errEl.classList.add('d-none');
+
+  const btn=document.getElementById('qi-save-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+  try {
+    // Load current vessel data to get existing InspectionsJson
+    const vData=await spGet('VesselMaster',`?$select=Id,InspectionsJson,LastInspectionDate,NextInspectionDate,NextInspectionBy&$filter=Id eq ${vesselId}&$top=1`);
+    const vessel=Array.isArray(vData)?vData[0]:vData;
+    let recs=[]; try{recs=JSON.parse(vessel?.InspectionsJson||'[]');}catch(_){}
+    const newRec={date,type,result:'Passed',port,inspector,reportUrl:'',notes};
+    recs.unshift(newRec);
+    const sorted=[...recs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const lastDate=sorted[0]?.date||'';
+    const patch={InspectionsJson:JSON.stringify(recs)};
+    if(lastDate) patch.LastInspectionDate=lastDate;
+    await spUpdate('VesselMaster',vesselId,patch);
+    logActivity('Created','Inspection',vesselId,`${type} on ${date}`,{vessel:vesselId,port,inspector});
+    toast(`Inspection record saved for vessel ✓`,'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalQuickInspection'))?.hide();
+    // Refresh data so dashboard & reports reflect the new record
+    await loadRefData();
+    // If inspections tab is active, reload it
+    try{if(S.currentView==='inspections')await renderInspections();}catch(_){}
+    // Refresh dashboard alerts
+    try{renderDashboard();}catch(_){}
+  } catch(e){
+    if(errEl){errEl.textContent='Save failed: '+e.message;errEl.classList.remove('d-none');}
+  } finally {
+    btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save Record';
+  }
+}
 function renderVesselInspectionTable() {
   const tbody=document.getElementById('vessel-inspections-body');
   if(!tbody) return;
   const ins=window._vesselInspections||[];
-  if(!ins.length){tbody.innerHTML='<tr><td colspan="7" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';return;}
+  if(!ins.length){tbody.innerHTML='<tr><td colspan="6" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';return;}
   tbody.innerHTML=ins.map((r,i)=>`<tr>
     <td style="font-size:.82rem">${h(r.date||'')}</td>
-    <td style="font-size:.82rem">${h(r.type||'Crewing')}</td>
-    <td style="font-size:.82rem">${h(r.result||'')}</td>
+    <td style="font-size:.82rem">${h(r.type||'Crewing Inspection')}</td>
     <td style="font-size:.82rem">${h(r.port||'')}</td>
     <td style="font-size:.82rem">${h(r.inspector||'')}</td>
     <td style="font-size:.82rem">${r.reportUrl?`<a href="${h(r.reportUrl)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1"></i>Open</a>`:'—'}</td>
