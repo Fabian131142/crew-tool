@@ -1381,10 +1381,6 @@
               <option value="Offered">Offered</option><option value="Placed">Placed</option><option value="Rejected">Rejected</option>
             </select>
           </div>
-          <!-- Row 3b: Applying For Rank -->
-          <div class="col-12"><label class="form-label fw-bold mb-1">Applying for Rank <small class="text-muted">(defaults to vacancy rank — change if applying for different rank)</small></label>
-            <select class="form-select" id="cm-cand-rank"><option value="">— select rank —</option></select>
-          </div>
           <!-- Row 4: English level + interview date + interview remark -->
           <div class="col-md-2">
             <label class="form-label fw-bold mb-1">English <small class="text-muted">(1–10)</small></label>
@@ -2916,7 +2912,6 @@ function buildCandData(fields, vacId, cvUrl) {
   candSafeSet(d, af, 'EnglishLevel',    document.getElementById('cm-english')?.value || null);
   candSafeSet(d, af, 'EnglishEvalDate', document.getElementById('cm-eval-date')?.value?.trim() || null);
   candSafeSet(d, af, 'EnglishEvalNote', document.getElementById('cm-eval-note')?.value?.trim() || null);
-  candSafeSet(d, af, 'ApplyingRank',    document.getElementById('cm-cand-rank')?.value || null);
   return d;
 }
 
@@ -3349,19 +3344,6 @@ function openCandidateModal(vacId,candId=null) {
   // Populate agency select
   const agSel=document.getElementById('cm-agency');
   if(agSel) agSel.innerHTML=`<option value="">— select —</option>`+S.agencies.map(a=>`<option value="${h(a.Title)}">${h(a.Title)}</option>`).join('');
-  // Populate rank select; pre-select vacancy rank for new candidates
-  const rankSel=document.getElementById('cm-cand-rank');
-  if(rankSel){
-    const cats=[...new Set(S.ranks.map(r=>r.RankCategory).filter(Boolean))];
-    let rankHtml='<option value="">— select rank —</option>';
-    cats.forEach(cat=>{
-      const opts=S.ranks.filter(r=>r.RankCategory===cat).map(r=>`<option value="${h(r.Title)}">${h(r.Title)}</option>`).join('');
-      if(opts) rankHtml+=`<optgroup label="${h(cat)}">${opts}</optgroup>`;
-    });
-    S.ranks.filter(r=>!r.RankCategory).forEach(r=>{rankHtml+=`<option value="${h(r.Title)}">${h(r.Title)}</option>`;});
-    rankSel.innerHTML=rankHtml;
-    if(!candId) rankSel.value=window._currentVacRank||''; // pre-fill with vacancy rank for new candidates
-  }
   // Reset all form fields
   ['cm-lastname','cm-firstname','cm-phone','cm-email','cm-cvlink','cm-notes','cm-dob','cm-eval-date','cm-eval-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['cm-nat','cm-agency','cm-english'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -3394,7 +3376,6 @@ function openCandidateModal(vacId,candId=null) {
       document.getElementById('cm-cvlink').value=rv('CandidateCV',f.CVLink)||rv('CandCVLink',null);
       document.getElementById('cm-status').value=rv('CandidateStatus',f.CandidateStatus)||'Applied';
       document.getElementById('cm-notes').value=rv('Notes',f.Notes);
-      const arEl=document.getElementById('cm-cand-rank'); if(arEl) arEl.value=rv('ApplyingRank',f.ApplyingRank)||'';
     }).catch(e=>toast(e.message,'danger'));
   }
   document.getElementById('btn-cm-save').onclick=saveCandidateModal;
@@ -5431,7 +5412,7 @@ function filterSeafarers() {
   const nat=document.getElementById('sf-f-nat')?.value||'';
   const q=(document.getElementById('sf-f-search')?.value||'').toLowerCase();
   let list=(window._allSeafarers||[]).filter(sf=>{
-    if(rank&&sf.Rank!==rank) return false;
+    if(rank&&!(sf.Rank||'').split(',').map(s=>s.trim()).includes(rank)) return false;
     if(nat&&sf.Nationality!==nat) return false;
     if(q){
       const blob=[sf.FirstName,sf.LastName,sf.Title,sf.Rank,sf.Nationality,sf.AgencyName,sf.Phone,sf.Email].filter(Boolean).join(' ').toLowerCase();
@@ -5513,7 +5494,8 @@ async function openSeafarerModal(id) {
       toast('Load failed: '+e.message,'danger'); return;
     }
   }
-  const rankOpts=S.ranks.map(r=>`<option value="${h(r.Title)}"${sf?.Rank===r.Title?' selected':''}>${h(r.Title)}</option>`).join('');
+  const selRanks=new Set((sf?.Rank||'').split(',').map(s=>s.trim()).filter(Boolean));
+  const rankOpts=S.ranks.map(r=>`<option value="${h(r.Title)}"${selRanks.has(r.Title)?' selected':''}>${h(r.Title)}</option>`).join('');
   const natOpts=COUNTRIES.map(c=>`<option${sf?.Nationality===c?' selected':''}>${h(c)}</option>`).join('');
   const agencyOpts=S.agencies.map(a=>`<option value="${h(a.Title)}"${sf?.AgencyName===a.Title?' selected':''}>${h(a.Title)}</option>`).join('');
   const engVal=sf?.EnglishLevel||'';
@@ -5567,9 +5549,8 @@ async function openSeafarerModal(id) {
         <div class="col-md-4"><label class="form-label fw-bold mb-1">Date of Birth <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-dob" value="${h(sf?.DOB||'')}" placeholder="DD.MM.YYYY" oninput="formatDobInput(this)" onblur="expandDobYear(this)" maxlength="10"><div class="form-text mt-0" style="font-size:.7rem;color:var(--mc-blue)">DD.MM.YYYY — auto-formatted</div></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-md-3"><label class="form-label fw-bold mb-1">Gender <span class="text-danger">*</span></label><select class="form-select" id="sf-gender"><option value="">— select —</option><option value="Male"${sf?.Gender==='Male'?' selected':''}>Male</option><option value="Female"${sf?.Gender==='Female'?' selected':''}>Female</option><option value="Diverse"${sf?.Gender==='Diverse'?' selected':''}>Diverse</option></select></div>
-        <div class="col-md-5"><label class="form-label fw-bold mb-1">Nationality <span class="text-danger">*</span></label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
-        <div class="col-md-4"><label class="form-label fw-bold mb-1">Agency <span class="text-danger">*</span></label><select class="form-select" id="sf-agency"><option value="">— select —</option>${agencyOpts}</select></div>
+        <div class="col-md-6"><label class="form-label fw-bold mb-1">Nationality <span class="text-danger">*</span></label><select class="form-select" id="sf-nat"><option value="">— select —</option>${natOpts}</select></div>
+        <div class="col-md-6"><label class="form-label fw-bold mb-1">Agency <span class="text-danger">*</span></label><select class="form-select" id="sf-agency"><option value="">— select —</option>${agencyOpts}</select></div>
       </div>
       <div class="row g-2 mb-2">
         <div class="col-md-4"><label class="form-label fw-bold mb-1">Phone / Mobile <span class="text-danger">*</span></label><input type="text" class="form-control" id="sf-phone" value="${h(sf?.Phone||'')}" placeholder="+49 123 456789"></div>
@@ -5582,7 +5563,7 @@ async function openSeafarerModal(id) {
         <div class="col-md-7"><label class="form-label fw-bold mb-1">Interview Remark</label><input type="text" class="form-control" id="sf-eval-note" value="${h(sf?.EnglishEvalNote||'')}" placeholder="e.g. Good command, slight accent…"></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-md-4"><label class="form-label fw-bold mb-1">Rank <span class="text-danger">*</span></label><select class="form-select" id="sf-rank"><option value="">— select —</option>${rankOpts}</select></div>
+        <div class="col-12"><label class="form-label fw-bold mb-1">Rank <span class="text-danger">*</span> <small class="text-muted fw-normal">(hold Ctrl / ⌘ to select multiple)</small></label><select class="form-select" id="sf-rank" multiple size="6">${rankOpts}</select></div>
       </div>
       <div class="mb-2"><label class="form-label fw-bold mb-1">CV <span class="text-danger">*</span></label>
         <div id="sf-cv-drop-zone" onclick="document.getElementById('sf-cv-file-input').click()"
@@ -5742,25 +5723,24 @@ async function saveSeafarer() {
   const fn=document.getElementById('sf-fn')?.value?.trim();
   const ln=document.getElementById('sf-ln')?.value?.trim();
   const dob=document.getElementById('sf-dob')?.value?.trim();
-  const gender=document.getElementById('sf-gender')?.value||'';
   const nat=document.getElementById('sf-nat')?.value||'';
   const agency=document.getElementById('sf-agency')?.value||'';
   const phone=document.getElementById('sf-phone')?.value?.trim()||'';
   const email=document.getElementById('sf-email')?.value?.trim()||'';
+  const rankEl=document.getElementById('sf-rank');
+  const rankVal=Array.from(rankEl?.selectedOptions||[]).map(o=>o.value).filter(Boolean).join(',');
   // Mandatory field validation
   if(!ln){toast('Last name is required','warning');return;}
   if(!fn){toast('First name is required','warning');return;}
   if(!dob){toast('Date of birth is required','warning');return;}
   { const err=validateDob(dob,'Date of Birth'); if(err){toast(err,'warning');return;} }
-  if(!gender){toast('Gender is required','warning');return;}
   if(!nat){toast('Nationality is required','warning');return;}
   if(!agency){toast('Agency is required','warning');return;}
   if(!phone){toast('Phone number is required','warning');return;}
   if(!phone.startsWith('+')){toast('Phone must start with a country code, e.g. +49 or +380','warning');return;}
   if(!email){toast('Email is required','warning');return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Email must be a valid address (e.g. name@example.com)','warning');return;}
-  const rankVal=document.getElementById('sf-rank')?.value||'';
-  if(!rankVal){toast('Rank is required','warning');return;}
+  if(!rankVal){toast('At least one rank is required','warning');return;}
   // CV mandatory for new seafarers (file pending or link provided)
   if(!id) {
     const cvLink=document.getElementById('sf-cvlink')?.value?.trim()||'';
@@ -5777,9 +5757,8 @@ async function saveSeafarer() {
   const data={
     Title:`${ln} ${fn}`,
     FirstName:fn, LastName:ln, DOB:dob,
-    Gender:gender||null,
     Nationality:nat||null,
-    Rank:document.getElementById('sf-rank')?.value||null,
+    Rank:rankVal||null,
     Phone:phone||null,
     Email:email||null,
     AgencyName:agency||null,
@@ -6174,19 +6153,6 @@ function editVessel(id) {
   // Trading areas multi-select
   const selAreas=new Set((v?.TradingArea||'').split(',').map(s=>s.trim()).filter(Boolean));
   const tradingCheckboxes=TRADING_AREAS.map((a,i)=>`<div class="form-check form-check-inline" style="min-width:200px"><input class="form-check-input" type="checkbox" id="vfta_${i}" value="${a}"${selAreas.has(a)?' checked':''}><label class="form-check-label" for="vfta_${i}" style="font-size:.82rem">${a}</label></div>`).join('');
-  // Inspections
-  let inspections=[]; try{inspections=JSON.parse(v?.InspectionsJson||'[]');}catch(_){}
-  window._vesselInspections=[...inspections];
-  const inspectionRows=inspections.length
-    ?inspections.map((ins,i)=>`<tr>
-      <td style="font-size:.82rem">${h(ins.date||'')}</td>
-      <td style="font-size:.82rem">${h(ins.type||'Crewing Inspection')}</td>
-      <td style="font-size:.82rem">${h(ins.port||'')}</td>
-      <td style="font-size:.82rem">${h(ins.inspector||'')}</td>
-      <td style="font-size:.82rem">${ins.reportUrl?`<a href="${h(ins.reportUrl)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1"></i>Open</a>`:'—'}</td>
-      <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeVesselInspection(${i})"><i class="bi bi-trash3" style="font-size:.7rem"></i></button></td>
-    </tr>`).join('')
-    :'<tr><td colspan="6" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';
   // Master data fields are locked for existing vessels
   const LOCKED_FIELDS=['vf-title','vf-abbr','vf-type','vf-flag','vf-built','vf-imo','vf-dwt','vf-grt'];
   const lockAttr=(!isNew)?'readonly disabled':'' ; // will be set via JS after render
@@ -6334,55 +6300,6 @@ function editVessel(id) {
       <div class="form-check"><input class="form-check-input" type="checkbox" id="vf-active"${v?.IsActive!==false?' checked':''}><label class="form-check-label fw-bold" for="vf-active">Active vessel</label></div>
     </div>
   </div>
-  <hr class="my-2">
-  <p class="fw-bold mb-2" style="font-size:.88rem;color:var(--mc-blue)"><i class="bi bi-clipboard-check me-1"></i>Crewing Inspections</p>
-  <div class="row g-3 mb-3">
-    <div class="col-md-4"><label class="form-label fw-bold">Next Planned Inspection</label>
-      <input type="text" class="form-control" id="vf-next-inspection" value="${h(v?.NextInspectionDate||'')}" placeholder="DD.MM.YYYY"></div>
-    <div class="col-md-4"><label class="form-label fw-bold">Next Inspection By</label>
-      <input type="text" class="form-control" id="vf-next-inspection-by" value="${h(v?.NextInspectionBy||'')}" placeholder="Inspector name"></div>
-    <div class="col-md-4 d-flex align-items-end">
-      <div class="text-muted" style="font-size:.82rem">Past inspections are recorded below. The most recent date appears in dashboards &amp; KPIs.</div>
-    </div>
-  </div>
-  <div id="vessel-inspections-wrap" class="mb-2">
-    <table class="table table-sm table-bordered mb-2" style="font-size:.82rem">
-      <thead style="background:#f0f4f8"><tr>
-        <th>Date</th><th>Type</th><th>Port</th><th>Inspector</th><th>Report</th><th style="width:36px"></th>
-      </tr></thead>
-      <tbody id="vessel-inspections-body">${inspectionRows}</tbody>
-    </table>
-  </div>
-  <div class="card border-0 bg-light p-2 mb-2" style="font-size:.83rem">
-    <div class="fw-bold mb-2" style="color:var(--mc-blue)"><i class="bi bi-plus-circle me-1"></i>Add Inspection Record</div>
-    <div class="row g-2">
-      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Date</label>
-        <input type="text" class="form-control form-control-sm" id="vi-date" placeholder="DD.MM.YYYY"></div>
-      <div class="col-md-3"><label class="form-label form-label-sm mb-1">Type</label>
-        <select class="form-select form-select-sm" id="vi-type">
-          <option value="Crewing Inspection">Crewing Inspection</option>
-          <option value="Management Vessel Visit">Management Vessel Visit</option>
-        </select></div>
-      <div class="col-md-2"><label class="form-label form-label-sm mb-1">Port</label>
-        <input type="text" class="form-control form-control-sm" id="vi-port" placeholder="e.g. Hamburg"></div>
-      <div class="col-md-3"><label class="form-label form-label-sm mb-1">Inspector / Visitor</label>
-        <input type="text" class="form-control form-control-sm" id="vi-inspector" list="vi-inspector-list" placeholder="Select or type name">
-        <datalist id="vi-inspector-list">
-          <option value="Vitaliy Stasyuk">
-          <option value="Serhii Boshko">
-          <option value="Philipp">
-          <option value="Fabian">
-        </datalist></div>
-      <div class="col-md-4"><label class="form-label form-label-sm mb-1">Inspection Report</label>
-        <div id="vi-report-zone" ondragover="viReportDragOver(event)" ondragleave="viReportDragLeave(event)" ondrop="viReportDrop(event)" onclick="document.getElementById('vi-report-file').click()" style="border:2px dashed #ccc;border-radius:4px;padding:4px 10px;cursor:pointer;background:#fafafa;font-size:.78rem;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center">
-          <span id="vi-report-label"><i class="bi bi-upload me-1"></i>Drag report or click to upload</span>
-        </div>
-        <input type="file" id="vi-report-file" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" onchange="viReportFileSelected(this)">
-        <input type="hidden" id="vi-report" value="">
-      </div>
-    </div>
-    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addVesselInspection()"><i class="bi bi-plus me-1"></i>Add</button>
-  </div>
   </form>`;
   // Lock protected fields for existing vessels
   if(!isNew) document.querySelectorAll('#vessel-form-body .vf-protected').forEach(el=>{
@@ -6474,17 +6391,6 @@ async function saveVessel() {
   const vfEngineRemarks=document.getElementById('vf-engine-remarks')?.value?.trim(); if(vfEngineRemarks) data.EngineRemarks=vfEngineRemarks;
   const vfDeckRemarks=document.getElementById('vf-deck-remarks')?.value?.trim(); if(vfDeckRemarks) data.DeckRemarks=vfDeckRemarks;
   const vfTradingDesc=document.getElementById('vf-trading-desc')?.value?.trim(); if(vfTradingDesc) data.TradingAreaDesc=vfTradingDesc;
-  const vfNextInspection=document.getElementById('vf-next-inspection')?.value?.trim(); if(vfNextInspection) data.NextInspectionDate=vfNextInspection;
-  const vfNextInspectionBy=document.getElementById('vf-next-inspection-by')?.value?.trim(); if(vfNextInspectionBy) data.NextInspectionBy=vfNextInspectionBy;
-  // Save inspection history
-  if(window._vesselInspections&&window._vesselInspections.length) {
-    data.InspectionsJson=JSON.stringify(window._vesselInspections);
-    // Derive last inspection date from most recent record
-    const sorted=[...window._vesselInspections].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    if(sorted[0]?.date) data.LastInspectionDate=sorted[0].date;
-  } else if(window._vesselInspections) {
-    data.InspectionsJson='[]';
-  }
   // Upload pending vessel photo if any
   if(window._pendingImgFiles?.['vf-photo']) {
     const {file,subdir}=window._pendingImgFiles['vf-photo'];
@@ -6521,22 +6427,10 @@ async function saveVessel() {
           if(S._editingVesselId){ await spUpdate('VesselMaster',S._editingVesselId,coreData); }
           else { await spCreate('VesselMaster',coreData); }
           toast('Vessel saved (core fields only) — go to Admin → Setup Vessel Extended Columns then re-save','warning');
-          // Always rescue inspection data separately — it's the most critical operational field
-          window._inspRescuePending={id:S._editingVesselId,data};
         }
       } else { throw e400; }
     }
     const savedVesselId=S._editingVesselId||id;
-    // If fallback to core-only was triggered, rescue inspection data now (columns exist after ensureAllVesselExtCols)
-    if(window._inspRescuePending) {
-      const {id:rescueId,data:rescueData}=window._inspRescuePending;
-      delete window._inspRescuePending;
-      if(rescueData.InspectionsJson!==undefined) {
-        const inspPatch={InspectionsJson:rescueData.InspectionsJson};
-        if(rescueData.LastInspectionDate) inspPatch.LastInspectionDate=rescueData.LastInspectionDate;
-        await spUpdate('VesselMaster',rescueId||savedVesselId,inspPatch).catch(()=>{});
-      }
-    }
     toast(S._editingVesselId?'Vessel updated ✓':'Vessel created ✓');
     logActivity(S._editingVesselId?'Updated':'Created','Vessel',savedVesselId,title);
     bootstrap.Modal.getInstance(document.getElementById('modalVesselForm'))?.hide();
@@ -6549,73 +6443,6 @@ async function saveVessel() {
     } catch(_){}
   } catch(e){ toast(`Save failed: ${e.message}`,'danger'); }
   finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save'; }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// VESSEL INSPECTION HELPERS
-// ═══════════════════════════════════════════════════════════════════
-// ── Inspection report file upload ──────────────────────────────────
-function viReportDragOver(e){e.preventDefault();const z=document.getElementById('vi-report-zone');if(z){z.style.borderColor='var(--mc-blue)';z.style.background='#ebf3fb';}}
-function viReportDragLeave(e){const z=document.getElementById('vi-report-zone');if(z){z.style.borderColor='#ccc';z.style.background='#fafafa';}}
-async function viReportDrop(e){e.preventDefault();viReportDragLeave(e);const f=e.dataTransfer.files[0];if(f)await handleViReportFile(f);}
-async function viReportFileSelected(inp){const f=inp.files[0];if(f)await handleViReportFile(f);}
-async function handleViReportFile(file) {
-  const lbl=document.getElementById('vi-report-label');
-  const zone=document.getElementById('vi-report-zone');
-  if(lbl) lbl.textContent='Uploading…';
-  if(zone) zone.style.borderColor='#aaa';
-  try {
-    const token=await getToken();
-    const siteRel=SP_SITE.replace('https://martraconeu.sharepoint.com','');
-    await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(siteRel+'/SiteAssets')}')/Folders/add('inspection-reports')`,
-      {method:'POST',headers:{Authorization:`Bearer ${token}`,'X-RequestDigest':'nodigest','Accept':'application/json;odata=verbose'}}).catch(()=>{});
-    const safe=file.name.replace(/[^a-zA-Z0-9._()-]/g,'_');
-    const fileName=`${Date.now()}_${safe}`;
-    const up=await fetch(`${API}/GetFolderByServerRelativeUrl('${encodeURIComponent(siteRel+'/SiteAssets/inspection-reports')}')/Files/add(url='${encodeURIComponent(fileName)}',overwrite=true)`,
-      {method:'POST',headers:{Authorization:`Bearer ${token}`,'X-RequestDigest':'nodigest','Accept':'application/json;odata=verbose'},body:file});
-    const j=await up.json();
-    const url=`https://martraconeu.sharepoint.com${j.d.ServerRelativeUrl}`;
-    const inp=document.getElementById('vi-report'); if(inp) inp.value=url;
-    if(lbl) lbl.innerHTML=`<i class="bi bi-file-earmark-check me-1"></i>${h(file.name)}`;
-    if(zone){zone.style.borderColor='#28a745';zone.style.background='#f0fff4';}
-    toast('Report uploaded ✓','success');
-  } catch(e) {
-    if(lbl) lbl.textContent='Upload failed — try again';
-    if(zone){zone.style.borderColor='#dc3545';zone.style.background='#fff5f5';}
-    toast('Upload failed: '+e.message,'danger');
-  }
-}
-function viReportReset() {
-  const inp=document.getElementById('vi-report'); if(inp) inp.value='';
-  const lbl=document.getElementById('vi-report-label'); if(lbl) lbl.innerHTML='<i class="bi bi-upload me-1"></i>Drag report or click';
-  const zone=document.getElementById('vi-report-zone'); if(zone){zone.style.borderColor='#ccc';zone.style.background='#fafafa';}
-  const fi=document.getElementById('vi-report-file'); if(fi) fi.value='';
-}
-
-function addVesselInspection() {
-  const date=document.getElementById('vi-date')?.value?.trim();
-  if(!date){toast('Please enter an inspection date','warning');return;}
-  const rec={
-    date,
-    type:document.getElementById('vi-type')?.value||'Crewing Inspection',
-    result:'Passed',
-    port:document.getElementById('vi-port')?.value?.trim()||'',
-    inspector:document.getElementById('vi-inspector')?.value?.trim()||'',
-    reportUrl:document.getElementById('vi-report')?.value?.trim()||''
-  };
-  if(!window._vesselInspections) window._vesselInspections=[];
-  window._vesselInspections.unshift(rec); // newest first
-  // Clear add form
-  ['vi-date','vi-port','vi-inspector'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const viType=document.getElementById('vi-type');if(viType)viType.selectedIndex=0;
-  viReportReset();
-  renderVesselInspectionTable();
-  toast('Inspection record added — save vessel to persist','info');
-}
-function removeVesselInspection(idx) {
-  if(!window._vesselInspections) return;
-  window._vesselInspections.splice(idx,1);
-  renderVesselInspectionTable();
 }
 
 // ── Quick-Add Inspection Modal ─────────────────────────────────────
@@ -6679,21 +6506,6 @@ async function saveQuickInspection() {
     btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>Save Record';
   }
 }
-function renderVesselInspectionTable() {
-  const tbody=document.getElementById('vessel-inspections-body');
-  if(!tbody) return;
-  const ins=window._vesselInspections||[];
-  if(!ins.length){tbody.innerHTML='<tr><td colspan="6" class="text-muted text-center py-2" style="font-size:.82rem">No inspection records yet</td></tr>';return;}
-  tbody.innerHTML=ins.map((r,i)=>`<tr>
-    <td style="font-size:.82rem">${h(r.date||'')}</td>
-    <td style="font-size:.82rem">${h(r.type||'Crewing Inspection')}</td>
-    <td style="font-size:.82rem">${h(r.port||'')}</td>
-    <td style="font-size:.82rem">${h(r.inspector||'')}</td>
-    <td style="font-size:.82rem">${r.reportUrl?`<a href="${h(r.reportUrl)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text me-1"></i>Open</a>`:'—'}</td>
-    <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeVesselInspection(${i})"><i class="bi bi-trash3" style="font-size:.7rem"></i></button></td>
-  </tr>`).join('');
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════
