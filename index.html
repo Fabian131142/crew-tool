@@ -1355,13 +1355,7 @@
             <input type="text" class="form-control" id="cm-dob" placeholder="DD.MM.YYYY" maxlength="10" oninput="formatDobInput(this)" onblur="expandDobYear(this)">
             <div class="form-text mt-0" style="font-size:.7rem;color:var(--mc-blue)"><i class="bi bi-person-vcard me-1"></i>Pool duplicate check on save</div>
           </div>
-          <!-- Row 2: Gender + Nationality + Agency -->
-          <div class="col-md-3"><label class="form-label fw-bold mb-1">Gender <span class="text-danger">*</span></label>
-            <select class="form-select" id="cm-gender">
-              <option value="">— select —</option>
-              <option value="Male">Male</option><option value="Female">Female</option><option value="Diverse">Diverse</option>
-            </select>
-          </div>
+          <!-- Row 2: Nationality + Agency -->
           <div class="col-md-5"><label class="form-label fw-bold mb-1">Nationality <span class="text-danger">*</span></label>
             <select class="form-select" id="cm-nat">
               <option value="">— select —</option>
@@ -1969,14 +1963,6 @@ async function renderDashboard() {
              </table></div>`
           : '<div class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-1 fs-5"></i><br><small>No candidates awaiting screening</small></div>'
         }
-      </div>
-    </div>
-
-    <!-- Alerts -->
-    <div class="dash-section-title"><i class="bi bi-exclamation-triangle"></i>Alerts &amp; Data Quality</div>
-    <div class="card border-0 shadow-sm mb-3" style="border-radius:14px !important">
-      <div class="card-body">
-        ${alertItems.length ? alertItems.join('') : '<div class="text-center text-muted py-2"><i class="bi bi-check-circle text-success me-1"></i>No alerts — everything looks good</div>'}
       </div>
     </div>
 
@@ -2927,7 +2913,6 @@ function buildCandData(fields, vacId, cvUrl) {
   candSafeSet(d, af, 'CandidateStatus', document.getElementById('cm-status').value || 'Applied');
   candSafeSet(d, af, 'Notes',           document.getElementById('cm-notes').value  || null);
   candSafeSet(d, af, 'DOB',             document.getElementById('cm-dob')?.value?.trim() || null);
-  candSafeSet(d, af, 'Gender',          document.getElementById('cm-gender')?.value || null);
   candSafeSet(d, af, 'EnglishLevel',    document.getElementById('cm-english')?.value || null);
   candSafeSet(d, af, 'EnglishEvalDate', document.getElementById('cm-eval-date')?.value?.trim() || null);
   candSafeSet(d, af, 'EnglishEvalNote', document.getElementById('cm-eval-note')?.value?.trim() || null);
@@ -3379,7 +3364,7 @@ function openCandidateModal(vacId,candId=null) {
   }
   // Reset all form fields
   ['cm-lastname','cm-firstname','cm-phone','cm-email','cm-cvlink','cm-notes','cm-dob','cm-eval-date','cm-eval-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['cm-nat','cm-agency','cm-gender','cm-english'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['cm-nat','cm-agency','cm-english'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   S.pendingCvFile=null;
   window._poolCache=null; // force fresh load next time pool search opens
   const fn=document.getElementById('cv-file-name'); if(fn) fn.textContent='';
@@ -3399,7 +3384,6 @@ function openCandidateModal(vacId,candId=null) {
       document.getElementById('cm-lastname').value=rv('LastName',f.LastName)||parts[0]||'';
       document.getElementById('cm-firstname').value=rv('FirstName',f.FirstName)||parts[1]||'';
       document.getElementById('cm-dob').value=rv('DOB',f.DOB);
-      document.getElementById('cm-gender').value=rv('Gender',f.Gender);
       document.getElementById('cm-nat').value=rv('Nationality',f.Nationality);
       document.getElementById('cm-agency').value=rv('AgencyName',f.AgencyName);
       document.getElementById('cm-phone').value=rv('Phone',f.Phone);
@@ -3478,7 +3462,6 @@ function selectPoolSeafarer(sf) {
   set('cm-lastname',sf.ln); set('cm-firstname',sf.fn);
   set('cm-phone',sf.phone); set('cm-email',sf.email);
   set('cm-notes',sf.notes); set('cm-dob',sf.dob);
-  set('cm-gender',sf.gender||'');
   set('cm-english',sf.english||'');
   set('cm-eval-date',sf.evalDate||''); set('cm-eval-note',sf.evalNote||'');
   // Nationality
@@ -3749,7 +3732,6 @@ async function saveCandidateModal() {
   const{vacId,candId}=S.pendingCand;
   const last=document.getElementById('cm-lastname').value.trim();
   const first=document.getElementById('cm-firstname').value.trim();
-  const gender=document.getElementById('cm-gender')?.value||'';
   const nat=document.getElementById('cm-nat')?.value||'';
   const agency=document.getElementById('cm-agency')?.value||'';
   const phone=document.getElementById('cm-phone')?.value?.trim()||'';
@@ -3757,7 +3739,6 @@ async function saveCandidateModal() {
   // Mandatory field validation (all except Notes)
   if(!last){toast('Last name is required','warning');return;}
   if(!first){toast('First name is required','warning');return;}
-  if(!gender&&!candId){toast('Gender is required','warning');return;}
   if(!nat){toast('Nationality is required','warning');return;}
   if(!agency&&!candId){toast('Agency is required','warning');return;}
   if(!phone){toast('Phone number is required','warning');return;}
@@ -3831,7 +3812,6 @@ async function saveCandidateModal() {
       try {
         const newPool=await spCreate('SeafarerPool',{
           Title:`${last} ${first}`,FirstName:first,LastName:last,DOB:dob,
-          Gender:document.getElementById('cm-gender')?.value||null,
           Nationality:document.getElementById('cm-nat')?.value||null,
           Rank:rankTitle||null,
           Phone:document.getElementById('cm-phone')?.value?.trim()||null,
@@ -6675,8 +6655,7 @@ async function saveQuickInspection() {
   btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
   try {
     // Load current vessel data to get existing InspectionsJson
-    const vData=await spGet('VesselMaster',`?$select=Id,InspectionsJson,LastInspectionDate,NextInspectionDate,NextInspectionBy&$filter=Id eq ${vesselId}&$top=1`);
-    const vessel=Array.isArray(vData)?vData[0]:vData;
+    const vessel=await spGetOne('VesselMaster',vesselId,'?$select=Id,InspectionsJson');
     let recs=[]; try{recs=JSON.parse(vessel?.InspectionsJson||'[]');}catch(_){}
     const newRec={date,type,result:'Passed',port,inspector,reportUrl:'',notes};
     recs.unshift(newRec);
