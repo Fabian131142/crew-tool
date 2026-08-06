@@ -1228,11 +1228,11 @@
             </select>
           </div>
           <div class="col-md-6">
-            <label class="form-label fw-bold">Port</label>
+            <label class="form-label fw-bold">Port <span class="text-danger">*</span></label>
             <input type="text" class="form-control" id="qi-port" placeholder="e.g. Hamburg">
           </div>
           <div class="col-md-6">
-            <label class="form-label fw-bold">Inspector / Visitor</label>
+            <label class="form-label fw-bold">Inspector / Visitor <span class="text-danger">*</span></label>
             <input type="text" class="form-control" id="qi-inspector" list="qi-inspector-list" placeholder="Select or type name">
             <datalist id="qi-inspector-list">
               <option value="Vitaliy Stasyuk">
@@ -4797,10 +4797,20 @@ async function setupCandidateColumns() {
 async function renderInspections() {
   const el=document.getElementById('v-inspections'); spin(el);
   try {
-    // Fetch fresh vessel data with all inspection fields
-    const vessels=await spGet('VesselMaster',
-      '?$select=Id,Title,IsActive,LastInspectionDate,NextInspectionDate,NextInspectionBy,InspectionsJson&$filter=IsActive eq 1&$orderby=Title&$top=500')
-      .catch(()=>S.vessels||[]);
+    // Fetch fresh vessel data — try full query first, fall back without InspectionsJson if columns not yet created
+    let vessels=[];
+    try {
+      vessels=await spGet('VesselMaster',
+        '?$select=Id,Title,IsActive,LastInspectionDate,NextInspectionDate,NextInspectionBy,InspectionsJson&$filter=IsActive eq 1&$orderby=Title&$top=500');
+    } catch(_) {
+      try {
+        // Extended columns may not exist yet — fetch without them
+        vessels=await spGet('VesselMaster',
+          '?$select=Id,Title,IsActive,LastInspectionDate&$filter=IsActive eq 1&$orderby=Title&$top=500');
+      } catch(_2) {
+        vessels=S.vessels||[];
+      }
+    }
     const activeVessels=(vessels.length?vessels:(S.vessels||[])).filter(v=>v.IsActive!==false);
 
     // Date helpers
@@ -6013,27 +6023,33 @@ function exportVesselsCsv() {
     {h:'EngineOutputKW',f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[1]||'').replace(/[^\d]/g,''); }},
     {h:'EngineStroke',  f:v=>{ const p=(v.EngineSpecs||'').split('|'); return (p[2]||'').trim(); }},
     {h:'FuelType',      f:v=>v.FuelType||''},
-    {h:'AuxEngine',     f:v=>v.AuxEngine||''},
-    {h:'Scrubber',      f:v=>v.Scrubber||''},
-    {h:'BWTS',          f:v=>v.BWTS||''},
-    {h:'Thrusters',     f:v=>v.Thrusters||''},
-    {h:'ECDIS',         f:v=>v.ECDIS||''},
-    {h:'PMS',           f:v=>v.PMS||''},
-    {h:'LoadingProgram',f:v=>v.LoadingProgram||''},
-    {h:'Gear',          f:v=>v.Gear||''},
-    {h:'BridgeCrew',    f:v=>v.BridgeCrew||''},
-    {h:'DeckCrew',      f:v=>v.DeckCrew||''},
-    {h:'EngineCrew',    f:v=>v.EngineCrew||''},
-    {h:'FlagReq',       f:v=>v.FlagReq||''},
-    {h:'VesselEmail',   f:v=>v.VesselEmail||''},
-    {h:'VesselPhone',   f:v=>v.VesselPhone||''},
-    {h:'TradingArea',   f:v=>v.TradingArea||''},
-    {h:'MartraconEntity',f:v=>v.MartraconEntity||''},
-    {h:'ServiceType',   f:v=>v.ServiceType||''},
-    {h:'Client',        f:v=>v.Client?.Title||''},
-    {h:'Union',         f:v=>v.Union||''},
+    {h:'AuxEngine',          f:v=>v.AuxEngine||''},
+    {h:'Scrubber',           f:v=>v.Scrubber||''},
+    {h:'BWTS',               f:v=>v.BWTS||''},
+    {h:'Thrusters',          f:v=>v.Thrusters||''},
+    {h:'ECDIS',              f:v=>v.ECDIS||''},
+    {h:'PMS',                f:v=>v.PMS||''},
+    {h:'LoadingProgram',     f:v=>v.LoadingProgram||''},
+    {h:'Gear',               f:v=>v.Gear||''},
+    {h:'BridgeCrew',         f:v=>v.BridgeCrew||''},
+    {h:'DeckCrew',           f:v=>v.DeckCrew||''},
+    {h:'EngineCrew',         f:v=>v.EngineCrew||''},
+    {h:'FlagReq',            f:v=>v.FlagReq||''},
+    {h:'EngineRemarks',      f:v=>v.EngineRemarks||''},
+    {h:'DeckRemarks',        f:v=>v.DeckRemarks||''},
+    {h:'VesselEmail',        f:v=>v.VesselEmail||''},
+    {h:'SatellitePhone',     f:v=>v.VesselSatPhone||v.VesselPhone||''},
+    {h:'VesselMobile',       f:v=>v.VesselMobile||''},
+    {h:'VesselFinderUrl',    f:v=>v.MarineTrafficUrl||''},
+    {h:'TradingArea',        f:v=>v.TradingArea||''},
+    {h:'TradingAreaDesc',    f:v=>v.TradingAreaDesc||''},
+    {h:'EntityOfficers',     f:v=>v.EntityOfficers||''},
+    {h:'EntityRatings',      f:v=>v.EntityRatings||''},
+    {h:'ServiceType',        f:v=>v.ServiceType||''},
+    {h:'Client',             f:v=>v.Client?.Title||''},
+    {h:'Union',              f:v=>v.Union||''},
     {h:'ManagementNationality',f:v=>v.ManagementNationality||''},
-    {h:'IsActive',      f:v=>v.IsActive===false?'FALSE':'TRUE'},
+    {h:'IsActive',           f:v=>v.IsActive===false?'FALSE':'TRUE'},
   ];
   const esc=v=>{ const s=String(v); return (s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s.replace(/"/g,'""')}"`:s; };
   const rows=[COLS.map(c=>c.h).join(','),...vessels.map(v=>COLS.map(c=>esc(c.f(v))).join(','))];
@@ -6476,6 +6492,8 @@ async function saveQuickInspection() {
 
   if(!vesselId){if(errEl){errEl.textContent='Please select a vessel.';errEl.classList.remove('d-none');}return;}
   if(!date){if(errEl){errEl.textContent='Please enter a date.';errEl.classList.remove('d-none');}return;}
+  if(!port){if(errEl){errEl.textContent='Port is required.';errEl.classList.remove('d-none');}return;}
+  if(!inspector){if(errEl){errEl.textContent='Inspector / Visitor is required.';errEl.classList.remove('d-none');}return;}
   if(errEl)errEl.classList.add('d-none');
 
   const btn=document.getElementById('qi-save-btn');
